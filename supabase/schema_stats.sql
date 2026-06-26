@@ -1,18 +1,14 @@
 -- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║ SismoVE · Cifras oficiales del terremoto (banner rojo)                     ║
--- ║ Las escribe /api/sismo-stats (Wikipedia → Gemini). Lectura pública.        ║
+-- ║ SismoVE · Cifras del terremoto por fuente (banner rojo)                    ║
+-- ║ Las escribe /api/sismo-stats (scraping de Vozpópuli, OKDIARIO y            ║
+-- ║ afectadosporelterremotovenezuela.com + extracción con Gemini).            ║
+-- ║ `sources` = array JSON, cada item con su fuente y cifras. Lectura pública. ║
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
 create table if not exists sismo_stats (
-  id            uuid primary key default gen_random_uuid(),
-  fallecidos    int,
-  heridos       int,
-  desaparecidos int,
-  afectados     int,
-  fecha         text,        -- fecha de actualización tal como la reporta la fuente
-  fuente        text,        -- quién reporta (Asamblea Nacional / ONU / gobierno...)
-  url           text,        -- enlace a la fuente
-  updated_at    timestamptz default now()
+  id          uuid primary key default gen_random_uuid(),
+  sources     jsonb default '[]'::jsonb,   -- [{nombre,url,fallecidos,heridos,desaparecidos,rescatados,aparecidos,fecha}]
+  updated_at  timestamptz default now()
 );
 create index if not exists idx_sismo_stats_upd on sismo_stats(updated_at desc);
 

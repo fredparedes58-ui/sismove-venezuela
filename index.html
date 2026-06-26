@@ -304,13 +304,13 @@
 
 <div class="alert-bar">
   <span class="dot">🔴</span>&nbsp;
-  EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span>
+  EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · <span class="balance-bar">920 fallecidos · +50.000 desaparecidos</span>
 </div>
 
 <!-- TICKER INFORMATIVO -->
 <div class="ticker-wrap">
   <div class="ticker-track">
-    <span class="ticker-item">🔴 <strong>BALANCE OFICIAL:</strong> <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span> · 6,76 millones de afectados (ONU) · <span class="balance-fuente">Asamblea Nacional, 26 jun</span></span>
+    <span class="ticker-item">🔴 <strong>BALANCE por fuente:</strong> <span class="balance-ticker">Vozpópuli: 920 fallecidos · 50.000 desaparecidos · Protección Civil: 568 muertos · +1.000 rescatados · 10.876 desaparecidos</span></span>
     <span class="ticker-sep">·</span>
     <span class="ticker-item">🛰️ <strong>STARLINK GRATIS hasta el 25 de julio</strong> para todos los usuarios en Venezuela — actívalo en starlink.com</span>
     <span class="ticker-sep">·</span>
@@ -330,7 +330,7 @@
     <span class="ticker-sep">·</span>
     <span class="ticker-item">📦 <strong>Valencia España:</strong> Taberna de Pío desde 8:30 · ASIM · AVEC · FIARED · FEVENAES · Av. Amado Granell Mesado 66</span>
     <span class="ticker-sep">·</span>
-    <span class="ticker-item">🔴 <strong>BALANCE OFICIAL:</strong> <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span> · 6,76 millones de afectados (ONU) · <span class="balance-fuente">Asamblea Nacional, 26 jun</span></span>
+    <span class="ticker-item">🔴 <strong>BALANCE por fuente:</strong> <span class="balance-ticker">Vozpópuli: 920 fallecidos · 50.000 desaparecidos · Protección Civil: 568 muertos · +1.000 rescatados · 10.876 desaparecidos</span></span>
     <span class="ticker-sep">·</span>
     <span class="ticker-item">🛰️ <strong>STARLINK GRATIS hasta el 25 de julio</strong> para todos los usuarios en Venezuela — actívalo en starlink.com</span>
     <span class="ticker-sep">·</span>
@@ -502,19 +502,32 @@
 
 
 <script>
-/* Banner rojo: cifras oficiales en vivo (fuente: Wikipedia/oficiales vía /api/sismo-stats).
-   Si falla, se quedan las cifras escritas en el HTML como respaldo. */
+/* Banner rojo: cifras por FUENTE (scraping de Vozpópuli, OKDIARIO y afectadosporelterremoto
+   vía /api/sismo-stats). Si falla, quedan las cifras del HTML como respaldo. */
 (function(){
   try{
     fetch('/api/sismo-stats').then(function(r){return r.json();}).then(function(d){
-      var s = d && d.stats; if(!s) return;
+      var src = d && d.stats && d.stats.sources;
+      if(!Array.isArray(src) || !src.length) return;
       var fmt = function(n){ return Number(n).toLocaleString('es'); };
-      var p = [];
-      if(s.fallecidos!=null) p.push(fmt(s.fallecidos)+' fallecidos');
-      if(s.heridos!=null) p.push('más de '+fmt(s.heridos)+' heridos');
-      if(p.length){ var t=p.join(' · '); document.querySelectorAll('.balance-cifras').forEach(function(e){ e.textContent=t; }); }
-      var fu = [s.fuente, s.fecha].filter(Boolean).join(', ');
-      if(fu){ document.querySelectorAll('.balance-fuente').forEach(function(e){ e.textContent=fu; }); }
+      function full(s){ var p=[];
+        if(s.fallecidos!=null) p.push(fmt(s.fallecidos)+' fallecidos');
+        if(s.desaparecidos!=null) p.push(fmt(s.desaparecidos)+' desaparecidos');
+        if(s.rescatados!=null) p.push('+'+fmt(s.rescatados)+' rescatados');
+        if(s.aparecidos!=null) p.push(fmt(s.aparecidos)+' aparecidos');
+        if(s.heridos!=null) p.push(fmt(s.heridos)+' heridos');
+        return p.join(' · ');
+      }
+      // Ticker: una entrada por fuente con sus cifras
+      var tick = src.filter(function(s){return full(s);}).map(function(s){return s.nombre+': '+full(s);}).join('     |     ');
+      if(tick) document.querySelectorAll('.balance-ticker').forEach(function(e){ e.textContent=tick; });
+      // Barra superior: por métrica, la cifra más alta con su fuente
+      function topBy(k){ var a=src.filter(function(s){return s[k]!=null;}).sort(function(x,y){return y[k]-x[k];}); return a[0]||null; }
+      var bar=[], f=topBy('fallecidos'), de=topBy('desaparecidos'), re=topBy('rescatados');
+      if(f) bar.push(fmt(f.fallecidos)+' fallecidos ('+f.nombre+')');
+      if(de) bar.push(fmt(de.desaparecidos)+' desaparecidos ('+de.nombre+')');
+      if(re) bar.push('+'+fmt(re.rescatados)+' rescatados ('+re.nombre+')');
+      if(bar.length) document.querySelectorAll('.balance-bar').forEach(function(e){ e.textContent=bar.join(' · '); });
     }).catch(function(){});
   }catch(e){}
 })();
