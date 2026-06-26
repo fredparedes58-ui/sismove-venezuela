@@ -33,8 +33,8 @@ async function latest(): Promise<any | null> {
   try {
     const r = await fetch(`${SB}/rest/v1/sismo_stats?select=*&order=updated_at.desc&limit=1`, { headers: sbH() }).then(x => x.json());
     const row = Array.isArray(r) && r[0] ? r[0] : null;
-    // Compat con la tabla plana existente: el array de fuentes se guarda como JSON en `fuente`.
-    if (row && !row.sources && typeof row.fuente === 'string' && row.fuente.trim().startsWith('[')) {
+    // Usa la columna `sources` (jsonb) si tiene datos; si no, cae al respaldo en `fuente` (rows viejas).
+    if (row && (!Array.isArray(row.sources) || row.sources.length === 0) && typeof row.fuente === 'string' && row.fuente.trim().startsWith('[')) {
       try { row.sources = JSON.parse(row.fuente); } catch {}
     }
     return row;
@@ -104,7 +104,7 @@ export default async function handler(req: Request): Promise<Response> {
   // las columnas planas se rellenan con la cifra más alta por compatibilidad. (Sin SQL nuevo.)
   const top = (k: string) => { const a = sources.filter((s: any) => s[k] != null).sort((x: any, y: any) => y[k] - x[k]); return a[0] ? a[0][k] : null; };
   const now = new Date().toISOString();
-  const dbRow = { fallecidos: top('fallecidos'), heridos: top('heridos'), desaparecidos: top('desaparecidos'), fuente: JSON.stringify(sources), url: 'multi-fuente', updated_at: now };
+  const dbRow = { sources, fallecidos: top('fallecidos'), heridos: top('heridos'), desaparecidos: top('desaparecidos'), fuente: JSON.stringify(sources), url: 'multi-fuente', updated_at: now };
   await fetch(`${SB}/rest/v1/sismo_stats`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([dbRow]) }).catch(() => {});
   return json({ status: 'actualizado', stats: { sources, updated_at: now } });
 }
