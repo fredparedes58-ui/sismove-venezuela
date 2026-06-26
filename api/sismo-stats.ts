@@ -20,10 +20,11 @@ const GEMINI = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const REFRESH_MIN = 60;   // scrapea cada página 1 vez por hora (resto de llamadas del cron = cache)
 
+// Solo las fuentes que se leen de forma fiable desde el servidor.
+// (OKDIARIO = live-blog de 1MB con cifras dispersas; afectadosporelterremoto = SPA Next.js
+//  cuyos datos NO están en el HTML → no se pueden rascar server-side. Se retiraron.)
 const FUENTES: { nombre: string; url: string; api?: string }[] = [
   { nombre: 'Vozpópuli', url: 'https://www.vozpopuli.com/internacional/terremotos-en-venezuela-en-directo-ultima-hora-del-desastre-numero-de-fallecidos-y-total-de-desaparecidos-espanoles.html' },
-  { nombre: 'OKDIARIO', url: 'https://okdiario.com/internacional/ultima-hora-del-terremoto-venezuela-directo-muertos-heridos-desaparecidos-18863740' },
-  { nombre: 'Afectados por el Terremoto', url: 'https://www.afectadosporelterremotovenezuela.com/' },
   { nombre: 'Wikipedia (cita Asamblea Nacional/ONU)', url: 'https://es.wikipedia.org/wiki/Terremotos_de_Venezuela_de_2026', api: 'https://es.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&exintro=1&redirects=1&format=json&titles=' + encodeURIComponent('Terremotos de Venezuela de 2026') },
 ];
 
