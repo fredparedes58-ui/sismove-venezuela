@@ -1,0 +1,28 @@
+# Secretos — NUNCA desplegar
+.env
+.env.local
+# Control de versiones / config local
+.git
+.github
+.claude
+node_modules
+# Intermedios pesados del importador (towers.js ya contiene los datos)
+data/towers_ve.csv
+data/towers_ve_fresh.csv
+# Docs y material ajeno al sitio
+*.md
+informacion Andrea.txt
+Krujens*
+VITAS*
+Nueva carpeta
+assets/css2.descarga
+cons.txt
+cons.html
+emb*.html
+evo.html
+portada.html
+*.txt
+_ocr
+_dd.json
+_sample.json
+_*.json

@@ -1,0 +1,13 @@
+{
+  "name": "sismove",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SismoVE — Red de respuesta sismica (scraping + dashboard + bot Telegram)",
+  "scripts": {
+    "scrape": "node scraper/scrape.mjs",
+    "scrape:post": "node scraper/scrape.mjs --post",
+    "serve": "node scripts/serve.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>SismoVE · Red de Respuesta Sísmica</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root{
+    --bg:#0b1220; --bg2:#111a2e; --card:#15203a; --card2:#1b2944;
+    --line:#26344f; --txt:#e8eef9; --mut:#94a6c4; --mut2:#6f82a3;
+    --amber:#ffb020; --amber-d:#e0951a;
+    --red:#ff4d4f; --red-bg:#3a1417;
+    --orange:#ff8a3d;
+    --green:#22c98a; --green-bg:#0f2e22;
+    --blue:#4d9fff;
+    --crit:#ff4d4f; --alta:#ff8a3d; --media:#ffb020; --baja:#4d9fff;
+    --radius:16px; --shadow:0 8px 30px rgba(0,0,0,.35);
+    --ff:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--ff); background:radial-gradient(1200px 600px at 50% -10%,#16223e 0%,var(--bg) 60%);
+    color:var(--txt); min-height:100dvh; line-height:1.45;
+    padding-bottom:84px;
+  }
+  a{color:var(--blue)}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+
+  /* ---------- Top bar ---------- */
+  .demo{background:repeating-linear-gradient(45deg,#3a2a0a,#3a2a0a 12px,#2f2208 12px,#2f2208 24px);
+    color:#ffd98a;font-size:12px;text-align:center;padding:6px 10px;font-weight:600;letter-spacing:.3px}
+  header.top{position:sticky;top:0;z-index:40;background:rgba(11,18,32,.86);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line)}
+  .top-in{display:flex;align-items:center;gap:12px;padding:12px 16px;max-width:760px;margin:0 auto}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.3px}
+  .logo .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205;font-size:18px;box-shadow:0 4px 14px rgba(255,138,61,.35)}
+  .logo small{display:block;font-size:10.5px;font-weight:600;color:var(--mut);letter-spacing:.2px;margin-top:-2px}
+  .sos{margin-left:auto;background:var(--red);color:#fff;border:0;border-radius:12px;font-weight:800;
+    padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(255,77,79,.35);display:flex;gap:6px;align-items:center}
+  .sos:active{transform:scale(.96)}
+
+  /* ---------- Views ---------- */
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .pad{padding-top:18px}
+  h2.title{font-size:21px;margin:4px 0 2px;letter-spacing:-.3px}
+  p.sub{color:var(--mut);margin:0 0 16px;font-size:14px}
+
+  /* ---------- Cards & grid ---------- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:12px}
+  .grid.cols2{grid-template-columns:1fr 1fr}
+  .grid.cols3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:520px){.grid.cols3{grid-template-columns:1fr 1fr}}
+
+  /* ---------- Need type buttons ---------- */
+  .needs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .need{background:var(--card2);border:1.5px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;
+    display:flex;gap:12px;align-items:center;transition:.15s;text-align:left}
+  .need:hover{border-color:var(--amber)}
+  .need.sel{border-color:var(--amber);background:linear-gradient(180deg,rgba(255,176,32,.12),transparent)}
+  .need .ico{font-size:24px;width:30px;text-align:center}
+  .need b{display:block;font-size:14.5px}
+  .need span{font-size:11.5px;color:var(--mut)}
+
+  label.fl{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin:14px 0 6px;letter-spacing:.2px}
+  input,textarea,select{width:100%;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;
+    color:var(--txt);padding:12px;font-size:15px;font-family:inherit;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--amber)}
+  textarea{resize:vertical;min-height:74px}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .btn{width:100%;border:0;border-radius:13px;padding:14px;font-size:15.5px;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn.primary{background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205;box-shadow:0 6px 18px rgba(255,138,61,.3)}
+  .btn.primary:active{transform:scale(.99)}
+  .btn.ghost{background:var(--card2);color:var(--txt);border:1.5px solid var(--line)}
+  .btn.danger{background:var(--red);color:#fff}
+  .btn.ok{background:var(--green);color:#04130d}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---------- Stats ---------- */
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
+  .stat .n{font-size:26px;font-weight:800;letter-spacing:-1px}
+  .stat .l{font-size:11px;color:var(--mut);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .stat.crit .n{color:var(--crit)} .stat.ok .n{color:var(--green)} .stat.warn .n{color:var(--amber)}
+
+  /* ---------- Map ---------- */
+  #map,#mapShelter{height:300px;border-radius:14px;border:1px solid var(--line);z-index:1}
+  .leaflet-popup-content-wrapper{background:var(--card);color:var(--txt);border-radius:12px}
+  .leaflet-popup-tip{background:var(--card)}
+  .leaflet-popup-content{margin:12px 14px;font-family:var(--ff)}
+
+  /* ---------- Report list ---------- */
+  .rep{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .rep.crit{border-left-color:var(--crit)} .rep.alta{border-left-color:var(--alta)}
+  .rep.media{border-left-color:var(--media)} .rep.baja{border-left-color:var(--baja)}
+  .rep .h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rep .t{font-weight:700;font-size:14.5px}
+  .rep .d{color:var(--mut);font-size:13px;margin:5px 0}
+  .rep .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--mut2);margin-top:6px}
+  .badge{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px}
+  .badge.crit{background:var(--red-bg);color:var(--crit)} .badge.alta{background:#3a2412;color:var(--alta)}
+  .badge.media{background:#332806;color:var(--media)} .badge.baja{background:#0f2138;color:var(--baja)}
+  .badge.st{background:var(--card2);color:var(--mut)}
+  .ai-why{font-size:11.5px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);
+    padding:7px 10px;border-radius:9px;margin-top:8px;display:flex;gap:7px;align-items:flex-start}
+  .ai-why b{color:var(--amber)}
+  .rep .acts{display:flex;gap:8px;margin-top:10px}
+  .rep .acts button{flex:1;font-size:12px;padding:8px;border-radius:9px;border:1px solid var(--line);
+    background:var(--card2);color:var(--txt);cursor:pointer;font-weight:600}
+
+  /* ---------- Filters ---------- */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;-webkit-overflow-scrolling:touch}
+  .chip{white-space:nowrap;background:var(--card2);border:1px solid var(--line);color:var(--mut);
+    padding:7px 14px;border-radius:999px;font-size:13px;cursor:pointer;font-weight:600}
+  .chip.on{background:var(--amber);color:#1a1205;border-color:var(--amber)}
+
+  /* ---------- Bot chat ---------- */
+  .chat{display:flex;flex-direction:column;gap:10px;min-height:300px;max-height:52dvh;overflow-y:auto;padding:4px}
+  .msg{max-width:82%;padding:11px 14px;border-radius:16px;font-size:14.5px;line-height:1.4;animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .msg.bot{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start}
+  .msg.me{background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205;border-bottom-right-radius:5px;align-self:flex-end;font-weight:600}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .quick button{background:var(--bg2);border:1.5px solid var(--amber);color:var(--amber);border-radius:999px;
+    padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+  .quick button:active{transform:scale(.96)}
+  .chat-in{display:flex;gap:8px;margin-top:10px}
+  .chat-in input{border-radius:999px}
+  .chat-in button{background:var(--amber);border:0;border-radius:50%;width:46px;height:46px;font-size:18px;cursor:pointer;color:#1a1205;flex:none}
+
+  /* ---------- Info ---------- */
+  .acc{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--card)}
+  .acc summary{padding:14px 16px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
+  .acc summary::-webkit-details-marker{display:none}
+  .acc summary .ph{margin-left:auto;color:var(--mut);transition:.2s}
+  .acc[open] summary .ph{transform:rotate(45deg)}
+  .acc .body{padding:0 16px 16px;color:var(--mut);font-size:14px}
+  .acc .body b{color:var(--txt)}
+  .step{display:flex;gap:12px;margin:12px 0}
+  .step .num{width:26px;height:26px;border-radius:8px;background:var(--amber);color:#1a1205;font-weight:800;display:grid;place-items:center;flex:none;font-size:13px}
+
+  /* ---------- Bottom nav ---------- */
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(11,18,32,.92);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  .tabs-in{display:flex;width:100%;max-width:760px;justify-content:space-around}
+  .tab{flex:1;background:none;border:0;color:var(--mut2);font-size:10.5px;font-weight:700;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-family:inherit}
+  .tab .i{font-size:21px;line-height:1}
+  .tab.on{color:var(--amber)}
+
+  /* ---------- Toast / modal ---------- */
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--green);
+    color:#04130d;padding:12px 20px;border-radius:12px;font-weight:700;z-index:90;opacity:0;transition:.3s;box-shadow:var(--shadow);max-width:90%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--red);color:#fff}
+  .modal{position:fixed;inset:0;z-index:100;background:rgba(5,9,17,.7);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+  .modal.show{display:flex}
+  .sheet{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:760px;padding:22px;animation:up .3s ease}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .sheet h3{margin:0 0 6px;font-size:19px}
+  .sheet p{color:var(--mut);font-size:14px;margin:0 0 16px}
+  .tel{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:10px;text-decoration:none;color:var(--txt)}
+  .tel .ic{width:42px;height:42px;border-radius:11px;background:var(--red-bg);display:grid;place-items:center;font-size:20px}
+  .tel b{display:block} .tel span{font-size:12.5px;color:var(--mut)}
+  .tel .call{margin-left:auto;font-size:22px;font-weight:800;color:var(--green)}
+  .safe-banner{background:linear-gradient(140deg,var(--green-bg),transparent);border:1px solid #1c4a36;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
+  .safe-banner .big{font-size:40px} .safe-banner b{display:block;margin-top:6px;color:var(--green);font-size:16px}
+  .empty{text-align:center;color:var(--mut2);padding:40px 20px;font-size:14px}
+  .sync-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:12px}
+  .sync-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+  .sync-bar .dot.err{background:var(--red)} .sync-bar .dot.warn{background:var(--amber)}
+  .sync-bar b{color:var(--txt)}
+  .person{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;align-items:center}
+  .person .pic{width:58px;height:58px;border-radius:12px;object-fit:cover;background:var(--card2);flex:none;display:grid;place-items:center;font-size:24px;color:var(--mut2)}
+  .person .info{flex:1;min-width:0}
+  .person .nm{font-weight:700;font-size:15px}
+  .person .dt{font-size:12.5px;color:var(--mut);margin-top:2px}
+  .tag-need{display:inline-block;font-size:11px;background:var(--red-bg);color:#ffb4b5;border-radius:6px;padding:2px 7px;margin:3px 4px 0 0}
+  .tag-have{display:inline-block;font-size:11px;background:var(--green-bg);color:#8ff0c4;border-radius:6px;padding:2px 7px;margin:3px 4px 0 0}
+  .seg{display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:5px;margin-bottom:12px}
+  .seg button{flex:1;border:0;background:none;color:var(--mut);font-weight:700;font-size:13px;padding:10px 4px;border-radius:9px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:0 4px 12px}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
+  #mapHub{height:380px}
+  .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(34,201,138,.7);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,201,138,.6)}70%{box-shadow:0 0 0 8px rgba(34,201,138,0)}100%{box-shadow:0 0 0 0 rgba(34,201,138,0)}}
+</style>
+</head>
+<body>
+
+<div class="demo">⚠️ PROTOTIPO · Sismos (USGS), acopio y desaparecidos = datos reales · Cobertura/luz = reportes de la comunidad · No sustituye a emergencias (911)</div>
+
+<header class="top">
+  <div class="top-in">
+    <div class="logo">
+      <span class="mark">⛰️</span>
+      <div>SismoVE
+        <small>Red de Respuesta Sísmica · Venezuela</small>
+      </div>
+    </div>
+    <button class="sos" onclick="openSOS()">☎ SOS</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ PEDIR AYUDA ============ -->
+  <section class="view active pad" id="v-ayuda">
+    <h2 class="title">Pedir ayuda</h2>
+    <p class="sub">Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.</p>
+
+    <div class="card">
+      <label class="fl">¿Qué necesitas? Toca una opción</label>
+      <div class="needs" id="needGrid"></div>
+
+      <label class="fl">Describe la situación</label>
+      <textarea id="rDesc" placeholder="Ej: Edificio colapsado, hay personas atrapadas en el segundo piso..."></textarea>
+
+      <div class="row">
+        <div>
+          <label class="fl">Personas afectadas</label>
+          <input id="rPeople" type="number" min="1" value="1" />
+        </div>
+        <div>
+          <label class="fl">Ciudad / zona</label>
+          <select id="rCity"></select>
+        </div>
+      </div>
+
+      <label class="fl">Contacto (teléfono opcional)</label>
+      <input id="rPhone" placeholder="0414-0000000" />
+
+      <label class="fl">Ubicación</label>
+      <button class="btn ghost" id="geoBtn" onclick="getGeo()" style="margin-bottom:4px">📍 Usar mi ubicación actual</button>
+      <div id="geoTxt" style="font-size:12px;color:var(--mut);margin-bottom:6px"></div>
+
+      <button class="btn primary" style="margin-top:14px" onclick="submitReport()">Enviar reporte de emergencia</button>
+    </div>
+
+    <div class="card" style="background:var(--bg2)">
+      <div style="display:flex;gap:10px;align-items:center">
+        <span style="font-size:22px">🤖</span>
+        <div>
+          <b>¿Prefieres que te guíe paso a paso?</b>
+          <div style="font-size:12.5px;color:var(--mut)">Usa el asistente conversacional</div>
+        </div>
+        <button class="btn ghost" style="width:auto;padding:10px 16px;margin-left:auto" onclick="go('bot')">Abrir bot →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ESTOY A SALVO ============ -->
+  <section class="view pad" id="v-salvo">
+    <h2 class="title">Estoy a salvo</h2>
+    <p class="sub">Avisa a tus seres queridos y al sistema que estás bien. Reduce la carga de búsquedas.</p>
+
+    <div class="safe-banner">
+      <div class="big">🟢</div>
+      <b id="safeCount">0 personas se han marcado a salvo</b>
+      <div style="font-size:13px;color:var(--mut);margin-top:4px">en las últimas horas (demo)</div>
+    </div>
+
+    <div class="card">
+      <label class="fl">Tu nombre</label>
+      <input id="sName" placeholder="Nombre y apellido" />
+      <label class="fl">Ciudad / zona</label>
+      <select id="sCity"></select>
+      <label class="fl">Mensaje (opcional)</label>
+      <input id="sMsg" placeholder="Estoy bien, en casa de un familiar" />
+      <button class="btn ok" style="margin-top:16px" onclick="markSafe()">🟢 Marcarme a salvo</button>
+    </div>
+
+    <div class="card">
+      <b style="font-size:14px">Personas a salvo recientes</b>
+      <div id="safeList" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- ============ DESAPARECIDOS ============ -->
+  <section class="view pad" id="v-desap">
+    <h2 class="title">Buscar personas desaparecidas</h2>
+    <p class="sub">Registros de portales oficiales. Si buscas a un familiar, regístralo y contacta a la Cruz Roja.</p>
+    <div id="desapSync" class="sync-bar"></div>
+
+    <div class="card" style="background:linear-gradient(140deg,rgba(255,77,79,.08),transparent);border-color:#4a1c1f">
+      <b style="font-size:14px">🤝 ¿No encuentras a tu familia?</b>
+      <div style="font-size:13px;color:var(--mut);margin:6px 0 10px">Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.</div>
+      <a class="btn ok" style="text-decoration:none;display:block;text-align:center" href="tel:04227994880">📞 Llamar Cruz Roja · 0422 799 4880</a>
+    </div>
+
+    <input id="desapSearch" placeholder="🔎 Buscar por nombre o cédula..." oninput="renderDesap()" style="margin-bottom:12px" />
+    <div id="desapList"></div>
+
+    <div class="card" style="margin-top:4px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="font-size:14px">🏥 Buscar en ingresos hospitalarios</b>
+        <span id="hospSync" style="margin-left:auto;font-size:11px;color:var(--mut2)"></span>
+      </div>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Listados oficiales de personas ingresadas (coordinación en Google Drive). Escribe un nombre o apellido.</div>
+      <input id="hospQ" placeholder="🔎 Nombre o apellido de la persona..." oninput="searchHospital()" style="margin-bottom:8px" />
+      <div id="hospResults"></div>
+      <div style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:7px 10px;border-radius:9px;margin-top:8px">⚠️ Datos de listados oficiales: pueden tener errores o duplicados, y la cédula no se muestra. Confirma siempre con el hospital o la <b>Cruz Roja (0422 799 4880)</b>.</div>
+      <details class="acc" style="margin-top:10px">
+        <summary>📄 Documentos oficiales (fuente) <span class="ph">+</span></summary>
+        <div class="body" id="hospDocs"><div class="empty" style="padding:8px">Cargando…</div></div>
+      </details>
+    </div>
+
+    <details class="acc">
+      <summary>📝 Cómo registrar un caso <span class="ph">+</span></summary>
+      <div class="body">
+        <div class="step"><div class="num">1</div><div>Entra a uno de los portales oficiales (botones abajo).</div></div>
+        <div class="step"><div class="num">2</div><div>Completa el formulario: <b>nombre, cédula, edad, foto reciente y zona</b> donde se vio por última vez.</div></div>
+        <div class="step"><div class="num">3</div><div>Comparte el enlace del caso con familiares y vecinos.</div></div>
+        <div class="step"><div class="num">4</div><div>Llama también a la <b>Cruz Roja (0422 799 4880)</b> para el restablecimiento de contacto.</div></div>
+        <p style="margin-top:8px;color:var(--amber)">⚠️ Estos portales ayudan a difundir y reunir información; no garantizan localizar a la persona.</p>
+      </div>
+    </details>
+
+    <div class="row" style="margin-top:6px">
+      <a class="btn ghost" style="text-decoration:none;text-align:center" href="https://venezuelatebusca.com/" target="_blank" rel="noopener">Venezuela Te Busca →</a>
+      <a class="btn ghost" style="text-decoration:none;text-align:center" href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">Desaparecidos Terremoto →</a>
+    </div>
+  </section>
+
+  <!-- ============ MAPAS EN VIVO ============ -->
+  <section class="view pad" id="v-refugios">
+    <h2 class="title">Mapas en vivo</h2>
+    <p class="sub">Centros de acopio, cobertura móvil y estado eléctrico, ciudad por ciudad.</p>
+    <div class="seg" id="mapSeg">
+      <button class="on" data-m="acopio" onclick="setMapMode('acopio')">📦 Acopio</button>
+      <button data-m="cobertura" onclick="setMapMode('cobertura')">📶 Cobertura</button>
+      <button data-m="luz" onclick="setMapMode('luz')">⚡ Luz</button>
+      <button data-m="afectadas" onclick="setMapMode('afectadas')">⚠️ Afectadas</button>
+    </div>
+    <div id="hubSync" class="sync-bar"></div>
+    <div id="mapHub" class="card" style="padding:0;overflow:hidden"></div>
+    <div id="hubLegend" class="legend"></div>
+    <div id="hubActions"></div>
+    <div id="hubList"></div>
+  </section>
+
+  <!-- ============ PANEL (DASHBOARD) ============ -->
+  <section class="view pad" id="v-panel">
+    <h2 class="title">Panel de coordinación <span class="pulse"></span></h2>
+    <p class="sub">Vista de equipos de rescate y ONGs. Reportes priorizados por IA en tiempo real.</p>
+
+    <div class="grid cols3" style="margin-bottom:14px">
+      <div class="stat crit"><div class="n" id="stCrit">0</div><div class="l">Críticos</div></div>
+      <div class="stat warn"><div class="n" id="stOpen">0</div><div class="l">Abiertos</div></div>
+      <div class="stat ok"><div class="n" id="stDone">0</div><div class="l">Atendidos</div></div>
+    </div>
+
+    <div id="map" class="card" style="padding:0;overflow:hidden;margin-bottom:14px"></div>
+
+    <div class="chips" id="filterChips"></div>
+    <div id="repList"></div>
+  </section>
+
+  <!-- ============ BOT ============ -->
+  <section class="view pad" id="v-bot">
+    <h2 class="title">🤖 Asistente SismoVE</h2>
+    <p class="sub">Te ayudo a reportar tu emergencia conversando. Responde con tus palabras.</p>
+    <div class="card">
+      <div class="chat" id="chat"></div>
+      <div class="quick" id="quick"></div>
+      <div class="chat-in">
+        <input id="chatIn" placeholder="Escribe aquí..." onkeydown="if(event.key==='Enter')sendChat()" />
+        <button onclick="sendChat()">➤</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INFO ============ -->
+  <section class="view pad" id="v-info">
+    <h2 class="title">Qué hacer ante un sismo</h2>
+    <p class="sub">Guía de seguridad. Comparte esta información con tu familia.</p>
+
+    <details class="acc" open>
+      <summary>🟡 Durante el temblor <span class="ph">+</span></summary>
+      <div class="body">
+        <div class="step"><div class="num">1</div><div><b>Agáchate.</b> Baja al suelo antes de que el sismo te tire.</div></div>
+        <div class="step"><div class="num">2</div><div><b>Cúbrete.</b> Protege cabeza y cuello bajo una mesa resistente. Aléjate de ventanas.</div></div>
+        <div class="step"><div class="num">3</div><div><b>Sujétate.</b> Agárrate del refugio hasta que pare el movimiento.</div></div>
+        <p style="margin-top:8px">No uses ascensores. Si estás en cama, quédate y cúbrete la cabeza con una almohada.</p>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>🟢 Después del sismo <span class="ph">+</span></summary>
+      <div class="body">
+        <ul style="margin:0;padding-left:18px">
+          <li>Revisa si tú o alguien cercano está herido antes de moverte.</li>
+          <li>Cuidado con réplicas: pueden ocurrir minutos u horas después.</li>
+          <li>Cierra las llaves de gas si hueles fugas. No enciendas fósforos.</li>
+          <li>Usa mensajes de texto en vez de llamadas para no saturar la red.</li>
+          <li>Marca <b>"Estoy a salvo"</b> en la app para avisar a los tuyos.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>🎒 Mochila de emergencia <span class="ph">+</span></summary>
+      <div class="body">
+        Agua (3 litros/persona), comida no perecedera, linterna, radio a pilas, botiquín,
+        documentos en bolsa impermeable, efectivo, medicamentos, cargador portátil, silbato.
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>📞 Teléfonos de emergencia <span class="ph">+</span></summary>
+      <div class="body">
+        <p style="margin:0 0 8px">Toca SOS arriba para ver los números. <i>(En el MVP son de ejemplo — se reemplazan por los oficiales reales: 911, Bomberos, Protección Civil, FUNVISIS para info sísmica.)</i></p>
+      </div>
+    </details>
+  </section>
+
+</main>
+
+<!-- ===== Bottom nav ===== -->
+<nav class="tabs">
+  <div class="tabs-in">
+    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span>Ayuda</button>
+    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span>Buscar</button>
+    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span>Mapas</button>
+    <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span>Panel</button>
+    <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span>Bot</button>
+    <button class="tab" data-v="info" onclick="go('info')"><span class="i">📘</span>Info</button>
+  </div>
+</nav>
+
+<!-- ===== SOS modal ===== -->
+<div class="modal" id="sosModal" onclick="if(event.target===this)closeSOS()">
+  <div class="sheet" style="max-height:82dvh;overflow-y:auto">
+    <h3>☎ Emergencias · peligro inmediato</h3>
+    <p>Números oficiales. Toca para llamar.</p>
+    <a class="tel" href="tel:911"><span class="ic">🚨</span><div><b>Emergencias 911</b><span>Nacional · Policía · Ambulancia</span></div><span class="call">›</span></a>
+    <a class="tel" href="tel:08007248451"><span class="ic">🛡️</span><div><b>Protección Civil Nacional</b><span>0800-PCIVIL-1 · 0800-724-8451</span></div><span class="call">›</span></a>
+
+    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Caracas</div>
+    <a class="tel" href="tel:02125751829"><span class="ic">🛡️</span><div><b>Protección Civil Caracas</b><span>0212-575-1829 · 575-3332 · 575-1823</span></div><span class="call">›</span></a>
+    <a class="tel" href="tel:02125454545"><span class="ic">🚒</span><div><b>Bomberos Caracas</b><span>0212-545-4545</span></div><span class="call">›</span></a>
+
+    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Valencia</div>
+    <a class="tel" href="tel:02418593969"><span class="ic">🛡️</span><div><b>Protección Civil Valencia</b><span>0241-859-3969 · 859-2171 · 0412-827-4252</span></div><span class="call">›</span></a>
+    <a class="tel" href="tel:04144333952"><span class="ic">🚒</span><div><b>Bomberos Valencia</b><span>0414-433-3952</span></div><span class="call">›</span></a>
+
+    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Buscar a un familiar</div>
+    <a class="tel" href="tel:04227994880"><span class="ic">🤝</span><div><b>Cruz Roja · Contacto familiar</b><span>Restablecimiento entre familiares · 0422 799 4880</span></div><span class="call">›</span></a>
+
+    <button class="btn ghost" style="margin-top:14px" onclick="closeSOS()">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Reportar en mapa (cobertura / luz) ===== -->
+<div class="modal" id="mapModal" onclick="if(event.target===this)closeMapModal()">
+  <div class="sheet" id="mapSheet" style="max-height:84dvh;overflow-y:auto"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="data/feed.js" onerror="console.warn('feed.js no encontrado: ejecuta el scraper')"></script>
+<script>
+/* ======================================================================
+   SismoVE — MVP de respuesta sísmica
+   Pilares: App ciudadana · Dashboard · Bot · Agente IA (triaje)
+   Persistencia: localStorage. Datos DEMO claramente marcados.
+====================================================================== */
+
+/* ---------- Catálogos ---------- */
+const NEEDS = [
+  {id:'rescate', ico:'⛑️', label:'Rescate', desc:'Personas atrapadas'},
+  {id:'medico',  ico:'🚑', label:'Médico', desc:'Heridos / salud'},
+  {id:'desap',   ico:'🔍', label:'Desaparecido', desc:'Buscar persona'},
+  {id:'agua',    ico:'💧', label:'Agua y comida', desc:'Suministros'},
+  {id:'refugio', ico:'🏠', label:'Refugio', desc:'Dónde dormir'},
+  {id:'dano',    ico:'🏚️', label:'Daño estructural', desc:'Riesgo de colapso'},
+];
+const NEED_MAP = Object.fromEntries(NEEDS.map(n=>[n.id,n]));
+
+// Ciudades reales de Venezuela (coordenadas aproximadas, solo para ubicar el mapa demo)
+const CITIES = [
+  {n:'Caracas',         lat:10.491, lng:-66.879},
+  {n:'Maracaibo',       lat:10.654, lng:-71.640},
+  {n:'Valencia',        lat:10.162, lng:-68.008},
+  {n:'Barquisimeto',    lat:10.066, lng:-69.347},
+  {n:'Maracay',         lat:10.247, lng:-67.596},
+  {n:'Ciudad Guayana',  lat: 8.354, lng:-62.652},
+  {n:'San Cristóbal',   lat: 7.767, lng:-72.225},
+  {n:'Mérida',          lat: 8.598, lng:-71.144},
+  {n:'Maturín',         lat: 9.745, lng:-63.183},
+  {n:'Barcelona',       lat:10.135, lng:-64.689},
+];
+const cityByName = n => CITIES.find(c=>c.n===n) || CITIES[0];
+
+/* ---------- Estado / persistencia ---------- */
+const LS = 'sismove_v2';
+let DB = load();
+DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
+DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(LS)); if(d&&d.reports) return d; }catch(e){}
+  return seed();
+}
+function save(){ localStorage.setItem(LS, JSON.stringify(DB)); }
+
+function seed(){
+  // Datos DEMO simulados para que el panel no esté vacío
+  const now = Date.now();
+  const mk = (o)=>({id:'r'+Math.random().toString(36).slice(2,8), ts:now-o.ago, status:'nuevo', ...o, ...triage(o)});
+  const reports = [
+    mk({type:'rescate', desc:'Hay 3 personas atrapadas bajo escombros en planta baja, una no responde', people:3, city:'Caracas', phone:'0414-1112233', demo:true, ago:6*60000}),
+    mk({type:'medico',  desc:'Mi vecino tiene una fractura abierta y está sangrando mucho', people:1, city:'Maracay', phone:'0412-5556677', demo:true, ago:18*60000}),
+    mk({type:'desap',   desc:'No encuentro a mi hijo de 8 años desde el temblor', people:1, city:'Valencia', phone:'0416-9990011', demo:true, ago:42*60000}),
+    mk({type:'agua',    desc:'Familia con bebés sin agua potable desde ayer', people:5, city:'Barquisimeto', phone:'', demo:true, ago:75*60000}),
+    mk({type:'refugio', desc:'Necesitamos dónde pasar la noche, casa con grietas', people:4, city:'Mérida', phone:'', demo:true, ago:120*60000}),
+    mk({type:'dano',    desc:'Edificio con columna agrietada, todos evacuaron, riesgo de caída', people:0, city:'Caracas', phone:'', demo:true, ago:160*60000}),
+  ];
+  const shelters = [
+    {n:'Refugio Liceo Andrés Bello', city:'Caracas', cap:200, occ:84, srv:'Comida · Agua · Médico'},
+    {n:'Centro Deportivo Maracay',   city:'Maracay', cap:350, occ:120, srv:'Refugio · Agua'},
+    {n:'Hospital de Campaña Valencia',city:'Valencia', cap:60, occ:41, srv:'Médico · Triaje'},
+    {n:'Iglesia San Juan',           city:'Mérida',  cap:90, occ:33, srv:'Refugio · Comida'},
+    {n:'Punto de acopio Barquisimeto',city:'Barquisimeto',cap:0,occ:0, srv:'Distribución de víveres'},
+  ].map(s=>({...s, ...cityByName(s.city), id:'s'+Math.random().toString(36).slice(2,7), demo:true}));
+  const safe = [
+    {name:'María G.', city:'Caracas', msg:'Estoy bien, en casa', ts:now-12*60000, demo:true},
+    {name:'José R.', city:'Valencia', msg:'A salvo con la familia', ts:now-30*60000, demo:true},
+  ];
+  const jit = (n)=>{ const c=cityByName(n); return {lat:c.lat+(Math.random()-.5)*.06, lng:c.lng+(Math.random()-.5)*.06}; };
+  const coverage = [
+    {id:'cv1', city:'Caracas',   operador:'Movistar', estado:'senal',        ...jit('Caracas'),   ts:now-8*60000,  demo:true},
+    {id:'cv2', city:'Maracaibo', operador:'Digitel',  estado:'sinsenal',     ...jit('Maracaibo'), ts:now-22*60000, demo:true},
+    {id:'cv3', city:'Valencia',  operador:'Movilnet', estado:'intermitente', ...jit('Valencia'),  ts:now-35*60000, demo:true},
+    {id:'cv4', city:'Mérida',    operador:'Movistar', estado:'sinsenal',     ...jit('Mérida'),    ts:now-50*60000, demo:true},
+  ];
+  const power = [
+    {id:'pw1', city:'Caracas',      estado:'conluz', ...jit('Caracas'),      ts:now-10*60000, demo:true},
+    {id:'pw2', city:'Maracaibo',    estado:'sinluz', ...jit('Maracaibo'),    ts:now-15*60000, demo:true},
+    {id:'pw3', city:'Maracay',      estado:'sinluz', ...jit('Maracay'),      ts:now-28*60000, demo:true},
+    {id:'pw4', city:'Barquisimeto', estado:'conluz', ...jit('Barquisimeto'), ts:now-40*60000, demo:true},
+  ];
+  return {reports, shelters, safe, coverage, power};
+}
+
+/* ======================================================================
+   AGENTE IA — Motor de triaje
+   Clasifica prioridad (crítica/alta/media/baja) con razón transparente.
+   Reglas explicables; lista para sustituir por un modelo (Claude) real.
+====================================================================== */
+const CRIT_KW = ['atrapad','atrapada','sangr','no respira','no responde','inconsciente','derrumb','colaps','aplastad','sin respira','bebé','bebe','recién nacido','grave'];
+const HIGH_KW = ['herid','fractura','niño','niña','anciano','embaraza','quemadura','gas','fuga','grietas','agrietad'];
+const TYPE_BASE = {rescate:75, medico:65, desap:60, dano:45, agua:40, refugio:35};
+
+function triage(r){
+  const txt = (r.desc||'').toLowerCase();
+  let score = TYPE_BASE[r.type] ?? 40;
+  const reasons = [];
+  reasons.push(`Tipo «${NEED_MAP[r.type]?.label||r.type}» (base ${TYPE_BASE[r.type]??40})`);
+
+  const critHit = CRIT_KW.find(k=>txt.includes(k));
+  if(critHit){ score += 30; reasons.push(`Palabra de vida en riesgo: «${critHit}» (+30)`); }
+  const highHit = HIGH_KW.find(k=>txt.includes(k));
+  if(highHit){ score += 15; reasons.push(`Factor de vulnerabilidad: «${highHit}» (+15)`); }
+
+  const ppl = +r.people||0;
+  if(ppl>=5){ score += 12; reasons.push(`${ppl} personas afectadas (+12)`); }
+  else if(ppl>=2){ score += 6; reasons.push(`${ppl} personas afectadas (+6)`); }
+
+  score = Math.min(100, score);
+  let prio = 'baja';
+  if(score>=90) prio='crit'; else if(score>=70) prio='alta'; else if(score>=50) prio='media';
+
+  return {score, prio, why:reasons.join(' · ')};
+}
+const PRIO_LABEL = {crit:'Crítica', alta:'Alta', media:'Media', baja:'Baja'};
+const PRIO_ORDER = {crit:0, alta:1, media:2, baja:3};
+
+/* ---------- Navegación ---------- */
+let curView='ayuda';
+function go(v){
+  curView=v;
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
+  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
+  if(v==='desap'){ renderDesap(); loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
+  if(v==='salvo') renderSafe();
+  if(v==='bot' && !chatStarted) startChat();
+}
+
+/* ---------- Pedir ayuda ---------- */
+let selNeed='rescate', geo=null;
+function renderNeeds(){
+  document.getElementById('needGrid').innerHTML = NEEDS.map(n=>
+    `<button class="need ${n.id===selNeed?'sel':''}" onclick="selNeed='${n.id}';renderNeeds()">
+       <span class="ico">${n.ico}</span><div><b>${n.label}</b><span>${n.desc}</span></div></button>`).join('');
+}
+function fillCities(id){
+  document.getElementById(id).innerHTML = CITIES.map(c=>`<option>${c.n}</option>`).join('');
+}
+function getGeo(){
+  const b=document.getElementById('geoBtn'), t=document.getElementById('geoTxt');
+  if(!navigator.geolocation){ t.textContent='Geolocalización no disponible en este dispositivo.'; return; }
+  b.textContent='📍 Obteniendo ubicación...';
+  navigator.geolocation.getCurrentPosition(p=>{
+    geo={lat:p.coords.latitude, lng:p.coords.longitude};
+    t.innerHTML=`✅ Ubicación capturada: ${geo.lat.toFixed(4)}, ${geo.lng.toFixed(4)}`;
+    b.textContent='📍 Ubicación actualizada';
+  }, ()=>{ t.textContent='No se pudo obtener la ubicación (se usará la ciudad seleccionada).'; b.textContent='📍 Usar mi ubicación actual'; },
+  {timeout:8000});
+}
+function submitReport(){
+  const desc=document.getElementById('rDesc').value.trim();
+  if(!desc){ toast('Describe la situación, por favor','err'); return; }
+  const city=document.getElementById('rCity').value;
+  const base=cityByName(city);
+  const r={
+    id:'r'+Math.random().toString(36).slice(2,8),
+    type:selNeed, desc,
+    people:+document.getElementById('rPeople').value||1,
+    city, phone:document.getElementById('rPhone').value.trim(),
+    lat: geo? geo.lat : base.lat + (Math.random()-.5)*.04,
+    lng: geo? geo.lng : base.lng + (Math.random()-.5)*.04,
+    ts:Date.now(), status:'nuevo'
+  };
+  Object.assign(r, triage(r));
+  DB.reports.unshift(r); save();
+  // limpiar
+  document.getElementById('rDesc').value=''; document.getElementById('rPeople').value=1;
+  document.getElementById('rPhone').value=''; geo=null; document.getElementById('geoTxt').textContent='';
+  document.getElementById('geoBtn').textContent='📍 Usar mi ubicación actual';
+  toast(`✅ Reporte enviado · Prioridad ${PRIO_LABEL[r.prio]}`);
+  go('panel');
+}
+
+/* ---------- Estoy a salvo ---------- */
+function markSafe(){
+  const name=document.getElementById('sName').value.trim();
+  if(!name){ toast('Escribe tu nombre','err'); return; }
+  DB.safe.unshift({name, city:document.getElementById('sCity').value, msg:document.getElementById('sMsg').value.trim(), ts:Date.now()});
+  save();
+  document.getElementById('sName').value=''; document.getElementById('sMsg').value='';
+  toast('🟢 ¡Listo! Te marcaste a salvo');
+  renderSafe();
+}
+function renderSafe(){
+  document.getElementById('safeCount').textContent = `${DB.safe.length} personas se han marcado a salvo`;
+  document.getElementById('safeList').innerHTML = DB.safe.length? DB.safe.map(s=>
+    `<div class="rep baja" style="border-left-color:var(--green)">
+       <div class="h"><span class="t">🟢 ${esc(s.name)}</span><span class="badge st">${esc(s.city)}</span></div>
+       ${s.msg?`<div class="d">"${esc(s.msg)}"</div>`:''}
+       <div class="meta"><span>⏱ ${ago(s.ts)}</span></div>
+     </div>`).join('') : '<div class="empty">Aún nadie se ha marcado a salvo.</div>';
+}
+
+/* ======================================================================
+   FEED EN VIVO — datos reales del scraper (data/feed.js incrustado + refresh)
+====================================================================== */
+let FEED = (typeof window!=='undefined' && window.SISMOVE_FEED)
+  ? window.SISMOVE_FEED
+  : { generated_at:null, sources:{}, stats:{}, desaparecidos:[], centros:[], sismos:[], torres:[], areas_afectadas:null };
+
+/* ====== Supabase: reportes comunitarios COMPARTIDOS entre todos (cobertura/luz) ====== */
+const SB_URL='https://lewueqvqdnnkdiqlkrvx.supabase.co';
+const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxld3VlcXZxZG5ua2RpcWxrcnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTQyMjAsImV4cCI6MjA5Nzk3MDIyMH0.YP0XV_UO5jAiinNZOsOIKLXgUGQm2-2vslAX2XwhKEg';
+const SB_H={apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json'};
+let _lastCommLoad=0;
+async function loadCommunityReports(force){
+  if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
+  try{
+    const [cov,pow]=await Promise.all([
+      fetch(`${SB_URL}/rest/v1/coverage_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
+      fetch(`${SB_URL}/rest/v1/power_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
+    ]);
+    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
+    _lastCommLoad=Date.now();
+    if(curView==='refugios' && (mapMode==='cobertura'||mapMode==='luz')) renderHub();
+  }catch(e){ /* offline: se conservan los reportes locales */ }
+}
+async function pushCommunityReport(kind, row){
+  try{
+    const table = kind==='cobertura' ? 'coverage_reports' : 'power_reports';
+    await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
+  }catch(e){ /* offline: queda guardado en localStorage */ }
+}
+
+async function refreshFeed(){
+  try{
+    const res = await fetch('data/feed.json?ts='+Date.now(), {cache:'no-store'});
+    if(res.ok){ FEED = await res.json(); rerenderFeedViews(); }
+  }catch(e){ /* file:// o sin servidor: se usa el feed.js incrustado */ }
+}
+function rerenderFeedViews(){
+  if(curView==='refugios') renderHub();   // acopio · cobertura(torres) · afectadas(sismos)
+  if(curView==='desap') renderDesap();
+}
+function syncBar(elId, srcKey, fallbackCount){
+  const el=document.getElementById(elId); if(!el) return;
+  const s=(FEED.sources||{})[srcKey]||{};
+  const when = FEED.generated_at ? ago(new Date(FEED.generated_at).getTime()) : null;
+  let cls='dot', txt;
+  if(s.ok===true) txt=`<b>${s.count}</b> registros en vivo · actualizado ${when}`;
+  else if(s.ok===false){ cls='dot warn'; txt=`Fuente no disponible ahora · mostrando ${fallbackCount} previos`; }
+  else { cls='dot warn'; txt='Sin sincronizar aún · ejecuta el scraper o despliega la tarea'; }
+  el.innerHTML = `<span class="${cls}"></span><span>${txt}</span>`;
+}
+
+/* ======================================================================
+   MAPAS EN VIVO — Acopio (real) · Cobertura móvil · Estado eléctrico
+   Cobertura y luz = reportes de la COMUNIDAD (datos reales de usuarios).
+====================================================================== */
+function nearestCity(lat,lng){
+  if(typeof lat!=='number'||typeof lng!=='number') return 'Otra zona';
+  let best='Otra zona', bd=1e9;
+  CITIES.forEach(c=>{ const d=(c.lat-lat)**2+(c.lng-lng)**2; if(d<bd){bd=d;best=c.n;} });
+  return bd<2.5 ? best : 'Otra zona';
+}
+const rid=()=>'x'+Math.random().toString(36).slice(2,8);
+
+let mapMode='acopio', mapHub=null, hubLayer=null;
+function ensureHubMap(){
+  if(mapHub) return;
+  mapHub=L.map('mapHub',{scrollWheelZoom:false, preferCanvas:true}).setView([8.4,-66],5.6);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap · © CARTO · torres © OpenCelliD CC-BY-SA', subdomains:'abcd', maxZoom:18}).addTo(mapHub);
+  mapHub.on('moveend', ()=>{ if(mapMode==='cobertura') drawTowersInView(); });   // ver torres del barrio al hacer zoom/pan
+}
+function setMapMode(m){
+  mapMode=m;
+  document.querySelectorAll('#mapSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  renderHub();
+}
+function renderHub(){
+  ensureHubMap();
+  if(hubLayer) hubLayer.remove();
+  if(towerLayer){ towerLayer.remove(); towerLayer=null; }
+  if(liveLayer){ liveLayer.remove(); liveLayer=null; }
+  hubLayer=L.layerGroup().addTo(mapHub);
+  if(mapMode==='acopio') renderAcopioMode();
+  else if(mapMode==='afectadas') renderAfectadasMode();
+  else renderStatusMode(mapMode);
+  setTimeout(()=>mapHub.invalidateSize(),60);
+}
+
+/* ---- Acopio (datos reales del scraper), agrupado por ciudad ---- */
+function renderAcopioMode(){
+  syncBar('hubSync','acopio',(FEED.centros||[]).length);
+  const pts=[];
+  (FEED.centros||[]).forEach(c=>{
+    if(typeof c.lat!=='number'||typeof c.lng!=='number') return;
+    const needs=(c.necesita||[]).slice(0,8).join(', ');
+    L.marker([c.lat,c.lng]).addTo(hubLayer)
+     .bindPopup(`<b>${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`);
+    pts.push([c.lat,c.lng]);
+  });
+  if(pts.length) mapHub.fitBounds(pts,{padding:[28,28],maxZoom:12});
+  document.getElementById('hubLegend').innerHTML='';
+  document.getElementById('hubActions').innerHTML=
+    `<input id="acopioSearch" placeholder="🔎 Buscar centro por nombre o dirección..." oninput="renderAcopioList()" style="margin-bottom:10px">
+     <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://centro-de-acopio-ven.vercel.app/" target="_blank" rel="noopener">➕ Registrar un centro de acopio →</a>`;
+  renderAcopioList();
+}
+function renderAcopioList(){
+  const q=(document.getElementById('acopioSearch')?.value||'').toLowerCase().trim();
+  const list=(FEED.centros||[]).filter(c=>!q || (`${c.nombre} ${c.direccion||''}`).toLowerCase().includes(q));
+  const groups={};
+  list.forEach(c=>{ const city=nearestCity(c.lat,c.lng); (groups[city]=groups[city]||[]).push(c); });
+  const cities=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length);
+  const el=document.getElementById('hubList');
+  if(!list.length){ el.innerHTML='<div class="empty">No hay centros con ese filtro.</div>'; return; }
+  el.innerHTML = cities.map(city=>`
+    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">🏙️ ${esc(city)} · ${groups[city].length}</div>
+    ${groups[city].map(c=>{
+      const needs=(c.necesita||[]), have=(c.sobra||[]);
+      return `<div class="card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">📦 ${esc(c.nombre)}</b>
+          ${c.verificaciones?`<span class="badge st" style="margin-left:auto">✓ ${c.verificaciones}</span>`:''}</div>
+        ${c.direccion?`<div style="font-size:13px;color:var(--mut);margin:6px 0">📍 ${esc(c.direccion)}</div>`:''}
+        ${c.telefono?`<a href="tel:${esc(c.telefono)}" style="font-size:13px">📞 ${esc(c.telefono)}</a>`:''}
+        ${needs.length?`<div style="margin-top:8px"><span style="font-size:11px;color:var(--mut)">Necesita:</span><br>${needs.map(n=>`<span class="tag-need">${esc(n)}</span>`).join('')}</div>`:''}
+        ${have.length?`<div style="margin-top:6px"><span style="font-size:11px;color:var(--mut)">Le sobra:</span><br>${have.map(n=>`<span class="tag-have">${esc(n)}</span>`).join('')}</div>`:''}
+      </div>`;
+    }).join('')}`).join('');
+}
+
+/* ---- Cobertura móvil / Estado eléctrico (reportes comunitarios) ---- */
+function statusData(kind){ return kind==='cobertura'? DB.coverage : DB.power; }
+function statusColor(kind,e){
+  if(kind==='cobertura') return e==='senal'?'#22c98a': e==='intermitente'?'#ffb020':'#ff4d4f';
+  return e==='conluz'?'#22c98a':'#ff4d4f';
+}
+function statusLabel(kind,e){
+  const m=kind==='cobertura'?{senal:'Con señal',intermitente:'Intermitente',sinsenal:'Sin señal'}:{conluz:'Con luz',sinluz:'Sin luz'};
+  return m[e]||e;
+}
+const OP_COLOR={Movistar:'#4d9fff',Movilnet:'#22c98a',Digitel:'#ffb020',Otra:'#94a6c4'};
+
+/* ---- Torres reales: render por VIEWPORT (cualquier barrio/pueblo) ---- */
+let towerLayer=null, liveLayer=null, towersLoading=false;
+const MAX_TOWERS_RENDER=3000;
+const tLat=t=>Array.isArray(t)?t[0]:t.lat, tLng=t=>Array.isArray(t)?t[1]:t.lng, tRec=t=>Array.isArray(t)?(t[5]===1?1:0):(t.recent?1:0);
+function normTower(t){
+  if(!Array.isArray(t)) return t;
+  const M=window.SISMOVE_TOWERS_META||{op:[],radio:[]};
+  return {lat:t[0],lng:t[1],operador:M.op[t[2]]||'Otra',radio:M.radio[t[3]]||null,range:t[4]||0,recent:t[5]===1};
+}
+function towerSource(){ return (window.SISMOVE_TOWERS&&window.SISMOVE_TOWERS.length)?window.SISMOVE_TOWERS:(FEED.torres||[]); }
+function ensureFullTowers(cb){
+  if(window.SISMOVE_TOWERS){ cb&&cb(); return; }
+  if(towersLoading) return;
+  towersLoading=true;
+  const s=document.createElement('script'); s.src='data/towers.js';
+  s.onload=()=>{ towersLoading=false; cb&&cb(); };
+  s.onerror=()=>{ towersLoading=false; };   // sin towers.js: se usa FEED.torres (zona afectada)
+  document.body.appendChild(s);
+}
+function drawTowersInView(){
+  if(!mapHub||mapMode!=='cobertura') return;
+  if(towerLayer) towerLayer.remove();
+  towerLayer=L.layerGroup().addTo(mapHub);
+  const src=towerSource(), b=mapHub.getBounds();
+  let inView=src.filter(t=>b.contains([tLat(t),tLng(t)]));
+  const total=inView.length, tooMany=total>MAX_TOWERS_RENDER;
+  if(tooMany) inView=inView.slice().sort((a,b2)=>tRec(b2)-tRec(a)).slice(0,MAX_TOWERS_RENDER); // recientes primero al recortar
+  let recCount=0;
+  inView.forEach(raw=>{
+    const t=normTower(raw), col=OP_COLOR[t.operador]||'#94a6c4';
+    if(t.recent) recCount++;
+    if(typeof t.range==='number'&&t.range>0&&t.range<4000)
+      L.circle([t.lat,t.lng],{radius:t.range,color:col,weight:0,fillColor:col,fillOpacity:t.recent?.07:.035}).addTo(towerLayer);
+    L.circleMarker([t.lat,t.lng],{radius:t.recent?4.5:2.5,color:t.recent?'#ffffff':col,fillColor:col,fillOpacity:t.recent?.95:.45,weight:t.recent?1.5:1}).addTo(towerLayer)
+     .bindPopup(`📡 ${esc(t.operador)}${t.radio?' · '+esc(t.radio):''}<br>${t.recent?'<b>✓ confirmada (≤18 meses)</b>':'histórica (~2017)'}${t.range?' · alcance ~'+Math.round(t.range)+' m':''}`);
+  });
+  const note=document.getElementById('towerNote');
+  if(note){
+    const nat=!!(window.SISMOVE_TOWERS&&window.SISMOVE_TOWERS.length);
+    note.innerHTML = (tooMany?`📡 +${MAX_TOWERS_RENDER} torres — <b>acerca el zoom a tu barrio</b>. `:`📡 ${total} torres en vista · <b>${recCount} recientes ●</b>. `)
+      + (nat?`${window.SISMOVE_TOWERS.length.toLocaleString()} en el país. `:'')
+      + `● blanco = confirmada ≤18m (prob. activa) · tenue = histórica. © OpenCelliD CC-BY-SA.`;
+  }
+}
+/* ---- B: consulta EN VIVO de la zona visible vía backend (tu API key, server-side) ---- */
+async function fetchLiveTowers(){
+  if(!mapHub) return;
+  const b=mapHub.getBounds(), sw=b.getSouthWest(), ne=b.getNorthEast();
+  const dLat=Math.abs(ne.lat-sw.lat), dLon=Math.abs(ne.lng-sw.lng);
+  const km2=(dLat*111)*(dLon*111*Math.cos((sw.lat+ne.lat)/2*Math.PI/180));
+  if(km2>4){ toast('Acerca el zoom: el modo en vivo cubre ~2×2 km','err'); return; }
+  toast('📡 Consultando OpenCelliD en vivo...');
+  try{
+    const res=await fetch(`/api/towers/live?bbox=${sw.lat},${sw.lng},${ne.lat},${ne.lng}`);
+    const j=await res.json();
+    if(!res.ok||j.error){ toast('En vivo: '+(j.hint||j.error||'no disponible'),'err'); return; }
+    if(liveLayer) liveLayer.remove();
+    liveLayer=L.layerGroup().addTo(mapHub);
+    (j.towers||[]).forEach(t=>{
+      L.circleMarker([t.lat,t.lng],{radius:6,color:'#22d3ee',fillColor:'#22d3ee',fillOpacity:.95,weight:2}).addTo(liveLayer)
+       .bindPopup(`🟢 EN VIVO · ${esc(t.operador)}${t.radio?' · '+esc(t.radio):''}`);
+    });
+    toast(`📡 ${j.count} torres en vivo en esta zona`);
+  }catch(e){ toast('Modo en vivo: disponible al desplegar el backend','err'); }
+}
+
+function renderStatusMode(kind){
+  const data=statusData(kind);
+  const pts=[];
+  data.forEach(r=>{
+    if(typeof r.lat!=='number') return;
+    const col=statusColor(kind,r.estado);
+    L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(hubLayer)
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}`);
+    pts.push([r.lat,r.lng]);
+  });
+  if(pts.length) mapHub.fitBounds(pts,{padding:[28,28],maxZoom:11});
+
+  if(kind==='cobertura'){
+    document.getElementById('hubSync').innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes comunitarios + torres reales · <b>acerca el zoom a tu barrio</b></span>`;
+    document.getElementById('hubLegend').innerHTML=`<span><i style="background:#22c98a"></i>Con señal</span><span><i style="background:#ffb020"></i>Intermitente</span><span><i style="background:#ff4d4f"></i>Sin señal</span><span><i style="background:#4d9fff"></i>📡 Torre (● reciente)</span>`;
+    document.getElementById('hubActions').innerHTML=
+      `<button class="btn primary" onclick="openMapReport('cobertura')">📶 Reportar cobertura aquí</button>
+       <button class="btn ghost" style="margin-top:8px" onclick="fetchLiveTowers()">📡 Ver esta zona EN VIVO (OpenCelliD)</button>
+       <div id="towerNote" class="card" style="background:var(--bg2);margin-top:10px;font-size:11.5px;color:var(--mut2)">📡 Cargando torres…</div>`;
+    ensureFullTowers(drawTowersInView);
+    drawTowersInView();
+  } else {
+    document.getElementById('hubSync').innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes de la comunidad · ayuda reportando tu zona</span>`;
+    document.getElementById('hubLegend').innerHTML=`<span><i style="background:#22c98a"></i>Con luz</span><span><i style="background:#ff4d4f"></i>Sin luz / apagón</span>`;
+    document.getElementById('hubActions').innerHTML=`<button class="btn primary" onclick="openMapReport('luz')">⚡ Reportar estado de luz</button>`;
+  }
+  const el=document.getElementById('hubList');
+  el.innerHTML = data.length ? data.slice(0,40).map(r=>`
+    <div class="rep ${kind==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
+      <div class="h"><span class="t">${kind==='cobertura'?'📶':'⚡'} ${statusLabel(kind,r.estado)}</span>
+        ${kind==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
+        ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}</div>
+      <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
+    </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
+}
+
+/* ---- Áreas afectadas (sismos reales USGS) ---- */
+function renderAfectadasMode(){
+  const sismos=(FEED.sismos||[]), aa=FEED.areas_afectadas;
+  document.getElementById('hubSync').innerHTML=
+    `<span class="dot err"></span><span><b>${sismos.length}</b> sismos · USGS, últimos 30 días${aa?` · ${esc(aa.evento)}`:''}</span>`;
+  const pts=[];
+  sismos.forEach(s=>{
+    if(typeof s.lat!=='number') return;
+    const m=s.mag||0;
+    const col = m>=6?'#ff2d2f': m>=5?'#ff5b3a': m>=4?'#ff8a3d':'#ffb020';
+    L.circleMarker([s.lat,s.lng],{radius:Math.max(6,(m*m)/2.2),color:col,fillColor:col,fillOpacity:.35,weight:1.5}).addTo(hubLayer)
+     .bindPopup(`<b>M${m} · ${esc(s.place||'')}</b><br>${new Date(s.time).toLocaleString('es')}<br>prof. ${Math.round(s.depth)} km${s.url?`<br><a href="${esc(s.url)}" target="_blank" rel="noopener">USGS ↗</a>`:''}`);
+    pts.push([s.lat,s.lng]);
+  });
+  if(pts.length) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:8});
+  document.getElementById('hubLegend').innerHTML=
+    `<span><i style="background:#ff2d2f"></i>M≥6</span><span><i style="background:#ff5b3a"></i>M5–6</span><span><i style="background:#ff8a3d"></i>M4–5</span><span><i style="background:#ffb020"></i>M&lt;4</span>`;
+  document.getElementById('hubActions').innerHTML='';
+  let html='';
+  if(aa){
+    html+=`<div class="card" style="border-color:#4a1c1f;background:linear-gradient(140deg,rgba(255,77,79,.08),transparent)">
+      <b style="font-size:15px">⚠️ ${esc(aa.evento)}</b>
+      <div style="font-size:13px;color:var(--mut);margin:6px 0">${esc(aa.fecha)} · epicentros: ${aa.epicentros.map(esc).join(' · ')}</div>
+      <div style="font-size:12px;color:var(--mut);margin-bottom:6px">Estados más afectados:</div>
+      ${aa.estados.map(e=>`<span class="tag-need">${esc(e)}</span>`).join('')}
+      <div style="font-size:11px;color:var(--mut2);margin-top:10px">Fuente: ${esc(aa.fuente)}</div>
+    </div>`;
+  }
+  const fuertes=sismos.filter(s=>(s.mag||0)>=4).slice(0,12);
+  html+=fuertes.map(s=>{
+    const m=s.mag||0, cls=m>=6?'crit':m>=5?'alta':'media';
+    return `<div class="rep ${cls}"><div class="h"><span class="t">M${m} · ${esc(s.place||'')}</span></div>
+      <div class="meta"><span>📅 ${new Date(s.time).toISOString().slice(0,10)}</span><span>📏 prof ${Math.round(s.depth)} km</span></div></div>`;
+  }).join('');
+  document.getElementById('hubList').innerHTML = html || '<div class="empty">Sin sismos recientes registrados.</div>';
+}
+
+/* ---- Reportar en el mapa (modal) ---- */
+let reportGeo=null;
+function ubicFields(){
+  return `<label class="fl">Ciudad / zona</label>
+    <select id="rpCity">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
+    <button class="btn ghost" style="margin-top:8px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación exacta</button>
+    <div id="rpGeo" style="font-size:12px;color:var(--mut);margin-top:6px"></div>`;
+}
+function reportGeoCapture(btn){
+  if(!navigator.geolocation){ document.getElementById('rpGeo').textContent='Geolocalización no disponible.'; return; }
+  btn.textContent='📍 Obteniendo...';
+  navigator.geolocation.getCurrentPosition(p=>{
+    reportGeo={lat:p.coords.latitude,lng:p.coords.longitude};
+    document.getElementById('rpGeo').innerHTML='✅ Ubicación capturada';
+    btn.textContent='📍 Ubicación actualizada';
+  },()=>{ document.getElementById('rpGeo').textContent='No se pudo (se usará la ciudad).'; btn.textContent='📍 Usar mi ubicación exacta'; },{timeout:8000});
+}
+function openMapReport(kind){
+  reportGeo=null;
+  const sheet=document.getElementById('mapSheet');
+  if(kind==='cobertura'){
+    sheet.innerHTML=`<h3>📶 Reportar cobertura</h3><p>Ayuda a otros a saber dónde hay señal.</p>
+      <label class="fl">Operadora</label>
+      <select id="rpOper"><option>Movistar</option><option>Digitel</option><option>Movilnet</option><option>Otra</option></select>
+      <label class="fl">Estado de la señal</label>
+      <select id="rpEstado"><option value="senal">Con señal</option><option value="intermitente">Intermitente</option><option value="sinsenal">Sin señal</option></select>
+      ${ubicFields()}
+      <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('cobertura')">Enviar reporte</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
+  } else {
+    sheet.innerHTML=`<h3>⚡ Reportar estado de luz</h3><p>Indica si hay electricidad en tu zona.</p>
+      <label class="fl">¿Hay luz?</label>
+      <select id="rpEstado"><option value="conluz">Sí, hay luz</option><option value="sinluz">No, sin luz (apagón)</option></select>
+      ${ubicFields()}
+      <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('luz')">Enviar reporte</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
+  }
+  document.getElementById('mapModal').classList.add('show');
+}
+function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); }
+function submitMapReport(kind){
+  const city=document.getElementById('rpCity').value, base=cityByName(city);
+  const lat=reportGeo?reportGeo.lat:base.lat+(Math.random()-.5)*.06;
+  const lng=reportGeo?reportGeo.lng:base.lng+(Math.random()-.5)*.06;
+  const estado=document.getElementById('rpEstado').value;
+  if(kind==='cobertura'){
+    const operador=document.getElementById('rpOper').value;
+    DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,ts:Date.now()});
+    pushCommunityReport('cobertura',{lat,lng,ciudad:city,operador,estado});      // compartir en Supabase
+  } else {
+    DB.power.unshift({id:rid(),lat,lng,city,estado,ts:Date.now()});
+    pushCommunityReport('luz',{lat,lng,ciudad:city,estado});                     // compartir en Supabase
+  }
+  save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
+}
+
+/* ---------- Desaparecidos (datos reales) ---------- */
+// Dispara el sync Drive→Supabase (perezoso, con throttle 30 min en el servidor) y muestra el total
+function ensureHospitalSync(){
+  fetch('/api/sync-hospitales').then(r=>r.json()).then(d=>{
+    const s=document.getElementById('hospSync');
+    if(s && d && d.count!=null) s.textContent=`${d.count} ingresos · ${d.status==='synced'?'actualizado':'≤30 min'}`;
+  }).catch(()=>{});
+}
+// Búsqueda por nombre en Supabase (hospital_admisiones). Cédula no se almacena.
+let _hospT;
+function searchHospital(){
+  clearTimeout(_hospT);
+  _hospT=setTimeout(async()=>{
+    const q=(document.getElementById('hospQ')?.value||'').replace(/[%,()*]/g,'').trim();
+    const el=document.getElementById('hospResults'); if(!el) return;
+    if(q.length<2){ el.innerHTML=''; return; }
+    el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    try{
+      const url=`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,fecha&nombre=ilike.${encodeURIComponent('*'+q+'*')}&order=nombre&limit=40`;
+      const rows=await (await fetch(url,{headers:SB_H})).json();
+      if(!Array.isArray(rows)||!rows.length){
+        el.innerHTML=`<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Revisa los documentos oficiales abajo o contacta a la Cruz Roja (0422 799 4880).</div>`; return;
+      }
+      el.innerHTML=rows.map(x=>`<div class="person"><div class="pic">🏥</div><div class="info">
+        <div class="nm">${esc(x.nombre)}</div>
+        <div class="dt">${x.hospital?esc(x.hospital):'hospital no especificado'}${x.fecha?' · '+esc(x.fecha):''}</div>
+      </div></div>`).join('');
+    }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora. Intenta de nuevo.</div>'; }
+  },300);
+}
+
+// Documentos oficiales de hospitales (Google Drive vía /api/drive-docs, refresco ~30 min)
+function loadHospitalDocs(){
+  const cont=document.getElementById('hospDocs'), sync=document.getElementById('hospSync');
+  if(!cont) return;
+  const FOLDER='https://drive.google.com/drive/folders/1o36ifaRz45kAs5rKzci49aD0mP5JB_YI';
+  const fallback=`<div class="empty" style="padding:14px"><a class="ext" href="${FOLDER}" target="_blank" rel="noopener">Abrir carpeta oficial de hospitales →</a></div>`;
+  const ICON={carpeta:'📁',documento:'📄',hoja:'📊',pdf:'📕',imagen:'🖼️',video:'🎥',archivo:'📎'};
+  const row=it=>`<a href="${esc(it.url)}" target="_blank" rel="noopener" style="display:flex;gap:10px;align-items:center;text-decoration:none;color:var(--txt);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px">
+      <span style="font-size:17px">${ICON[it.tipo]||'📎'}</span>
+      <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</span>
+      <span style="color:var(--amber)">↗</span></a>`;
+  const fid=u=>{const m=(u||'').match(/\/file\/d\/([^/]+)/);return m?m[1]:'';};
+  const thumb=it=>`<a href="${esc(it.url)}" target="_blank" rel="noopener" title="${esc(it.name)}" style="display:inline-block"><img loading="lazy" src="https://drive.google.com/thumbnail?id=${fid(it.url)}&sz=w400" style="width:104px;height:104px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--card)" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'🖼️',style:'display:inline-flex;width:104px;height:104px;align-items:center;justify-content:center;font-size:28px;border:1px solid var(--line);border-radius:8px'}))"></a>`;
+  fetch('/api/drive-docs').then(r=>r.json()).then(d=>{
+    if(d.error || !Array.isArray(d.items)){ cont.innerHTML=fallback; return; }
+    if(sync && d.fetched_at) sync.textContent='actualizado '+ago(new Date(d.fetched_at).getTime());
+    cont.innerHTML = (d.items.length ? d.items.map(it=>{
+      if(it.tipo==='carpeta'){
+        const kids=(it.children||[]);
+        const imgs=kids.filter(k=>k.tipo==='imagen'), other=kids.filter(k=>k.tipo!=='imagen');
+        const body=(imgs.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 0">${imgs.map(thumb).join('')}</div>`:'')
+          + other.map(row).join('') || '<div class="empty" style="padding:8px">vacía</div>';
+        return `<details style="margin-bottom:7px;border:1px solid var(--line);border-radius:10px;background:var(--card2)">
+          <summary style="padding:9px 12px;cursor:pointer;font-size:13px;font-weight:600">📁 ${esc(it.name)} · ${kids.length}</summary>
+          <div style="padding:0 8px 8px">${body}</div></details>`;
+      }
+      return row(it);
+    }).join('') : '<div class="empty" style="padding:14px">Carpeta vacía o no accesible.</div>')
+      + `<a class="ext" href="${esc(d.folder_url||FOLDER)}" target="_blank" rel="noopener" style="font-size:12px">Ver toda la carpeta oficial →</a>`;
+  }).catch(()=>{ cont.innerHTML=fallback; });
+}
+
+function renderDesap(){
+  syncBar('desapSync','vtb',(FEED.desaparecidos||[]).length);
+  const q=(document.getElementById('desapSearch')?.value||'').toLowerCase().trim();
+  const all=(FEED.desaparecidos||[]);
+  const el=document.getElementById('desapList');
+  if(!all.length){
+    el.innerHTML='<div class="empty">No hay registros sincronizados todavía.<br>Usa los portales oficiales de abajo para buscar o reportar un caso.</div>';
+    return;
+  }
+  let list=all;
+  if(q) list=list.filter(d=>(`${d.nombre} ${d.cedula||''}`).toLowerCase().includes(q));
+  el.innerHTML = list.length ? list.map(d=>{
+    const found=d.encontrado;
+    const badge = found
+      ? '<span class="badge baja" style="background:var(--green-bg);color:var(--green)">Encontrado</span>'
+      : '<span class="badge alta">Buscando</span>';
+    const pic = d.foto_url
+      ? `<img class="pic" src="${esc(d.foto_url)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pic&quot;>👤</div>'">`
+      : `<div class="pic">👤</div>`;
+    return `<div class="person">${pic}
+      <div class="info">
+        <div class="nm">${esc(d.nombre)} ${badge}</div>
+        <div class="dt">${d.cedula?'CI '+esc(d.cedula)+' · ':''}${d.zona?esc(d.zona):''}${d.created_at?' · '+ago(new Date(d.created_at).getTime()):''}</div>
+      </div></div>`;
+  }).join('') : '<div class="empty">Sin coincidencias para ese nombre/cédula.</div>';
+}
+
+/* ---------- Panel / Dashboard ---------- */
+let map=null, markerLayer=null, filter='all';
+const FILTERS=[['all','Todos'],['crit','Críticos'],['alta','Alta'],['nuevo','Nuevos'],['proceso','En proceso'],['hecho','Atendidos']];
+function renderPanel(){
+  const rs=DB.reports;
+  document.getElementById('stCrit').textContent = rs.filter(r=>r.prio==='crit'&&r.status!=='hecho').length;
+  document.getElementById('stOpen').textContent = rs.filter(r=>r.status!=='hecho').length;
+  document.getElementById('stDone').textContent = rs.filter(r=>r.status==='hecho').length;
+
+  document.getElementById('filterChips').innerHTML = FILTERS.map(([k,l])=>
+    `<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';renderPanel()">${l}</button>`).join('');
+
+  // mapa
+  if(!map){
+    map=L.map('map',{scrollWheelZoom:false}).setView([9,-66.5],5.6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© OpenStreetMap · © CARTO', subdomains:'abcd', maxZoom:18}).addTo(map);
+  }
+  if(markerLayer) markerLayer.remove();
+  markerLayer=L.layerGroup().addTo(map);
+  const col={crit:'#ff4d4f',alta:'#ff8a3d',media:'#ffb020',baja:'#4d9fff'};
+  rs.filter(r=>r.status!=='hecho').forEach(r=>{
+    L.circleMarker([r.lat,r.lng],{radius:r.prio==='crit'?11:8,color:col[r.prio],fillColor:col[r.prio],fillOpacity:.7,weight:2})
+     .addTo(markerLayer)
+     .bindPopup(`<b>${NEED_MAP[r.type]?.ico} ${NEED_MAP[r.type]?.label}</b> · ${PRIO_LABEL[r.prio]}<br>${esc(r.desc.slice(0,80))}<br><small>${esc(r.city)} · ${ago(r.ts)}</small>`);
+  });
+
+  // lista
+  let list=rs.slice().sort((a,b)=> (a.status==='hecho')-(b.status==='hecho') || PRIO_ORDER[a.prio]-PRIO_ORDER[b.prio] || b.ts-a.ts);
+  if(filter==='crit') list=list.filter(r=>r.prio==='crit');
+  else if(filter==='alta') list=list.filter(r=>r.prio==='alta');
+  else if(filter==='nuevo') list=list.filter(r=>r.status==='nuevo');
+  else if(filter==='proceso') list=list.filter(r=>r.status==='proceso');
+  else if(filter==='hecho') list=list.filter(r=>r.status==='hecho');
+
+  const ST={nuevo:'Nuevo',proceso:'En proceso',hecho:'Atendido'};
+  document.getElementById('repList').innerHTML = list.length? list.map(r=>{
+    const n=NEED_MAP[r.type]||{ico:'❓',label:r.type};
+    return `<div class="rep ${r.prio}">
+      <div class="h">
+        <span class="t">${n.ico} ${n.label}</span>
+        <span class="badge ${r.prio}">${PRIO_LABEL[r.prio]} · ${r.score}</span>
+        <span class="badge st">${ST[r.status]}</span>
+        ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}
+      </div>
+      <div class="d">${esc(r.desc)}</div>
+      <div class="meta">
+        <span>📍 ${esc(r.city)}</span>
+        <span>👥 ${r.people}</span>
+        ${r.phone?`<span>📞 ${esc(r.phone)}</span>`:''}
+        <span>⏱ ${ago(r.ts)}</span>
+      </div>
+      <div class="ai-why"><b>🧠 IA:</b><span>${esc(r.why)}</span></div>
+      <div class="acts">
+        ${r.status!=='proceso'?`<button onclick="setStatus('${r.id}','proceso')">▶ Tomar caso</button>`:''}
+        ${r.status!=='hecho'?`<button onclick="setStatus('${r.id}','hecho')">✓ Marcar atendido</button>`:`<button onclick="setStatus('${r.id}','nuevo')">↩ Reabrir</button>`}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No hay reportes con este filtro.</div>';
+}
+function setStatus(id,st){
+  const r=DB.reports.find(x=>x.id===id); if(!r) return;
+  r.status=st; save(); renderPanel();
+  toast(st==='hecho'?'✓ Caso marcado como atendido': st==='proceso'?'▶ Caso en proceso':'↩ Caso reabierto');
+}
+
+/* ======================================================================
+   BOT — Intake conversacional (usa el mismo motor de triaje)
+====================================================================== */
+let chatStarted=false, chatState=null;
+function startChat(){
+  chatStarted=true;
+  document.getElementById('chat').innerHTML='';
+  chatState={step:'type', data:{}};
+  bot('Hola, soy el asistente de SismoVE 🤝 Estoy aquí para ayudarte. ¿Qué tipo de ayuda necesitas?');
+  quick(NEEDS.map(n=>({t:`${n.ico} ${n.label}`, v:n.id})));
+}
+function bot(t){ addMsg(t,'bot'); }
+function me(t){ addMsg(t,'me'); }
+function addMsg(t,cls){
+  const c=document.getElementById('chat');
+  const d=document.createElement('div'); d.className='msg '+cls; d.innerHTML=esc(t);
+  c.appendChild(d); c.scrollTop=c.scrollHeight;
+}
+function quick(opts){
+  const q=document.getElementById('quick');
+  q.innerHTML = opts.map((o,i)=>`<button onclick="pick(${i})">${esc(o.t)}</button>`).join('');
+  q._opts=opts;
+}
+function clearQuick(){ document.getElementById('quick').innerHTML=''; }
+function pick(i){
+  const o=document.getElementById('quick')._opts[i];
+  me(o.t); clearQuick(); handle(o.v ?? o.t);
+}
+function sendChat(){
+  const inp=document.getElementById('chatIn'); const v=inp.value.trim();
+  if(!v) return; me(v); inp.value=''; clearQuick(); handle(v);
+}
+function handle(v){
+  const s=chatState;
+  if(s.step==='type'){
+    s.data.type = NEED_MAP[v]? v : 'rescate';
+    s.step='desc';
+    setTimeout(()=>bot('Entendido. Cuéntame con tus palabras qué está pasando.'),300);
+  }
+  else if(s.step==='desc'){
+    s.data.desc=v; s.step='people';
+    setTimeout(()=>{ bot('¿Cuántas personas están afectadas?'); quick([{t:'1'},{t:'2'},{t:'3-4'},{t:'5 o más'}]); },300);
+  }
+  else if(s.step==='people'){
+    s.data.people = v.includes('5')?5 : v.includes('3')?4 : (+v||1);
+    s.step='city';
+    setTimeout(()=>{ bot('¿En qué ciudad o zona estás?'); quick(CITIES.slice(0,6).map(c=>({t:c.n}))); },300);
+  }
+  else if(s.step==='city'){
+    s.data.city = cityByName(v).n;
+    s.step='done';
+    const base=cityByName(s.data.city);
+    const r={id:'r'+Math.random().toString(36).slice(2,8), ...s.data,
+      lat:base.lat+(Math.random()-.5)*.04, lng:base.lng+(Math.random()-.5)*.04,
+      ts:Date.now(), status:'nuevo'};
+    Object.assign(r, triage(r));
+    DB.reports.unshift(r); save();
+    setTimeout(()=>{
+      bot(`Listo ✅ Registré tu reporte con prioridad <b>${PRIO_LABEL[r.prio]}</b>. El equipo de coordinación ya puede verlo en el mapa.`);
+      if(r.prio==='crit'||r.prio==='alta') bot('Por la gravedad, si puedes, llama también al SOS arriba ☎. Mantente en lugar seguro.');
+      quick([{t:'📊 Ver en el panel', v:'__panel'},{t:'➕ Otro reporte', v:'__restart'}]);
+    },400);
+  }
+  else if(s.step==='done'){
+    if(v==='__panel'){ go('panel'); }
+    else { startChat(); }
+  }
+}
+
+/* ---------- SOS modal ---------- */
+function openSOS(){ document.getElementById('sosModal').classList.add('show'); }
+function closeSOS(){ document.getElementById('sosModal').classList.remove('show'); }
+
+/* ---------- Utils ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ago(ts){
+  const m=Math.floor((Date.now()-ts)/60000);
+  if(m<1) return 'ahora'; if(m<60) return `hace ${m} min`;
+  const h=Math.floor(m/60); if(h<24) return `hace ${h} h`;
+  return `hace ${Math.floor(h/24)} d`;
+}
+let toastT;
+function toast(msg,type){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.className='toast show'+(type==='err'?' err':''); clearTimeout(toastT);
+  toastT=setTimeout(()=>t.className='toast'+(type==='err'?' err':''),2600);
+}
+
+/* ---------- Init ---------- */
+renderNeeds(); fillCities('rCity'); fillCities('sCity');
+renderSafe();
+refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
+setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté abierta
+loadCommunityReports(true);             // reportes comunitarios compartidos (Supabase)
+setInterval(()=>loadCommunityReports(true), 60000);
+
+// Deep-link desde el landing: #refugios, #desap, #panel… o submodos de mapa #cobertura/#luz/#afectadas
+(function(){
+  const h=(location.hash||'').slice(1); if(!h) return;
+  if(['cobertura','luz','afectadas'].includes(h)){ go('refugios'); setTimeout(()=>setMapMode(h),140); }
+  else if(document.getElementById('v-'+h)) go(h);
+})();
+</script>
+</body>
+</html>

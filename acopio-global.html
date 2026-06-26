@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📦 Centros de acopio — Emergencia Venezuela</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    body { background: #FAF6F0; }
+    .topbar { background: #FFFFFF; }
+    .card { background: #FFFFFF; }
+    .punto { background: #FFFFFF; }
+    .sub-punto { background: #F4EDE3; }
+    .insumos { background: #EDE3D6; }
+    .pais-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--morado);
+      margin: 22px 0 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--borde);
+    }
+    .punto {
+      background: var(--surface);
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 9px;
+      box-shadow: 0 1px 4px rgba(75,54,88,0.04);
+    }
+    .punto-nombre { font-weight: 700; font-size: 14px; color: var(--morado); margin-bottom: 3px; }
+    .punto-dir { font-size: 13px; color: var(--texto-sec); margin-bottom: 2px; }
+    .punto-hora { font-size: 12px; color: var(--oro); font-weight: 600; margin-bottom: 3px; }
+    .punto-nota { font-size: 12px; color: var(--gris); line-height: 1.45; margin-top: 4px; }
+    .insumos {
+      margin-top: 8px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 9px 12px;
+    }
+    .insumos p { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gris); margin-bottom: 5px; }
+    .insumos ul { padding-left: 14px; }
+    .insumos li { font-size: 12px; color: var(--texto-sec); margin-bottom: 3px; line-height: 1.4; }
+    .sub-punto {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 9px 12px;
+      margin-top: 7px;
+    }
+    .sub-nombre { font-weight: 700; font-size: 13px; color: var(--morado); }
+  </style>
+</head>
+<body>
+<div class="topbar"><a class="back" href="index.html">← Volver al inicio</a><span class="alert-dot">🔴 EMERGENCIA ACTIVA · 589 fallecidos · más de 4.300 heridos</span></div>
+<div class="page">
+  <div class="page-header">
+    <span class="page-emoji">📦</span>
+    <div class="page-title" style="border-left:4px solid #2A6E45;padding-left:12px;">Centros de acopio</div>
+    <div class="page-sub">Venezuela · España · Ecuador · Confirma horarios antes de ir — la información cambia rápido</div>
+  </div>
+
+  <!-- VENEZUELA -->
+  <div class="pais-label">🇻🇪 Venezuela</div>
+
+  <div class="punto">
+    <div class="punto-nombre">🏫 Todas las escuelas del país</div>
+    <div class="punto-nota">El Ministerio de Educación activó todas las instituciones educativas como centros de acopio y refugio. Ve a la más cercana.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Miranda / Caracas — Comando ConVzla</div>
+    <div class="punto-dir">4ta Av. de Altamira, entre 9na y 10ma transversal · Quinta El Bejucal</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Aragua (Maracay) — Teatro de la Ópera</div>
+    <div class="punto-dir">Teatro de la Ópera de Maracay</div>
+    <div class="punto-hora">Desde las 7:00 a.m.</div>
+    <div class="punto-nota">Instagram: @teatrooperamcy · @gobiernoaragua</div>
+    <div class="insumos">
+      <p>Qué necesitan</p>
+      <ul><li>Agua potable y alimentos no perecederos</li><li>Medicamentos e insumos de primeros auxilios</li><li>Higiene personal y pañales</li><li>Sábanas, ropa y cobijas limpias</li></ul>
+    </div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Aragua — Instituto Regional de Deporte (IRDA)</div>
+    <div class="punto-dir">Av. Universidad con Av. Casanova Godoy</div>
+    <div class="insumos">
+      <p>Insumos médicos prioritarios</p>
+      <ul>
+        <li>Gasa estéril 4x4 · adhesivo en rollo</li>
+        <li>Diclofenac potásico · Omeprazol en ampollas</li>
+        <li>Jeringas: 3, 5, 10 y 20 ml · Yelcos 21 y 22</li>
+        <li>Tubos de muestra: rojo, azul y morado</li>
+        <li>Solución 0.9 · Macrogoteros · Mascarilla para nebulizar</li>
+        <li>Guantes estériles · Tapabocas · Alcohol</li>
+        <li>Linternas y baterías · Pañales niños y adultos</li>
+        <li>Kit de higiene · Agua potable · Alimentos no perecederos</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Carabobo (Valencia) — Comando ConVzla</div>
+    <div class="punto-dir">Av. Mons. Adams, El Viñedo · Edif. Talislandia, mezzanina</div>
+    <div class="punto-nota">Agua, alimentos no perecederos, insumos médicos, ropa.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Lara (Barquisimeto) — Cáritas</div>
+    <div class="punto-dir">Carrera 18, entre calles 34 y 35 · Barquisimeto</div>
+    <div class="punto-nota">Tel: 0251-4468402 · correo: caritasbarquisimeto@gmail.com</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Táchira — ULA Táchira</div>
+    <div class="punto-dir">Universidad de Los Andes, sede Táchira</div>
+    <div class="punto-nota">Agua potable, alimentos no perecederos y ropa en buen estado.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Zulia — UNT Zulia</div>
+    <div class="punto-dir">Sede Un Nuevo Tiempo, Zulia</div>
+  </div>
+
+  <!-- ESPAÑA -->
+  <div class="pais-label">🇪🇸 España — Madrid</div>
+
+  <div class="card card-naranja" style="margin-bottom:12px;">
+    <h3>📍 Ve al punto más cercano a tu barrio</h3>
+    <p>Para evitar colapsar un solo punto, Madrid ha abierto centros de acopio en toda la ciudad. Busca el más cercano. <strong>No se reciben medicamentos abiertos o vencidos.</strong></p>
+  </div>
+
+  <!-- IMAGEN ACTUALIZACIÓN MADRID -->
+  <div style="margin-bottom:16px;text-align:center;">
+    <p style="font-size:11px;color:var(--gris);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🗓️ Lista actualizada · 26 junio 2026</p>
+    <img src="madrid-acopio.jpeg" alt="Lista actualizada centros de acopio Madrid para Venezuela" style="width:100%;border-radius:12px;border:1px solid var(--borde);box-shadow:0 2px 8px rgba(75,54,88,0.08);" />
+    <p style="font-size:11px;color:var(--gris);margin-top:8px;">Fuente: @diaz · Instagram · 26 jun 2026</p>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Alcalá de Henares</div>
+    <div class="punto-dir">Villalbilla · Bar Donde José · Av. Isabela Braganza 1, 28810</div>
+    <div class="punto-dir">Barrio Las Sedas · Calle Terciopelo 6, 28806 · Contacto: Sarah 623130146</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Algete</div>
+    <div class="punto-dir">Calle Félix Rodríguez de la Fuente 23, 3D · 28110</div>
+    <div class="punto-hora">Viernes a partir de las 17:00</div>
+    <div class="punto-nota">Contacto: 643 093 680</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Arganzuela</div>
+    <div class="punto-dir">Olé Dogo · Paseo de la Esperanza 49, 28005</div>
+    <div class="punto-hora">Viernes 8:00–20:00 · Sábado 11:00–16:00</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Boadilla</div>
+    <div class="punto-nota">Punto pendiente de definir.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Carabanchel</div>
+    <div class="punto-dir">Estación de Metro Aluche (cerca de las taquillas/exterior)</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Chamberí</div>
+    <div class="punto-dir">Taquería La Lupita · Zurbano 67 y Conde de Xiquena 10 (solo hoy viernes) · 13:00–00:00</div>
+    <div class="punto-dir">Panadería Levadura Madre · Bravo Murillo 60 · Sábado 11:00–20:00</div>
+    <div class="punto-dir">Coqueta Nails & Beauty · Sábado 11:00–20:00 · Domingo 11:00–14:00</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Chamartín</div>
+    <div class="punto-dir">Peluquería JJ Matamoros · Avenida Alberto Alcocer 49</div>
+    <div class="punto-hora">Solo recogida hasta las 22:00</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Chueca</div>
+    <div class="punto-dir">Calle Libertad 28 · 10:00–22:00 (Local Quién La Invitó)</div>
+    <div class="punto-dir">Av. Reina Victoria 18 · 10:00–22:00</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Ciudad Lineal</div>
+    <div class="punto-dir">Emilio Ferrari 102, bajo exterior izquierdo</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Coslada</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Cañaveral</div>
+    <div class="punto-dir">Kora Balance · Av. de Miguel Delibes 47 · 9:30–21:30</div>
+    <div class="punto-dir">Av. de Miguel Delibes 47 · El Cañaveral</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Fuencarral – El Pardo</div>
+    <div class="punto-dir">Plaza de Mondariz 15, planta 12, puerta 1 (Mónica Dudamel)</div>
+    <div class="punto-dir">Calle Sangenjo 25, 5D · Contacto: 644626197</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Getafe</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Hortaleza</div>
+    <div class="punto-dir">Calle Ángel Luis de la Herran 36 · Contacto: 677863281</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Leganés</div>
+    <div class="punto-dir">Calle de la Rioja 134, 28915 · Local Oohlala Bistró</div>
+    <div class="punto-dir">Calle Bureba 31, Bajo D · Local UPA COFFE BAR</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Loeches</div>
+    <div class="punto-dir">Calle Berlín 46, Loeches</div>
+    <div class="punto-hora">Sábado y domingo 9:00–18:00</div>
+    <div class="punto-nota">Contacto: 663450963</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Majadahonda</div>
+    <div class="punto-dir">Luxoro · Delante de La Casa del Libro · Gran Vía 2</div>
+    <div class="punto-hora">Viernes 10:00–22:00 · Sábado y domingo 9:00–15:00</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Miranda de Ebro – Vitoria-Gasteiz</div>
+    <div class="punto-nota">Punto activo. Coordinar por WhatsApp.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Navas del Rey</div>
+    <div class="punto-dir">Calle Pelayos 4B</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Pinto</div>
+    <div class="punto-dir">Emiliana de Zubeldia 7, bajo C, 28320</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Pozuelo</div>
+    <div class="punto-nota">Grupo pendiente de definir punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Puente de Vallecas</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Rivas</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Salamanca</div>
+    <div class="punto-dir">General Pardiñas 85, 28006</div>
+    <div class="punto-dir">Núñez de Balboa 35A, 28001</div>
+    <div class="punto-dir">Calle del Cid 2, 28001</div>
+    <div class="punto-dir">Paseo del Marqués de Zafra 7, 4D</div>
+    <div class="punto-dir">Calle Diego de León 67, 3ª izquierda</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">San Blas – Canillejas</div>
+    <div class="punto-hora">Domingo 8:00–15:00</div>
+    <div class="punto-dir">Estadio Metropolitano (parking oeste)</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">San Sebastián de los Reyes / Alcobendas</div>
+    <div class="punto-dir">Bongo y Timbal</div>
+    <div class="punto-dir">Travesía Juan Manuel Sánchez Pedagogo 2</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Tetuán</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Tres Cantos</div>
+    <div class="punto-dir">Av. 21 de Marzo 1, Portal 6, Piso 4, Puerta B</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Usera</div>
+    <div class="punto-dir">Calle Amparo Usera · Plaza José Luis Hoyos</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Vicálvaro / Moratalaz</div>
+    <div class="punto-nota">Enlace WhatsApp disponible para coordinar punto.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Villa de Vallecas / Ensanche de Vallecas</div>
+    <div class="punto-dir">Avenida del Ensanche de Vallecas 67, Sala multiusos</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Villaverde</div>
+    <div class="punto-dir">Calle Periana 28, 1-D</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Villanueva del Pardillo</div>
+    <div class="punto-dir">Pardillo Center · Av. de Madrid 4, local 1</div>
+    <div class="punto-hora">Hoy 9:30–14:00 y 17:00–20:00 · Mañana sábado 10:00–14:00</div>
+  </div>
+
+  <div class="card card-naranja" style="margin-top:4px; margin-bottom:16px;">
+    <h3>⚠️ Importante</h3>
+    <p>No se recibirán medicamentos abiertos o vencidos.</p>
+  </div>
+
+  <div class="pais-label">🇪🇸 España — Valencia</div>
+
+  <div class="punto">
+    <div class="punto-nombre">ASIM · AVEC · FIARED · FEVENAES</div>
+    <div class="punto-dir">Av. Amado Granell Mesado 66, bajo derecha</div>
+    <div class="punto-dir">Av. Burjassot, bajo 29 (Testau Gastro Bar)</div>
+    <div class="punto-nota">Alimentos no perecederos, material sanitario y donaciones económicas.</div>
+  </div>
+
+  <div class="punto">
+    <div class="punto-nombre">Taberna de Pío (Benicalap)</div>
+    <div class="punto-hora">Desde las 8:30</div>
+    <div class="insumos">
+      <p>Prioridad</p>
+      <ul>
+        <li>Insumos médicos</li>
+        <li>Ropa</li>
+        <li>Alimentos no perecederos</li>
+        <li>Productos de cuidados básicos</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ECUADOR -->
+  <div class="pais-label">🇪🇨 Ecuador</div>
+
+  <div class="punto">
+    <div class="punto-nombre">Guayaquil — Chamos Burger</div>
+    <div class="punto-dir">Víctor Emilio Estrada y Jiguas · diagonal al Novagym Urdesa</div>
+    <div class="punto-hora">Desde las 10:00 a.m.</div>
+    <div class="insumos">
+      <p>Qué reciben</p>
+      <ul><li>Agua potable</li><li>Alimentos no perecederos</li><li>Insumos médicos</li><li>Ropa y abrigos</li></ul>
+    </div>
+  </div>
+
+</div>
+<div class="page-footer"><p>Creada por voluntarias · información verificada · 26 junio 2026</p></div>
+<a href="/app" style="position:fixed;left:16px;bottom:16px;z-index:2147483000;background:#4B3658;color:#fff;font:600 14px system-ui,sans-serif;padding:11px 16px;border-radius:12px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.28)">🗺️ Mapas en vivo</a></body></html>

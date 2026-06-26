@@ -1,0 +1,48 @@
+name: SismoVE · scraping cada 10 min
+
+# Cron REAL: corre cada ~10 min aunque nadie visite la web.
+# Scrapea las fuentes públicas y dispara las sincronizaciones del Drive.
+# Secrets requeridos (Settings → Secrets → Actions):
+#   SCRAPER_WEBHOOK_URL    = https://sismove-venezuela.vercel.app/api/webhooks/scraper
+#   SCRAPER_WEBHOOK_SECRET = (el mismo de Vercel)
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # cada 10 min (UTC; GitHub puede retrasarlo unos min)
+  workflow_dispatch: {}
+
+concurrency:
+  group: sismove-cron
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://sismove-venezuela.vercel.app
+      KEY: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Fuentes públicas (centros · sismos · desaparecidos) → webhook → Supabase
+        env:
+          SCRAPER_WEBHOOK_URL: ${{ secrets.SCRAPER_WEBHOOK_URL }}
+          SCRAPER_WEBHOOK_SECRET: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
+        run: node scraper/scrape.mjs --post || true
+
+      - name: Sync Drive (Docs de ingresos) → Supabase
+        run: curl -s "$BASE/api/sync-hospitales?key=$KEY"; echo
+
+      - name: Refrescar árbol del Drive (cache)
+        run: curl -s "$BASE/api/drive-docs" -o /dev/null -w "drive-docs %{http_code}\n"
+
+      - name: Auto-OCR de archivos nuevos del Drive (drenar cola)
+        run: |
+          for i in $(seq 1 25); do
+            R=$(curl -s "$BASE/api/sync-fotos?key=$KEY")
+            echo "vuelta $i: $R"
+            echo "$R" | grep -q '"status":"al_dia"' && break
+            sleep 2
+          done

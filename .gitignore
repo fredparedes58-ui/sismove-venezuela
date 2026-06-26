@@ -1,0 +1,26 @@
+# deps
+node_modules/
+# secretos
+.env
+.env.local
+.vercel
+# notas personales ajenas al proyecto
+informacion Andrea.txt
+# datos derivados pesados (intermedios del importador; se regeneran)
+data/towers_ve.csv
+data/towers_ve_fresh.csv
+# OS
+.DS_Store
+Thumbs.db
+
+.vercel
+
+# material de referencia y temporales (no van al repo)
+Krujens*
+VITAS*
+Nueva carpeta/
+_ocr/
+*.pdf
+*.descarga
+# config local de Claude Code (puede contener comandos con claves)
+.claude/
