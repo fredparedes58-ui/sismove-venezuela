@@ -54,6 +54,7 @@ const MENU_KB = {
   inline_keyboard: [
     [{ text: '🔍 Buscar persona', callback_data: 'buscar' }],
     [{ text: '📦 Centros de acopio', callback_data: 'acopio' }],
+    [{ text: '📊 Estado / novedades', callback_data: 'estado' }],
     [{ text: '☎ Emergencias', callback_data: 'emergencias' }],
     [{ text: '🤝 No encuentro a mi familia', callback_data: 'familia' }],
     [{ text: '🗺️ Abrir mapas (app)', url: APP_URL }],
@@ -101,6 +102,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (text.startsWith('/start')) { await subscribe(chatId, msg.chat?.username); await sendMenu(chatId, WELCOME); return new Response('ok'); }
     if (text.startsWith('/stop'))  { await unsubscribe(chatId); await send(chatId, 'Listo, no recibirás más avisos. Escribe /start para volver.'); return new Response('ok'); }
     if (text.startsWith('/ayuda') || text.startsWith('/menu') || text.startsWith('/help')) { await sendMenu(chatId, WELCOME); return new Response('ok'); }
+    if (text.startsWith('/estado') || text.startsWith('/status') || text.startsWith('/novedades')) { await send(chatId, await estadoText()); return new Response('ok'); }
 
     if (await rateLimited(chatId)) {
       await send(chatId, 'Estás enviando muchos mensajes muy rápido 🙏. Espera un momento. Si es una emergencia, llama al 911.');
@@ -134,9 +136,28 @@ async function routeText(chatId: string, text: string) {
 async function handleAction(chatId: string, data: string) {
   if (data === 'buscar') return send(chatId, BUSCAR_PROMPT);
   if (data === 'acopio') return send(chatId, await acopioText(''));
+  if (data === 'estado') return send(chatId, await estadoText());
   if (data === 'emergencias') return send(chatId, EMERG_TEXT);
   if (data === 'familia') return send(chatId, FAMILIA_TEXT);
   return sendMenu(chatId, WELCOME);
+}
+
+/* ─── Estado / novedades (incluye "sin cambios") ──────────────────────────── */
+async function cnt(table: string): Promise<number> {
+  try {
+    const r = await fetch(`${SB}/rest/v1/${table}?select=id`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, Prefer: 'count=exact', Range: '0-0' } });
+    return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10);
+  } catch { return -1; }
+}
+async function estadoText(): Promise<string> {
+  const [h, d, c, z] = await Promise.all([cnt('hospital_admisiones'), cnt('desaparecidos_external'), cnt('centros_acopio_external'), cnt('zona_reports')]);
+  let when = 'hace pocos minutos';
+  try {
+    const last = await sb(`sync_runs?ok=eq.true&order=ran_at.desc&limit=1`);
+    if (last?.[0]?.ran_at) when = new Date(last[0].ran_at).toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+  } catch {}
+  const n = (x: number) => x < 0 ? '—' : x.toLocaleString('es');
+  return `📊 Estado de SismoVE\nRevisión automática cada ~10 min · última: ${when}\n\n• 🏥 Ingresos hospitalarios: ${n(h)}\n• 🔍 Personas reportadas: ${n(d)}\n• 📦 Centros de acopio: ${n(c)}\n• ⚠️ Zonas afectadas reportadas: ${n(z)}\n\nSi estos números no cambiaron desde tu último aviso, es que no ha entrado información nueva. Te aviso en automático en cuanto algo cambie. Escribe /estado cuando quieras revisar.`;
 }
 
 /* ─── Acciones con datos reales (Supabase) ────────────────────────────────── */
