@@ -212,7 +212,7 @@
 
 <header class="top">
   <div class="top-in">
-    <button class="backbtn" id="backBtn" onclick="goBack()" aria-label="Atrás" title="Atrás" style="display:none">←</button>
+    <button class="backbtn" id="backBtn" onclick="goBack()" aria-label="Atrás" title="Atrás">←</button>
     <div class="logo">
       <span class="mark">⛰️</span>
       <div>SismoVE
@@ -634,8 +634,8 @@ function go(v, fromBack){
   updateBackBtn();
 }
 // Botón atrás: vuelve a la pantalla anterior; si no hay historial, a Inicio (Ayuda).
-function goBack(){ if(viewHistory.length) go(viewHistory.pop(), true); else go('ayuda', true); }
-function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.style.display = (curView!=='ayuda') ? 'grid' : 'none'; }
+function goBack(){ if(viewHistory.length) go(viewHistory.pop(), true); else location.href='/'; }   // sin historial → a la portada
+function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.style.display='grid'; }  // siempre visible
 
 /* ---------- Pedir ayuda ---------- */
 let selNeed='rescate', geo=null;
