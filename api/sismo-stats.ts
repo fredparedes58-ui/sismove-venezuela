@@ -18,7 +18,7 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SECRET = process.env.SCRAPER_WEBHOOK_SECRET;
 const GEMINI = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const REFRESH_MIN = 20;
+const REFRESH_MIN = 60;   // scrapea cada página 1 vez por hora (resto de llamadas del cron = cache)
 
 const FUENTES: { nombre: string; url: string; api?: string }[] = [
   { nombre: 'Vozpópuli', url: 'https://www.vozpopuli.com/internacional/terremotos-en-venezuela-en-directo-ultima-hora-del-desastre-numero-de-fallecidos-y-total-de-desaparecidos-espanoles.html' },
@@ -32,7 +32,12 @@ const sbH = (e: Record<string, string> = {}) => ({ apikey: SERVICE, Authorizatio
 async function latest(): Promise<any | null> {
   try {
     const r = await fetch(`${SB}/rest/v1/sismo_stats?select=*&order=updated_at.desc&limit=1`, { headers: sbH() }).then(x => x.json());
-    return Array.isArray(r) && r[0] ? r[0] : null;
+    const row = Array.isArray(r) && r[0] ? r[0] : null;
+    // Compat con la tabla plana existente: el array de fuentes se guarda como JSON en `fuente`.
+    if (row && !row.sources && typeof row.fuente === 'string' && row.fuente.trim().startsWith('[')) {
+      try { row.sources = JSON.parse(row.fuente); } catch {}
+    }
+    return row;
   } catch { return null; }
 }
 
@@ -95,9 +100,13 @@ export default async function handler(req: Request): Promise<Response> {
   const conDatos = sources.filter(s => s.fallecidos != null || s.desaparecidos != null || s.rescatados != null || s.heridos != null);
   if (!conDatos.length) return json({ status: 'sin_datos', stats: cur, debug: sources });
 
-  const row = { sources, updated_at: new Date().toISOString() };
-  await fetch(`${SB}/rest/v1/sismo_stats`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([row]) }).catch(() => {});
-  return json({ status: 'actualizado', stats: row });
+  // Guarda en la tabla EXISTENTE (formato plano): el array de fuentes va como JSON en `fuente`;
+  // las columnas planas se rellenan con la cifra más alta por compatibilidad. (Sin SQL nuevo.)
+  const top = (k: string) => { const a = sources.filter((s: any) => s[k] != null).sort((x: any, y: any) => y[k] - x[k]); return a[0] ? a[0][k] : null; };
+  const now = new Date().toISOString();
+  const dbRow = { fallecidos: top('fallecidos'), heridos: top('heridos'), desaparecidos: top('desaparecidos'), fuente: JSON.stringify(sources), url: 'multi-fuente', updated_at: now };
+  await fetch(`${SB}/rest/v1/sismo_stats`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([dbRow]) }).catch(() => {});
+  return json({ status: 'actualizado', stats: { sources, updated_at: now } });
 }
 
 function json(b: unknown, s = 200, pub = false): Response {
