@@ -187,6 +187,8 @@
   .seg{display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:5px;margin-bottom:12px}
   .seg button{flex:1;border:0;background:none;color:var(--mut);font-weight:700;font-size:13px;padding:10px 4px;border-radius:9px;cursor:pointer;font-family:inherit}
   .seg button.on{background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205}
+  .seg.multi{flex-wrap:wrap}
+  .seg.multi button{flex:1 1 auto;white-space:nowrap;font-size:12px;padding:9px 11px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:0 4px 12px}
   .legend span{display:flex;align-items:center;gap:6px}
   .legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
@@ -335,15 +337,16 @@
   <!-- ============ MAPAS EN VIVO ============ -->
   <section class="view pad" id="v-refugios">
     <h2 class="title">Mapas en vivo</h2>
-    <p class="sub">Centros de acopio, cobertura móvil y estado eléctrico, ciudad por ciudad.</p>
-    <div class="seg" id="mapSeg">
-      <button class="on" data-m="acopio" onclick="setMapMode('acopio')">📦 Acopio</button>
-      <button data-m="cobertura" onclick="setMapMode('cobertura')">📶 Cobertura</button>
-      <button data-m="luz" onclick="setMapMode('luz')">⚡ Luz</button>
-      <button data-m="afectadas" onclick="setMapMode('afectadas')">⚠️ Afectadas</button>
+    <p class="sub">Activa una o varias capas y <b>crúzalas</b> sobre el mapa (OpenStreetMap). Ej: 🔥 zonas afectadas × 📡 celdas.</p>
+    <div class="seg multi" id="mapLayers">
+      <button class="on" data-l="afectadas" onclick="toggleLayer('afectadas')">🔥 Zonas afectadas</button>
+      <button data-l="torres" onclick="toggleLayer('torres')">📡 Celdas</button>
+      <button data-l="acopio" onclick="toggleLayer('acopio')">📦 Acopio</button>
+      <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura</button>
+      <button data-l="luz" onclick="toggleLayer('luz')">⚡ Luz</button>
     </div>
     <div id="hubSync" class="sync-bar"></div>
-    <div id="mapHub" class="card" style="padding:0;overflow:hidden"></div>
+    <div id="mapHub" class="card" style="padding:0;overflow:hidden;height:60vh;min-height:420px"></div>
     <div id="hubLegend" class="legend"></div>
     <div id="hubActions"></div>
     <div id="hubList"></div>
@@ -470,6 +473,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="data/feed.js" onerror="console.warn('feed.js no encontrado: ejecuta el scraper')"></script>
 <script>
 /* ======================================================================
@@ -506,9 +510,6 @@ const cityByName = n => CITIES.find(c=>c.n===n) || CITIES[0];
 
 /* ---------- Estado / persistencia ---------- */
 const LS = 'sismove_v2';
-let DB = load();
-DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
-DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
 function load(){
   try{ const d = JSON.parse(localStorage.getItem(LS)); if(d&&d.reports) return d; }catch(e){}
   return seed();
@@ -586,6 +587,11 @@ function triage(r){
 }
 const PRIO_LABEL = {crit:'Crítica', alta:'Alta', media:'Media', baja:'Baja'};
 const PRIO_ORDER = {crit:0, alta:1, media:2, baja:3};
+
+/* ---------- Estado / persistencia (después de triage + catálogos: seed() los usa al arrancar) ---------- */
+let DB = load();
+DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
+DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
 
 /* ---------- Navegación ---------- */
 let curView='ayuda';
@@ -689,7 +695,7 @@ async function loadCommunityReports(force){
     if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
-    if(curView==='refugios' && (mapMode==='cobertura'||mapMode==='luz')) renderHub();
+    if(curView==='refugios'){ ['cobertura','luz'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(activeLayers.has('cobertura')||activeLayers.has('luz')) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
 }
 async function pushCommunityReport(kind, row){
@@ -732,48 +738,88 @@ function nearestCity(lat,lng){
 }
 const rid=()=>'x'+Math.random().toString(36).slice(2,8);
 
-let mapMode='acopio', mapHub=null, hubLayer=null;
+/* ---- Motor de CAPAS COMBINABLES (se pueden cruzar varias a la vez) ---- */
+let mapHub=null;
+const activeLayers=new Set(['afectadas']);   // capa(s) encendida(s); por defecto zonas afectadas
+let focusLayer='afectadas';                    // capa que controla el panel inferior
+const hubLayers={};                            // key -> array de capas Leaflet en el mapa
+
+// Epicentros reales del doblete + estados afectados (severidad 0-1) para el heatmap
+const EPICENTROS=[
+  {n:'San Felipe (Yaracuy)', lat:10.339, lng:-68.740, mag:'M7.5'},
+  {n:'Yumare (Yaracuy)',     lat:10.616, lng:-68.689, mag:'M7.2'},
+];
+const ESTADOS_AFECTADOS=[
+  {n:'La Guaira (zona de desastre)', lat:10.601, lng:-66.934, w:1.0},
+  {n:'Yaracuy (San Felipe)',         lat:10.339, lng:-68.740, w:.95},
+  {n:'Caracas (Capital)',            lat:10.491, lng:-66.879, w:.85},
+  {n:'Carabobo (Valencia)',          lat:10.162, lng:-68.008, w:.75},
+  {n:'Falcón (Tucacas)',             lat:10.799, lng:-68.319, w:.70},
+  {n:'Miranda (Guarenas/Guatire)',   lat:10.470, lng:-66.540, w:.70},
+  {n:'Aragua (Maracay)',             lat:10.247, lng:-67.596, w:.65},
+];
 function ensureHubMap(){
   if(mapHub) return;
-  mapHub=L.map('mapHub',{scrollWheelZoom:false, preferCanvas:true}).setView([8.4,-66],5.6);
+  mapHub=L.map('mapHub',{scrollWheelZoom:true, preferCanvas:true}).setView([10.45,-67.6],7.3);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
     attribution:'© OpenStreetMap · © CARTO · torres © OpenCelliD CC-BY-SA', subdomains:'abcd', maxZoom:18}).addTo(mapHub);
-  mapHub.on('moveend', ()=>{ if(mapMode==='cobertura') drawTowersInView(); });   // ver torres del barrio al hacer zoom/pan
+  mapHub.on('moveend', ()=>{ if(activeLayers.has('torres')) drawTowersInView(); });   // torres del barrio al hacer zoom/pan
 }
+function removeLayer(key){
+  (hubLayers[key]||[]).forEach(l=>{ try{ mapHub.removeLayer(l); }catch(e){} });
+  hubLayers[key]=null;
+  if(key==='torres'){ if(towerLayer){try{towerLayer.remove();}catch(e){} towerLayer=null;} if(liveLayer){try{liveLayer.remove();}catch(e){} liveLayer=null;} }
+}
+function addLayer(key){
+  ensureHubMap(); removeLayer(key);
+  if(key==='afectadas')      hubLayers[key]=buildAfectadas();
+  else if(key==='acopio')    hubLayers[key]=buildAcopio();
+  else if(key==='torres'){   hubLayers[key]=[]; ensureFullTowers(drawTowersInView); drawTowersInView(); }
+  else                       hubLayers[key]=buildStatus(key);   // cobertura | luz
+}
+// Compat con el deep-link antiguo (#cobertura/#luz/#afectadas): enfoca esa capa
 function setMapMode(m){
-  mapMode=m;
-  document.querySelectorAll('#mapSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
-  renderHub();
+  activeLayers.clear(); activeLayers.add(m); focusLayer=m; renderHub();
 }
-function renderHub(){
+function toggleLayer(key){
+  if(activeLayers.has(key)){
+    if(activeLayers.size===1) return;            // siempre debe quedar al menos una capa
+    activeLayers.delete(key); removeLayer(key);
+    if(focusLayer===key) focusLayer=[...activeLayers].pop();
+  } else {
+    activeLayers.add(key); focusLayer=key; addLayer(key);
+  }
+  syncLayerButtons(); fitActive(); renderHubPanel();
+}
+function syncLayerButtons(){
+  document.querySelectorAll('#mapLayers button').forEach(b=>b.classList.toggle('on',activeLayers.has(b.dataset.l)));
+}
+function renderHub(){   // (re)dibuja TODAS las capas activas — se llama al entrar o al refrescar datos
   ensureHubMap();
-  if(hubLayer) hubLayer.remove();
-  if(towerLayer){ towerLayer.remove(); towerLayer=null; }
-  if(liveLayer){ liveLayer.remove(); liveLayer=null; }
-  hubLayer=L.layerGroup().addTo(mapHub);
-  if(mapMode==='acopio') renderAcopioMode();
-  else if(mapMode==='afectadas') renderAfectadasMode();
-  else renderStatusMode(mapMode);
+  Object.keys(hubLayers).forEach(removeLayer);
+  activeLayers.forEach(addLayer);
+  syncLayerButtons(); fitActive(); renderHubPanel();
   setTimeout(()=>mapHub.invalidateSize(),60);
 }
-
-/* ---- Acopio (datos reales del scraper), agrupado por ciudad ---- */
-function renderAcopioMode(){
-  syncBar('hubSync','acopio',(FEED.centros||[]).length);
+function fitActive(){
   const pts=[];
+  if(activeLayers.has('afectadas')){ EPICENTROS.forEach(e=>pts.push([e.lat,e.lng])); ESTADOS_AFECTADOS.forEach(a=>pts.push([a.lat,a.lng])); (FEED.sismos||[]).forEach(s=>{if(typeof s.lat==='number')pts.push([s.lat,s.lng]);}); }
+  if(activeLayers.has('acopio')) (FEED.centros||[]).forEach(c=>{if(typeof c.lat==='number')pts.push([c.lat,c.lng]);});
+  if(activeLayers.has('cobertura')) DB.coverage.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(activeLayers.has('luz')) DB.power.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(pts.length>1) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:9});
+}
+
+/* ---- Acopio (datos reales del scraper) — constructor de capa ---- */
+function buildAcopio(){
+  const arr=[];
   (FEED.centros||[]).forEach(c=>{
     if(typeof c.lat!=='number'||typeof c.lng!=='number') return;
     const needs=(c.necesita||[]).slice(0,8).join(', ');
-    L.marker([c.lat,c.lng]).addTo(hubLayer)
-     .bindPopup(`<b>${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`);
-    pts.push([c.lat,c.lng]);
+    arr.push(L.marker([c.lat,c.lng]).addTo(mapHub)
+     .bindPopup(`<b>📦 ${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`));
   });
-  if(pts.length) mapHub.fitBounds(pts,{padding:[28,28],maxZoom:12});
-  document.getElementById('hubLegend').innerHTML='';
-  document.getElementById('hubActions').innerHTML=
-    `<input id="acopioSearch" placeholder="🔎 Buscar centro por nombre o dirección..." oninput="renderAcopioList()" style="margin-bottom:10px">
-     <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://centro-de-acopio-ven.vercel.app/" target="_blank" rel="noopener">➕ Registrar un centro de acopio →</a>`;
-  renderAcopioList();
+  return arr;
 }
 function renderAcopioList(){
   const q=(document.getElementById('acopioSearch')?.value||'').toLowerCase().trim();
@@ -830,7 +876,7 @@ function ensureFullTowers(cb){
   document.body.appendChild(s);
 }
 function drawTowersInView(){
-  if(!mapHub||mapMode!=='cobertura') return;
+  if(!mapHub||!activeLayers.has('torres')) return;
   if(towerLayer) towerLayer.remove();
   towerLayer=L.layerGroup().addTo(mapHub);
   const src=towerSource(), b=mapHub.getBounds();
@@ -876,77 +922,104 @@ async function fetchLiveTowers(){
   }catch(e){ toast('Modo en vivo: disponible al desplegar el backend','err'); }
 }
 
-function renderStatusMode(kind){
-  const data=statusData(kind);
-  const pts=[];
+/* ---- Cobertura / Luz — constructor de capa ---- */
+function buildStatus(kind){
+  const arr=[]; const data=statusData(kind);
   data.forEach(r=>{
     if(typeof r.lat!=='number') return;
     const col=statusColor(kind,r.estado);
-    L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(hubLayer)
-     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}`);
-    pts.push([r.lat,r.lng]);
+    arr.push(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}`));
   });
-  if(pts.length) mapHub.fitBounds(pts,{padding:[28,28],maxZoom:11});
-
-  if(kind==='cobertura'){
-    document.getElementById('hubSync').innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes comunitarios + torres reales · <b>acerca el zoom a tu barrio</b></span>`;
-    document.getElementById('hubLegend').innerHTML=`<span><i style="background:#22c98a"></i>Con señal</span><span><i style="background:#ffb020"></i>Intermitente</span><span><i style="background:#ff4d4f"></i>Sin señal</span><span><i style="background:#4d9fff"></i>📡 Torre (● reciente)</span>`;
-    document.getElementById('hubActions').innerHTML=
-      `<button class="btn primary" onclick="openMapReport('cobertura')">📶 Reportar cobertura aquí</button>
-       <button class="btn ghost" style="margin-top:8px" onclick="fetchLiveTowers()">📡 Ver esta zona EN VIVO (OpenCelliD)</button>
-       <div id="towerNote" class="card" style="background:var(--bg2);margin-top:10px;font-size:11.5px;color:var(--mut2)">📡 Cargando torres…</div>`;
-    ensureFullTowers(drawTowersInView);
-    drawTowersInView();
-  } else {
-    document.getElementById('hubSync').innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes de la comunidad · ayuda reportando tu zona</span>`;
-    document.getElementById('hubLegend').innerHTML=`<span><i style="background:#22c98a"></i>Con luz</span><span><i style="background:#ff4d4f"></i>Sin luz / apagón</span>`;
-    document.getElementById('hubActions').innerHTML=`<button class="btn primary" onclick="openMapReport('luz')">⚡ Reportar estado de luz</button>`;
-  }
-  const el=document.getElementById('hubList');
-  el.innerHTML = data.length ? data.slice(0,40).map(r=>`
-    <div class="rep ${kind==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
-      <div class="h"><span class="t">${kind==='cobertura'?'📶':'⚡'} ${statusLabel(kind,r.estado)}</span>
-        ${kind==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
-        ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}</div>
-      <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
-    </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
+  return arr;
 }
 
-/* ---- Áreas afectadas (sismos reales USGS) ---- */
-function renderAfectadasMode(){
-  const sismos=(FEED.sismos||[]), aa=FEED.areas_afectadas;
-  document.getElementById('hubSync').innerHTML=
-    `<span class="dot err"></span><span><b>${sismos.length}</b> sismos · USGS, últimos 30 días${aa?` · ${esc(aa.evento)}`:''}</span>`;
-  const pts=[];
-  sismos.forEach(s=>{
-    if(typeof s.lat!=='number') return;
-    const m=s.mag||0;
-    const col = m>=6?'#ff2d2f': m>=5?'#ff5b3a': m>=4?'#ff8a3d':'#ffb020';
-    L.circleMarker([s.lat,s.lng],{radius:Math.max(6,(m*m)/2.2),color:col,fillColor:col,fillOpacity:.35,weight:1.5}).addTo(hubLayer)
-     .bindPopup(`<b>M${m} · ${esc(s.place||'')}</b><br>${new Date(s.time).toLocaleString('es')}<br>prof. ${Math.round(s.depth)} km${s.url?`<br><a href="${esc(s.url)}" target="_blank" rel="noopener">USGS ↗</a>`:''}`);
-    pts.push([s.lat,s.lng]);
-  });
-  if(pts.length) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:8});
-  document.getElementById('hubLegend').innerHTML=
-    `<span><i style="background:#ff2d2f"></i>M≥6</span><span><i style="background:#ff5b3a"></i>M5–6</span><span><i style="background:#ff8a3d"></i>M4–5</span><span><i style="background:#ffb020"></i>M&lt;4</span>`;
-  document.getElementById('hubActions').innerHTML='';
-  let html='';
-  if(aa){
-    html+=`<div class="card" style="border-color:#4a1c1f;background:linear-gradient(140deg,rgba(255,77,79,.08),transparent)">
-      <b style="font-size:15px">⚠️ ${esc(aa.evento)}</b>
-      <div style="font-size:13px;color:var(--mut);margin:6px 0">${esc(aa.fecha)} · epicentros: ${aa.epicentros.map(esc).join(' · ')}</div>
-      <div style="font-size:12px;color:var(--mut);margin-bottom:6px">Estados más afectados:</div>
-      ${aa.estados.map(e=>`<span class="tag-need">${esc(e)}</span>`).join('')}
-      <div style="font-size:11px;color:var(--mut2);margin-top:10px">Fuente: ${esc(aa.fuente)}</div>
-    </div>`;
+/* ---- Zonas afectadas: HEATMAP (área de calor) + epicentros + sismos USGS ---- */
+function buildAfectadas(){
+  const arr=[], heat=[];
+  EPICENTROS.forEach(e=>heat.push([e.lat,e.lng,1.0]));
+  ESTADOS_AFECTADOS.forEach(a=>heat.push([a.lat,a.lng,a.w]));
+  (FEED.sismos||[]).forEach(s=>{ if(typeof s.lat==='number') heat.push([s.lat,s.lng,Math.min(1,(s.mag||3)/6)]); });
+  if(typeof L.heatLayer==='function'){
+    arr.push(L.heatLayer(heat,{radius:42,blur:32,minOpacity:.25,max:1.0,maxZoom:10,
+      gradient:{0.0:'#1d4ed8',0.30:'#f59e0b',0.55:'#f97316',0.78:'#ef4444',1.0:'#7f1d1d'}}).addTo(mapHub));
   }
-  const fuertes=sismos.filter(s=>(s.mag||0)>=4).slice(0,12);
-  html+=fuertes.map(s=>{
-    const m=s.mag||0, cls=m>=6?'crit':m>=5?'alta':'media';
-    return `<div class="rep ${cls}"><div class="h"><span class="t">M${m} · ${esc(s.place||'')}</span></div>
-      <div class="meta"><span>📅 ${new Date(s.time).toISOString().slice(0,10)}</span><span>📏 prof ${Math.round(s.depth)} km</span></div></div>`;
-  }).join('');
-  document.getElementById('hubList').innerHTML = html || '<div class="empty">Sin sismos recientes registrados.</div>';
+  EPICENTROS.forEach(e=>{
+    arr.push(L.marker([e.lat,e.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:22px;line-height:1;filter:drop-shadow(0 0 3px #000)">⭐</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(mapHub)
+      .bindPopup(`<b>⭐ Epicentro ${esc(e.mag)}</b><br>${esc(e.n)}<br>Doblete del 24-jun-2026`));
+  });
+  (FEED.sismos||[]).forEach(s=>{
+    if(typeof s.lat!=='number') return;
+    const m=s.mag||0, col=m>=6?'#ff2d2f':m>=5?'#ff5b3a':m>=4?'#ff8a3d':'#ffb020';
+    arr.push(L.circleMarker([s.lat,s.lng],{radius:Math.max(5,(m*m)/2.6),color:col,fillColor:col,fillOpacity:.25,weight:1.4}).addTo(mapHub)
+     .bindPopup(`<b>M${m} · ${esc(s.place||'')}</b><br>${new Date(s.time).toLocaleString('es')}<br>prof. ${Math.round(s.depth)} km${s.url?`<br><a href="${esc(s.url)}" target="_blank" rel="noopener">USGS ↗</a>`:''}`));
+  });
+  return arr;
+}
+
+/* ---- Panel inferior: depende de la capa enfocada (focusLayer) + capas activas ---- */
+function renderHubPanel(){
+  const k=focusLayer;
+  const sync=document.getElementById('hubSync'), leg=document.getElementById('hubLegend'),
+        act=document.getElementById('hubActions'), list=document.getElementById('hubList');
+  if(!sync) return;
+  const cross = (activeLayers.has('afectadas')&&activeLayers.has('torres'))
+    ? `<div class="card" style="border-color:#1f4a4a;background:linear-gradient(140deg,rgba(34,211,238,.10),rgba(255,77,79,.10));font-size:12.5px;margin-bottom:10px">🔀 <b>Cruzando</b> zonas afectadas × red de celdas: mira qué antenas caen dentro del área caliente para anticipar fallos de comunicación.</div>` : '';
+  if(k==='afectadas'){
+    const sismos=(FEED.sismos||[]), aa=FEED.areas_afectadas;
+    sync.innerHTML=`<span class="dot err"></span><span><b>${EPICENTROS.length}</b> epicentros · <b>${sismos.length}</b> sismos USGS${aa?` · ${esc(aa.evento)}`:''}</span>`;
+    leg.innerHTML=`<span><i style="background:#7f1d1d"></i>Muy alto</span><span><i style="background:#ef4444"></i>Alto</span><span><i style="background:#f97316"></i>Medio</span><span><i style="background:#1d4ed8"></i>Bajo</span><span>⭐ Epicentro</span>`;
+    act.innerHTML='';
+    let html=cross;
+    if(aa){
+      html+=`<div class="card" style="border-color:#4a1c1f;background:linear-gradient(140deg,rgba(255,77,79,.08),transparent)">
+        <b style="font-size:15px">⚠️ ${esc(aa.evento)}</b>
+        <div style="font-size:13px;color:var(--mut);margin:6px 0">${esc(aa.fecha)} · epicentros: ${aa.epicentros.map(esc).join(' · ')}</div>
+        <div style="font-size:12px;color:var(--mut);margin-bottom:6px">Estados más afectados:</div>
+        ${aa.estados.map(e=>`<span class="tag-need">${esc(e)}</span>`).join('')}
+        <div style="font-size:11px;color:var(--mut2);margin-top:10px">Fuente: ${esc(aa.fuente)}</div>
+      </div>`;
+    }
+    const fuertes=sismos.filter(s=>(s.mag||0)>=4).slice(0,12);
+    html+=fuertes.map(s=>{ const m=s.mag||0, cls=m>=6?'crit':m>=5?'alta':'media';
+      return `<div class="rep ${cls}"><div class="h"><span class="t">M${m} · ${esc(s.place||'')}</span></div>
+        <div class="meta"><span>📅 ${new Date(s.time).toISOString().slice(0,10)}</span><span>📏 prof ${Math.round(s.depth)} km</span></div></div>`; }).join('');
+    list.innerHTML=html || '<div class="empty">Sin sismos recientes.</div>';
+  }
+  else if(k==='acopio'){
+    sync.innerHTML=`<span class="dot ok"></span><span><b>${(FEED.centros||[]).length}</b> centros de acopio (datos reales)</span>`;
+    leg.innerHTML='';
+    act.innerHTML=cross+`<input id="acopioSearch" placeholder="🔎 Buscar centro por nombre o dirección..." oninput="renderAcopioList()" style="margin-bottom:10px">
+      <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://centro-de-acopio-ven.vercel.app/" target="_blank" rel="noopener">➕ Registrar un centro de acopio →</a>`;
+    renderAcopioList();
+  }
+  else if(k==='torres'){
+    sync.innerHTML=`<span class="dot warn"></span><span>Red de celdas (OpenCelliD) · <b>acerca el zoom a tu barrio</b></span>`;
+    leg.innerHTML=`<span><i style="background:#4d9fff"></i>Movistar</span><span><i style="background:#22c98a"></i>Movilnet</span><span><i style="background:#ffb020"></i>Digitel</span><span>● confirmada</span>`;
+    act.innerHTML=cross+`<button class="btn ghost" onclick="fetchLiveTowers()">📡 Ver esta zona EN VIVO (OpenCelliD)</button>
+      <div id="towerNote" class="card" style="background:var(--bg2);margin-top:10px;font-size:11.5px;color:var(--mut2)">📡 Cargando torres…</div>`;
+    ensureFullTowers(drawTowersInView); drawTowersInView();
+    list.innerHTML='';
+  }
+  else { // cobertura | luz
+    const data=statusData(k);
+    if(k==='cobertura'){
+      sync.innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes comunitarios de señal</span>`;
+      leg.innerHTML=`<span><i style="background:#22c98a"></i>Con señal</span><span><i style="background:#ffb020"></i>Intermitente</span><span><i style="background:#ff4d4f"></i>Sin señal</span>`;
+      act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('cobertura')">📶 Reportar cobertura aquí</button>`;
+    } else {
+      sync.innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes de luz/apagones</span>`;
+      leg.innerHTML=`<span><i style="background:#22c98a"></i>Con luz</span><span><i style="background:#ff4d4f"></i>Sin luz / apagón</span>`;
+      act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('luz')">⚡ Reportar estado de luz</button>`;
+    }
+    list.innerHTML = data.length ? data.slice(0,40).map(r=>`
+      <div class="rep ${k==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
+        <div class="h"><span class="t">${k==='cobertura'?'📶':'⚡'} ${statusLabel(k,r.estado)}</span>
+          ${k==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
+          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}</div>
+        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
+      </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
+  }
 }
 
 /* ---- Reportar en el mapa (modal) ---- */
@@ -1257,10 +1330,12 @@ setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté ab
 loadCommunityReports(true);             // reportes comunitarios compartidos (Supabase)
 setInterval(()=>loadCommunityReports(true), 60000);
 
-// Deep-link desde el landing: #refugios, #desap, #panel… o submodos de mapa #cobertura/#luz/#afectadas
+// Deep-link desde el landing: #mapas (mapa), #senal (celdas × zonas afectadas), #desap, #panel, #cobertura/#luz/#afectadas
 (function(){
   const h=(location.hash||'').slice(1); if(!h) return;
-  if(['cobertura','luz','afectadas'].includes(h)){ go('refugios'); setTimeout(()=>setMapMode(h),140); }
+  if(h==='mapas'){ go('refugios'); }
+  else if(h==='senal'){ activeLayers.clear(); activeLayers.add('afectadas'); activeLayers.add('torres'); focusLayer='torres'; go('refugios'); }
+  else if(['cobertura','luz','afectadas'].includes(h)){ go('refugios'); setTimeout(()=>setMapMode(h),140); }
   else if(document.getElementById('v-'+h)) go(h);
 })();
 </script>
