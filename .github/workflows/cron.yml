@@ -46,3 +46,6 @@ jobs:
             echo "$R" | grep -q '"status":"al_dia"' && break
             sleep 2
           done
+
+      - name: Avisar a suscriptores de Telegram si hay datos nuevos
+        run: curl -s "$BASE/api/notify?key=$KEY"; echo
