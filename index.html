@@ -304,13 +304,13 @@
 
 <div class="alert-bar">
   <span class="dot">🔴</span>&nbsp;
-  EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · 589 fallecidos · más de 4.300 heridos
+  EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span>
 </div>
 
 <!-- TICKER INFORMATIVO -->
 <div class="ticker-wrap">
   <div class="ticker-track">
-    <span class="ticker-item">🔴 <strong>26 JUN · BALANCE OFICIAL:</strong> 589 fallecidos · más de 4.300 heridos · 6,76 millones de afectados (ONU)</span>
+    <span class="ticker-item">🔴 <strong>BALANCE OFICIAL:</strong> <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span> · 6,76 millones de afectados (ONU) · <span class="balance-fuente">Asamblea Nacional, 26 jun</span></span>
     <span class="ticker-sep">·</span>
     <span class="ticker-item">🛰️ <strong>STARLINK GRATIS hasta el 25 de julio</strong> para todos los usuarios en Venezuela — actívalo en starlink.com</span>
     <span class="ticker-sep">·</span>
@@ -330,7 +330,7 @@
     <span class="ticker-sep">·</span>
     <span class="ticker-item">📦 <strong>Valencia España:</strong> Taberna de Pío desde 8:30 · ASIM · AVEC · FIARED · FEVENAES · Av. Amado Granell Mesado 66</span>
     <span class="ticker-sep">·</span>
-    <span class="ticker-item">🔴 <strong>26 JUN · BALANCE OFICIAL:</strong> 589 fallecidos · más de 4.300 heridos · 6,76 millones de afectados (ONU)</span>
+    <span class="ticker-item">🔴 <strong>BALANCE OFICIAL:</strong> <span class="balance-cifras">920 fallecidos · más de 4.300 heridos</span> · 6,76 millones de afectados (ONU) · <span class="balance-fuente">Asamblea Nacional, 26 jun</span></span>
     <span class="ticker-sep">·</span>
     <span class="ticker-item">🛰️ <strong>STARLINK GRATIS hasta el 25 de julio</strong> para todos los usuarios en Venezuela — actívalo en starlink.com</span>
     <span class="ticker-sep">·</span>
@@ -501,6 +501,24 @@
 </footer>
 
 
+<script>
+/* Banner rojo: cifras oficiales en vivo (fuente: Wikipedia/oficiales vía /api/sismo-stats).
+   Si falla, se quedan las cifras escritas en el HTML como respaldo. */
+(function(){
+  try{
+    fetch('/api/sismo-stats').then(function(r){return r.json();}).then(function(d){
+      var s = d && d.stats; if(!s) return;
+      var fmt = function(n){ return Number(n).toLocaleString('es'); };
+      var p = [];
+      if(s.fallecidos!=null) p.push(fmt(s.fallecidos)+' fallecidos');
+      if(s.heridos!=null) p.push('más de '+fmt(s.heridos)+' heridos');
+      if(p.length){ var t=p.join(' · '); document.querySelectorAll('.balance-cifras').forEach(function(e){ e.textContent=t; }); }
+      var fu = [s.fuente, s.fecha].filter(Boolean).join(', ');
+      if(fu){ document.querySelectorAll('.balance-fuente').forEach(function(e){ e.textContent=fu; }); }
+    }).catch(function(){});
+  }catch(e){}
+})();
+</script>
 <script src="https://widget-v2.dapta.ai/agent.min.js?agentId=360f4949-d6d7-4715-8afe-79d33e476bf2"></script>
 <a href="/app#mapas" style="position:fixed;left:16px;bottom:16px;z-index:2147483000;background:#4B3658;color:#fff;font:600 14px system-ui,sans-serif;padding:11px 16px;border-radius:12px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.28)">🗺️ Mapas en vivo</a></body>
 </html>

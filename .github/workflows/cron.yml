@@ -47,5 +47,8 @@ jobs:
             sleep 2
           done
 
+      - name: Refrescar cifras oficiales del banner (Wikipedia → Gemini, throttle 30 min)
+        run: curl -s "$BASE/api/sismo-stats?key=$KEY&refresh=1"; echo
+
       - name: Avisar a suscriptores de Telegram si hay datos nuevos
         run: curl -s "$BASE/api/notify?key=$KEY"; echo
