@@ -40,6 +40,8 @@
   .logo .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
     background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205;font-size:18px;box-shadow:0 4px 14px rgba(255,138,61,.35)}
   .logo small{display:block;font-size:10.5px;font-weight:600;color:var(--mut);letter-spacing:.2px;margin-top:-2px}
+  .backbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:800;cursor:pointer;display:grid;place-items:center;flex:none;line-height:1}
+  .backbtn:active{transform:scale(.94)}
   .sos{margin-left:auto;background:var(--red);color:#fff;border:0;border-radius:12px;font-weight:800;
     padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(255,77,79,.35);display:flex;gap:6px;align-items:center}
   .sos:active{transform:scale(.96)}
@@ -203,6 +205,7 @@
 
 <header class="top">
   <div class="top-in">
+    <button class="backbtn" id="backBtn" onclick="goBack()" aria-label="Atrás" title="Atrás" style="display:none">←</button>
     <div class="logo">
       <span class="mark">⛰️</span>
       <div>SismoVE
@@ -592,10 +595,12 @@ const PRIO_ORDER = {crit:0, alta:1, media:2, baja:3};
 let DB = load();
 DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
 DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
+DB.zonas    = DB.zonas    || [];   // reportes comunitarios de zonas afectadas (daños)
 
 /* ---------- Navegación ---------- */
-let curView='ayuda';
-function go(v){
+let curView='ayuda', viewHistory=[];
+function go(v, fromBack){
+  if(!fromBack && curView && curView!==v) viewHistory.push(curView);   // recordar de dónde vengo
   curView=v;
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
@@ -606,7 +611,11 @@ function go(v){
   if(v==='desap'){ renderDesap(); loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
+  updateBackBtn();
 }
+// Botón atrás: vuelve a la pantalla anterior; si no hay historial, a Inicio (Ayuda).
+function goBack(){ if(viewHistory.length) go(viewHistory.pop(), true); else go('ayuda', true); }
+function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.style.display = (curView!=='ayuda') ? 'grid' : 'none'; }
 
 /* ---------- Pedir ayuda ---------- */
 let selNeed='rescate', geo=null;
@@ -688,19 +697,21 @@ let _lastCommLoad=0;
 async function loadCommunityReports(force){
   if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
   try{
-    const [cov,pow]=await Promise.all([
+    const [cov,pow,zon]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/coverage_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/power_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
+      fetch(`${SB_URL}/rest/v1/zona_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
     if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
-    if(curView==='refugios'){ ['cobertura','luz'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(activeLayers.has('cobertura')||activeLayers.has('luz')) renderHubPanel(); }
+    if(curView==='refugios'){ ['cobertura','luz','afectadas'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(activeLayers.has('cobertura')||activeLayers.has('luz')||activeLayers.has('afectadas')) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
 }
 async function pushCommunityReport(kind, row){
   try{
-    const table = kind==='cobertura' ? 'coverage_reports' : 'power_reports';
+    const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : 'power_reports';
     await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
   }catch(e){ /* offline: queda guardado en localStorage */ }
 }
@@ -855,6 +866,7 @@ function statusLabel(kind,e){
   return m[e]||e;
 }
 const OP_COLOR={Movistar:'#4d9fff',Movilnet:'#22c98a',Digitel:'#ffb020',Otra:'#94a6c4'};
+const ZTIPO={colapso:'🏚️ Edificio colapsado',grietas:'🧱 Grietas / daño',inundacion:'🌊 Inundación',via:'🚧 Vía bloqueada',incendio:'🔥 Incendio',otro:'⚠️ Otro daño'};
 
 /* ---- Torres reales: render por VIEWPORT (cualquier barrio/pueblo) ---- */
 let towerLayer=null, liveLayer=null, towersLoading=false;
@@ -940,6 +952,7 @@ function buildAfectadas(){
   EPICENTROS.forEach(e=>heat.push([e.lat,e.lng,1.0]));
   ESTADOS_AFECTADOS.forEach(a=>heat.push([a.lat,a.lng,a.w]));
   (FEED.sismos||[]).forEach(s=>{ if(typeof s.lat==='number') heat.push([s.lat,s.lng,Math.min(1,(s.mag||3)/6)]); });
+  (DB.zonas||[]).forEach(r=>{ if(typeof r.lat==='number') heat.push([r.lat,r.lng,0.7]); });   // reportes comunitarios
   if(typeof L.heatLayer==='function'){
     arr.push(L.heatLayer(heat,{radius:42,blur:32,minOpacity:.25,max:1.0,maxZoom:10,
       gradient:{0.0:'#1d4ed8',0.30:'#f59e0b',0.55:'#f97316',0.78:'#ef4444',1.0:'#7f1d1d'}}).addTo(mapHub));
@@ -954,6 +967,12 @@ function buildAfectadas(){
     arr.push(L.circleMarker([s.lat,s.lng],{radius:Math.max(5,(m*m)/2.6),color:col,fillColor:col,fillOpacity:.25,weight:1.4}).addTo(mapHub)
      .bindPopup(`<b>M${m} · ${esc(s.place||'')}</b><br>${new Date(s.time).toLocaleString('es')}<br>prof. ${Math.round(s.depth)} km${s.url?`<br><a href="${esc(s.url)}" target="_blank" rel="noopener">USGS ↗</a>`:''}`));
   });
+  // Reportes de la comunidad (daños marcados por la gente)
+  (DB.zonas||[]).forEach(r=>{
+    if(typeof r.lat!=='number') return;
+    arr.push(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
+     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
+  });
   return arr;
 }
 
@@ -967,10 +986,16 @@ function renderHubPanel(){
     ? `<div class="card" style="border-color:#1f4a4a;background:linear-gradient(140deg,rgba(34,211,238,.10),rgba(255,77,79,.10));font-size:12.5px;margin-bottom:10px">🔀 <b>Cruzando</b> zonas afectadas × red de celdas: mira qué antenas caen dentro del área caliente para anticipar fallos de comunicación.</div>` : '';
   if(k==='afectadas'){
     const sismos=(FEED.sismos||[]), aa=FEED.areas_afectadas;
-    sync.innerHTML=`<span class="dot err"></span><span><b>${EPICENTROS.length}</b> epicentros · <b>${sismos.length}</b> sismos USGS${aa?` · ${esc(aa.evento)}`:''}</span>`;
-    leg.innerHTML=`<span><i style="background:#7f1d1d"></i>Muy alto</span><span><i style="background:#ef4444"></i>Alto</span><span><i style="background:#f97316"></i>Medio</span><span><i style="background:#1d4ed8"></i>Bajo</span><span>⭐ Epicentro</span>`;
-    act.innerHTML='';
-    let html=cross;
+    const zonas=(DB.zonas||[]);
+    sync.innerHTML=`<span class="dot err"></span><span><b>${EPICENTROS.length}</b> epicentros · <b>${sismos.length}</b> sismos USGS · <b>${zonas.length}</b> reportes${aa?` · ${esc(aa.evento)}`:''}</span>`;
+    leg.innerHTML=`<span><i style="background:#7f1d1d"></i>Muy alto</span><span><i style="background:#ef4444"></i>Alto</span><span><i style="background:#f97316"></i>Medio</span><span><i style="background:#1d4ed8"></i>Bajo</span><span>⭐ Epicentro</span><span>⚠️ Reporte</span>`;
+    act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('afectada')">⚠️ Reportar zona afectada aquí</button>`;
+    let html='';
+    if(zonas.length){
+      html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">⚠️ Reportes de la comunidad · ${zonas.length}</div>`
+        + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span></div>
+          <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div></div>`).join('');
+    }
     if(aa){
       html+=`<div class="card" style="border-color:#4a1c1f;background:linear-gradient(140deg,rgba(255,77,79,.08),transparent)">
         <b style="font-size:15px">⚠️ ${esc(aa.evento)}</b>
@@ -1051,12 +1076,26 @@ function openMapReport(kind){
       ${ubicFields()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('cobertura')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
-  } else {
+  } else if(kind==='luz'){
     sheet.innerHTML=`<h3>⚡ Reportar estado de luz</h3><p>Indica si hay electricidad en tu zona.</p>
       <label class="fl">¿Hay luz?</label>
       <select id="rpEstado"><option value="conluz">Sí, hay luz</option><option value="sinluz">No, sin luz (apagón)</option></select>
       ${ubicFields()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('luz')">Enviar reporte</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
+  } else {
+    sheet.innerHTML=`<h3>⚠️ Reportar zona afectada</h3><p>Marca daños que veas para alertar a otros y a los equipos de rescate.</p>
+      <label class="fl">Tipo de afectación</label>
+      <select id="rpTipo">
+        <option value="colapso">🏚️ Edificio colapsado</option>
+        <option value="grietas">🧱 Grietas / daño estructural</option>
+        <option value="inundacion">🌊 Inundación</option>
+        <option value="via">🚧 Vía / carretera bloqueada</option>
+        <option value="incendio">🔥 Incendio</option>
+        <option value="otro">⚠️ Otro</option>
+      </select>
+      ${ubicFields()}
+      <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('afectada')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   }
   document.getElementById('mapModal').classList.add('show');
@@ -1066,14 +1105,18 @@ function submitMapReport(kind){
   const city=document.getElementById('rpCity').value, base=cityByName(city);
   const lat=reportGeo?reportGeo.lat:base.lat+(Math.random()-.5)*.06;
   const lng=reportGeo?reportGeo.lng:base.lng+(Math.random()-.5)*.06;
-  const estado=document.getElementById('rpEstado').value;
   if(kind==='cobertura'){
-    const operador=document.getElementById('rpOper').value;
+    const operador=document.getElementById('rpOper').value, estado=document.getElementById('rpEstado').value;
     DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,ts:Date.now()});
     pushCommunityReport('cobertura',{lat,lng,ciudad:city,operador,estado});      // compartir en Supabase
-  } else {
+  } else if(kind==='luz'){
+    const estado=document.getElementById('rpEstado').value;
     DB.power.unshift({id:rid(),lat,lng,city,estado,ts:Date.now()});
     pushCommunityReport('luz',{lat,lng,ciudad:city,estado});                     // compartir en Supabase
+  } else {
+    const tipo=document.getElementById('rpTipo').value;
+    DB.zonas.unshift({id:rid(),lat,lng,city,tipo,ts:Date.now()});
+    pushCommunityReport('afectada',{lat,lng,ciudad:city,tipo});                  // compartir en Supabase
   }
   save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
 }
@@ -1324,7 +1367,7 @@ function toast(msg,type){
 
 /* ---------- Init ---------- */
 renderNeeds(); fillCities('rCity'); fillCities('sCity');
-renderSafe();
+renderSafe(); updateBackBtn();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
 setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté abierta
 loadCommunityReports(true);             // reportes comunitarios compartidos (Supabase)

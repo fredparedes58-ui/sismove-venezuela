@@ -18,6 +18,7 @@ const SOURCES = [
   { key: 'notify:hosp',    table: 'hospital_admisiones',     label: '🏥 ingresos hospitalarios' },
   { key: 'notify:desap',   table: 'desaparecidos_external',  label: '🔍 personas reportadas' },
   { key: 'notify:centros', table: 'centros_acopio_external', label: '📦 centros de acopio' },
+  { key: 'notify:zonas',   table: 'zona_reports',            label: '⚠️ zonas afectadas reportadas' },
 ];
 
 function sbH(extra: Record<string, string> = {}) {
