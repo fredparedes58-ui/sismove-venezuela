@@ -203,8 +203,10 @@ async function handleAction(chatId: string, data: string) {
 /* ─── Estado / novedades (incluye "sin cambios") ──────────────────────────── */
 async function cnt(table: string): Promise<number> {
   try {
-    const r = await fetch(`${SB}/rest/v1/${table}?select=id`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, Prefer: 'count=exact', Range: '0-0' } });
-    return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10);
+    // HEAD + count=exact: no depende de columna 'id' (las _external usan external_id).
+    const r = await fetch(`${SB}/rest/v1/${table}`, { method: 'HEAD', headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, Prefer: 'count=exact', Range: '0-0' } });
+    const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
+    return Number.isFinite(n) ? n : -1;
   } catch { return -1; }
 }
 async function estadoText(): Promise<string> {

@@ -26,8 +26,11 @@ function sbH(extra: Record<string, string> = {}) {
   return { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json', ...extra };
 }
 async function count(table: string): Promise<number> {
-  const r = await fetch(`${SB}/rest/v1/${table}?select=id`, { headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) });
-  return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10);
+  // HEAD + count=exact: cuenta sin depender de una columna concreta (las tablas _external
+  // usan external_id, no id; pedir ?select=id daba error y devolvía 0).
+  const r = await fetch(`${SB}/rest/v1/${table}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) });
+  const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
+  return Number.isFinite(n) ? n : 0;
 }
 async function lastCount(key: string): Promise<number | null> {
   const r = await fetch(`${SB}/rest/v1/sync_runs?source=eq.${encodeURIComponent(key)}&order=ran_at.desc&limit=1`, { headers: sbH() })
