@@ -19,9 +19,23 @@ const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TG = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 const APP_URL = 'https://sismove-venezuela.vercel.app/app';
+const GEMINI = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 const TG_LIMIT = 4000;
 const RATE_PER_MIN = 30;
+
+// Reglas estrictas para la conversación con IA (Gemini). Las rutas críticas
+// (emergencias, familia, búsqueda de personas) NO usan IA: son deterministas.
+const SYSTEM_PROMPT =
+`Eres el asistente de SismoVE, plataforma ciudadana ante el terremoto de Venezuela (doblete M7.2 + M7.5, Yaracuy, 24-jun-2026). Hablas español, con tono claro, breve y empático.
+REGLAS ESTRICTAS (obligatorias):
+1) NUNCA prometas encontrar a una persona ni garantices datos; los registros solo ayudan a difundir.
+2) Si alguien busca a un familiar: recomienda la Cruz Roja 0422 799 4880 y los portales; dile que escriba el nombre o cédula para buscar en los registros.
+3) Ante peligro inmediato (atrapados, heridos graves, fuga de gas, incendio): indica llamar YA al 911 o Protección Civil 0800-724-8451.
+4) Usa SOLO los datos del "Contexto real" que se te entregue. Si no tienes el dato, dilo; NUNCA inventes nombres, cifras, direcciones ni teléfonos.
+5) No des diagnósticos médicos ni asesoría legal/financiera.
+6) Sé conciso (máximo ~6 líneas). No uses Markdown complejo.`;
 
 /* ─── Textos oficiales (verificados) ──────────────────────────────────────── */
 const EMERG_TEXT =
@@ -129,8 +143,50 @@ async function routeText(chatId: string, text: string) {
   }
   if (/c[oó]mo reportar|registrar (a|una)|reportar desaparec/.test(t)) return send(chatId, COMO_REPORTAR);
   if (/^(hola|buenas|hey|men[uú]|inicio|ayuda)\b/.test(t)) return sendMenu(chatId, WELCOME);
-  // Por defecto: tratar como búsqueda de persona
-  return send(chatId, await searchText(text));
+  // ¿parece búsqueda de persona (nombre corto o cédula) o pregunta/conversación?
+  const looksQuestion = /\?|\b(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s?qu[eé]|cu[aá]l|puedo|debo|hago|inform|explica|dime|recomienda|necesito|hay|deber[ií]a|servicio|pasa|funciona|sirve)\b/i.test(t);
+  const words = text.trim().split(/\s+/).length;
+  const looksPerson = /^\d{5,9}$/.test(text.trim()) || (words <= 3 && !looksQuestion);
+  if (looksPerson) return send(chatId, await searchText(text));   // factual, sin IA
+  return send(chatId, await geminiReply(chatId, text));           // conversación coherente (Gemini)
+}
+
+/* ─── Conversación coherente con Gemini (gratis), GROUNDED + reglas ───────── */
+async function groundingText(): Promise<string> {
+  let h = -1, c = -1, d = -1;
+  try { [h, c, d] = await Promise.all([cnt('hospital_admisiones'), cnt('centros_acopio_external'), cnt('desaparecidos_external')]); } catch {}
+  const n = (x: number) => x < 0 ? 'n/d' : String(x);
+  return `Evento: doblete sísmico M7.2 + M7.5 (Yaracuy, 24-jun-2026). Estados más afectados: La Guaira (zona de desastre), Caracas, Miranda, Aragua, Carabobo, Falcón, Yaracuy.
+Datos actuales en SismoVE: ingresos hospitalarios=${n(h)}, centros de acopio=${n(c)}, personas reportadas=${n(d)}.
+Contactos reales: Cruz Roja (reencuentro familiar) 0422 799 4880; Emergencias 911; Protección Civil 0800-724-8451.
+Portales para registrar/buscar personas: venezuelatebusca.com, desaparecidosterremotovenezuela.com. Centros de acopio: centro-de-acopio-ven.vercel.app.
+Mapas en vivo y buscador: ${APP_URL}.`;
+}
+async function geminiReply(chatId: string, userText: string): Promise<string> {
+  if (!GEMINI) return searchText(userText);   // sin key → respaldo factual
+  try {
+    let hist: any[] = [];
+    try { hist = await sb(`telegram_messages?chat_id=eq.${chatId}&select=role,content&order=created_at.desc&limit=8`); } catch {}
+    const contents: any[] = [];
+    (Array.isArray(hist) ? hist : []).reverse().forEach(m => {
+      const txt = String(m?.content || '').slice(0, 500);
+      if (txt) contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: txt }] });
+    });
+    const ground = await groundingText();
+    contents.push({ role: 'user', parts: [{ text: `Contexto real (úsalo, no inventes nada fuera de esto):\n${ground}\n\nMensaje del usuario: ${userText}` }] });
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 15000);
+    let txt = '';
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+        body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: 500 } }),
+      });
+      if (res.ok) { const j: any = await res.json(); txt = (j?.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('').trim(); }
+    } finally { clearTimeout(t); }
+    if (!txt) return searchText(userText);
+    await saveMsg(chatId, txt, 'assistant');
+    return txt;
+  } catch { return searchText(userText); }
 }
 
 async function handleAction(chatId: string, data: string) {
@@ -248,6 +304,6 @@ async function subscribe(chatId: string, username?: string) {
 async function unsubscribe(chatId: string) {
   await sb(`bot_subscribers?chat_id=eq.${chatId}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ unsubscribed_at: new Date().toISOString() }) }).catch(() => {});
 }
-async function saveMsg(chatId: string, content: string) {
-  await sb('telegram_messages', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify([{ chat_id: String(chatId), role: 'user', content }]) }).catch(() => {});
+async function saveMsg(chatId: string, content: string, role: string = 'user') {
+  await sb('telegram_messages', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify([{ chat_id: String(chatId), role, content }]) }).catch(() => {});
 }
