@@ -143,6 +143,8 @@ async function routeText(chatId: string, text: string) {
   }
   if (/c[oó]mo reportar|registrar (a|una)|reportar desaparec/.test(t)) return send(chatId, COMO_REPORTAR);
   if (/^(hola|buenas|hey|men[uú]|inicio|ayuda)\b/.test(t)) return sendMenu(chatId, WELCOME);
+  // Preguntas de cantidad/conteo → cifras reales (estado)
+  if (/\b(cu[aá]nt\w*|cantidad|cu[aá]ntos hay|n[uú]mero de|total de|cifras?|estad[ií]sticas?|balance)\b/i.test(t)) return send(chatId, await estadoText());
   // ¿parece búsqueda de persona (nombre corto o cédula) o pregunta/conversación?
   const looksQuestion = /\?|\b(qu[eé]|c[oó]mo|cu[aá]ndo|d[oó]nde|por\s?qu[eé]|cu[aá]l|puedo|debo|hago|inform|explica|dime|recomienda|necesito|hay|deber[ií]a|servicio|pasa|funciona|sirve)\b/i.test(t);
   const words = text.trim().split(/\s+/).length;
@@ -220,15 +222,18 @@ async function estadoText(): Promise<string> {
 async function searchText(query: string): Promise<string> {
   const clean = String(query || '').replace(/[^\p{L}\p{N}\s-]/gu, '').trim().slice(0, 40);
   if (!clean) return BUSCAR_PROMPT;
-  let rows: any[] = [];
-  try {
-    const q = encodeURIComponent(`*${clean}*`);
-    rows = await sb(`desaparecidos_external?select=nombre,cedula,zona,estado,encontrado&or=(nombre.ilike.${q},cedula.ilike.${q})&limit=8`);
-  } catch { /* sigue con mensaje de respaldo */ }
-  if (!rows.length)
-    return `No encontré registros para "${clean}".\n• Regístralo en: ${PORTALES}\n• Contacta a la ${CRUZ_ROJA}\nEstos registros ayudan a difundir; no garantizan localizar a la persona.`;
-  const lista = rows.map(r => `• ${r.nombre}${r.cedula ? ' (CI ' + r.cedula + ')' : ''}${r.zona ? ' — ' + r.zona : ''} — ${r.encontrado ? 'reportado como encontrado (sin verificar)' : 'en búsqueda'}`).join('\n');
-  return `Resultados para "${clean}":\n${lista}\n\nNota: provienen de portales de difusión (${PORTALES}); no es verificación propia. Para iniciar una búsqueda formal, contacta a la ${CRUZ_ROJA}.`;
+  const q = encodeURIComponent(`*${clean}*`);
+  let hosp: any[] = [], desap: any[] = [];
+  // Misma data que la web: ingresos hospitalarios (OCR) + portales de desaparecidos. NO se muestra cédula.
+  try { hosp = await sb(`hospital_admisiones?select=nombre,hospital&nombre=ilike.${q}&limit=8`); } catch {}
+  try { desap = await sb(`desaparecidos_external?select=nombre,zona,encontrado&or=(nombre.ilike.${q},cedula.ilike.${q})&limit=6`); } catch {}
+  if (!hosp.length && !desap.length)
+    return `No encontré a "${clean}" en los listados.\n• Regístralo en: ${PORTALES}\n• Contacta a la ${CRUZ_ROJA}\nEstos registros ayudan a difundir; no garantizan localizar a la persona.`;
+  let out = `Resultados para "${clean}":\n`;
+  if (hosp.length) out += `\n🏥 Ingresos a hospitales:\n${hosp.map(r => `• ${r.nombre}${r.hospital ? ' — ' + r.hospital : ''}`).join('\n')}\n`;
+  if (desap.length) out += `\n🔍 Reportes de personas:\n${desap.map(r => `• ${r.nombre}${r.zona ? ' — ' + r.zona : ''}${r.encontrado ? ' — reportado encontrado (sin verificar)' : ''}`).join('\n')}\n`;
+  out += `\nNota: provienen de listados de difusión; no es verificación propia. Para una búsqueda formal contacta a la ${CRUZ_ROJA}.`;
+  return out;
 }
 
 async function acopioText(zona: string): Promise<string> {
