@@ -13,6 +13,7 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SECRET = process.env.SCRAPER_WEBHOOK_SECRET;
 const APP = 'https://sismove-venezuela.vercel.app/app';
+const HEARTBEAT_H = 6;   // aunque no haya novedades, confirma "revisado" como mucho cada 6 h
 
 const SOURCES = [
   { key: 'notify:hosp',    table: 'hospital_admisiones',     label: '🏥 ingresos hospitalarios' },
@@ -36,6 +37,10 @@ async function lastCount(key: string): Promise<number | null> {
 async function record(key: string, c: number) {
   await fetch(`${SB}/rest/v1/sync_runs`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([{ source: key, ok: true, count: c }]) }).catch(() => {});
 }
+async function lastRanAt(key: string): Promise<number | null> {
+  const r = await fetch(`${SB}/rest/v1/sync_runs?source=eq.${encodeURIComponent(key)}&order=ran_at.desc&limit=1`, { headers: sbH() }).then(x => x.json()).catch(() => []);
+  return Array.isArray(r) && r[0]?.ran_at ? new Date(r[0].ran_at).getTime() : null;
+}
 async function activeSubscribers(): Promise<string[]> {
   const r = await fetch(`${SB}/rest/v1/bot_subscribers?select=chat_id&unsubscribed_at=is.null`, { headers: sbH() })
     .then(x => x.json()).catch(() => []);
@@ -48,20 +53,32 @@ export default async function handler(req: Request): Promise<Response> {
   if (!SECRET || key !== SECRET) return json({ error: 'forbidden' }, 403);
 
   const deltas: { label: string; add: number; total: number }[] = [];
+  const totals: { label: string; total: number }[] = [];
   for (const s of SOURCES) {
     const cur = await count(s.table);
     const prev = await lastCount(s.key);
+    if (cur >= 0) totals.push({ label: s.label, total: cur });
     if (prev !== null && cur > prev) deltas.push({ label: s.label, add: cur - prev, total: cur });
     await record(s.key, cur);                       // siempre actualiza la línea base
   }
-  if (!deltas.length) return json({ status: 'sin_cambios' });
-  if (!TOKEN) return json({ status: 'deltas_sin_bot', deltas });
 
-  const subs = await activeSubscribers();
-  if (!subs.length) return json({ status: 'sin_suscriptores', deltas });
+  const subs = TOKEN ? await activeSubscribers() : [];
+  if (!TOKEN || !subs.length) return json({ status: deltas.length ? 'deltas_sin_envio' : 'sin_cambios', deltas });
 
-  const lines = deltas.map(d => `• ${d.label}: +${d.add} (total ${d.total})`).join('\n');
-  const text = `🔔 SismoVE — información actualizada:\n${lines}\n\nBuscar / ver mapas: ${APP}`;
+  let text: string | null = null, kind = 'sin_cambios';
+  if (deltas.length) {
+    text = `🔔 SismoVE — información actualizada:\n${deltas.map(d => `• ${d.label}: +${d.add} (total ${d.total})`).join('\n')}\n\nBuscar / ver mapas: ${APP}`;
+    kind = 'notificado';
+  } else {
+    // Latido: "revisado, sin novedades" como mucho cada HEARTBEAT_H horas
+    const lastHb = await lastRanAt('notify:heartbeat');
+    if (!lastHb || Date.now() - lastHb > HEARTBEAT_H * 3600000) {
+      text = `✅ SismoVE revisado — sin novedades por ahora.\n${totals.map(t => `• ${t.label}: ${t.total}`).join('\n')}\n\nTe aviso al instante si entra algo nuevo. Escribe /estado cuando quieras.`;
+      kind = 'heartbeat';
+    }
+  }
+  if (!text) return json({ status: 'sin_cambios' });
+
   let sent = 0;
   for (const chat of subs) {
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
@@ -70,7 +87,8 @@ export default async function handler(req: Request): Promise<Response> {
     });
     if (r.ok) sent++; else if (r.status === 403) await fetch(`${SB}/rest/v1/bot_subscribers?chat_id=eq.${chat}`, { method: 'PATCH', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify({ unsubscribed_at: new Date().toISOString() }) }).catch(() => {});
   }
-  return json({ status: 'notificado', deltas, subscribers: subs.length, sent });
+  if (kind === 'heartbeat') await record('notify:heartbeat', 1);   // marca el tiempo del último latido
+  return json({ status: kind, deltas, subscribers: subs.length, sent });
 }
 function json(b: unknown, s = 200): Response {
   return new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
