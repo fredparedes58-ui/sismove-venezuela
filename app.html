@@ -164,7 +164,8 @@
     color:#04130d;padding:12px 20px;border-radius:12px;font-weight:700;z-index:90;opacity:0;transition:.3s;box-shadow:var(--shadow);max-width:90%;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .toast.err{background:var(--red);color:#fff}
-  .modal{position:fixed;inset:0;z-index:100;background:rgba(20,32,56,.42);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+  .modal{position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+  @media(min-width:560px){ .modal{align-items:center} .sheet{border-radius:18px !important;max-width:480px} }
   .modal.show{display:flex}
   .sheet{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:760px;padding:22px;animation:up .3s ease}
   @keyframes up{from{transform:translateY(100%)}to{transform:none}}
