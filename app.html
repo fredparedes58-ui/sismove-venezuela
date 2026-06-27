@@ -312,12 +312,19 @@
     </div>
 
     <div class="card" style="margin-top:4px">
+      <b style="font-size:14px">🔍 Buscar desaparecidos</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Personas reportadas como desaparecidas (en la app y la red de emergencia). Escribe un nombre o apellido.</div>
+      <input id="desapQ" placeholder="🔎 Nombre o apellido..." oninput="searchDesap()" style="margin-bottom:8px" />
+      <div id="desapResults"></div>
+    </div>
+
+    <div class="card">
       <div style="display:flex;align-items:center;gap:8px">
-        <b style="font-size:14px">🔍 Buscar desaparecidos</b>
+        <b style="font-size:14px">🏥 Buscar en ingresos a hospitales</b>
         <span id="hospSync" style="margin-left:auto;font-size:11px;color:var(--mut2)"></span>
       </div>
-      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Busca por nombre en <b>desaparecidos reportados</b> e <b>ingresos a hospitales</b>. Escribe un nombre o apellido.</div>
-      <input id="hospQ" placeholder="🔎 Nombre o apellido de la persona..." oninput="searchHospital()" style="margin-bottom:8px" />
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Listados oficiales de personas ingresadas/atendidas en hospitales. Escribe un nombre o apellido.</div>
+      <input id="hospQ" placeholder="🔎 Nombre o apellido..." oninput="searchHosp()" style="margin-bottom:8px" />
       <div id="hospResults"></div>
       <div style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:7px 10px;border-radius:9px;margin-top:8px">⚠️ Datos de listados oficiales: pueden tener errores o duplicados, y la cédula no se muestra. Confirma siempre con el hospital o la <b>Cruz Roja (0422 799 4880)</b>.</div>
       <details class="acc" style="margin-top:10px">
@@ -1292,7 +1299,7 @@ async function submitDesapReport(btn){
     if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
     closeMapModal(); toast(estado==='encontrado'?'✅ Publicado como rescatado/encontrado. ¡Gracias!':'✅ Publicado. Gracias — ayuda a difundir.');
     if(_desapCat==='nino'){ loadNinos(); }
-    else { const q=document.getElementById('hospQ'); if(q){ q.value=nombre.split(' ')[0]; searchHospital(); } }
+    else { const q=document.getElementById('desapQ'); if(q){ q.value=nombre.split(' ')[0]; searchDesap(); } }
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Publicar'; }
 }
 
@@ -1377,9 +1384,35 @@ function ensureHospitalSync(){
     if(s && d && d.count!=null) s.textContent=`${d.count} ingresos · ${d.status==='synced'?'actualizado':'≤30 min'}`;
   }).catch(()=>{});
 }
-// Búsqueda por nombre en Supabase (hospital_admisiones). Cédula no se almacena.
-let _hospT;
-function searchHospital(){
+// Dos buscadores independientes en Supabase. La cédula no se almacena en hospital_admisiones.
+let _desapT, _hospT;
+// 1) Desaparecidos reportados (desaparecidos_reportes)
+function searchDesap(){
+  clearTimeout(_desapT);
+  _desapT=setTimeout(async()=>{
+    const q=(document.getElementById('desapQ')?.value||'').replace(/[%,()*]/g,'').trim();
+    const el=document.getElementById('desapResults'); if(!el) return;
+    if(q.length<2){ el.innerHTML=''; return; }
+    el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    const like=encodeURIComponent('*'+q+'*');
+    try{
+      const desap=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]);
+      el.innerHTML = (Array.isArray(desap)&&desap.length)
+        ? `<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">🔍 Reportados como desaparecidos · ${desap.length}</div>`
+          + desap.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
+            <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} ${d.estado==='encontrado'?'<span class="badge st" style="color:var(--green)">encontrado</span>':''}</div>
+            <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
+            ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
+            ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
+            ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
+            ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
+          </div></div>`).join('')
+        : `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo o contacta a la Cruz Roja (0422 799 4880).</div>`;
+    }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora. Intenta de nuevo.</div>'; }
+  },300);
+}
+// 2) Ingresos a hospitales (hospital_admisiones)
+function searchHosp(){
   clearTimeout(_hospT);
   _hospT=setTimeout(async()=>{
     const q=(document.getElementById('hospQ')?.value||'').replace(/[%,()*]/g,'').trim();
@@ -1388,31 +1421,15 @@ function searchHospital(){
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
     const like=encodeURIComponent('*'+q+'*');
     try{
-      const [hosp,desap]=await Promise.all([
-        fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,centro,fecha&nombre=ilike.${like}&order=nombre&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
-        fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=20`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
-      ]);
-      let html='';
-      if(Array.isArray(desap)&&desap.length){
-        html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">🔍 Reportados como desaparecidos · ${desap.length}</div>`
-          + desap.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
-            <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} ${d.estado==='encontrado'?'<span class="badge st" style="color:var(--green)">encontrado</span>':''}</div>
-            <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
-            ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
-            ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
-            ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
-            ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
-          </div></div>`).join('');
-      }
-      if(Array.isArray(hosp)&&hosp.length){
-        html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">🏥 Ingresos a hospitales · ${hosp.length}</div>`
+      const hosp=await fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,centro,fecha&nombre=ilike.${like}&order=nombre&limit=60`,{headers:SB_H}).then(r=>r.ok?r.json():[]);
+      el.innerHTML = (Array.isArray(hosp)&&hosp.length)
+        ? `<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">🏥 Ingresos a hospitales · ${hosp.length}</div>`
           + hosp.map(x=>`<div class="person"><div class="pic">🏥</div><div class="info">
             <div class="nm">${esc(x.nombre)}</div>
             <div class="dt">${x.hospital?esc(x.hospital):'hospital no especificado'}${x.fecha?' · '+esc(x.fecha):''}</div>
             ${x.centro?`<div class="dt">📍 ${esc(x.centro)}</div>`:''}
-          </div></div>`).join('');
-      }
-      el.innerHTML = html || `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo, revisa los portales oficiales o contacta a la Cruz Roja (0422 799 4880).</div>`;
+          </div></div>`).join('')
+        : `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Confirma con el hospital o la Cruz Roja (0422 799 4880).</div>`;
     }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora. Intenta de nuevo.</div>'; }
   },300);
 }
