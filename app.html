@@ -829,7 +829,7 @@ const RED_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const RED_H={apikey:RED_ANON, Authorization:'Bearer '+RED_ANON};
 // Analítica anónima (sin PII)
 function svSess(){ try{ var s=localStorage.getItem('sv_sess'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sv_sess',s);} return s; }catch(e){ return ''; } }
-function track(ev,page){ try{ fetch(`${SB_URL}/rest/v1/analytics_events`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify([{ev:ev,page:page,session:svSess()}])}).catch(()=>{}); }catch(e){} }
+function track(ev,page){ try{ fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({ev:ev,page:page,session:svSess(),ref:document.referrer||''})}).catch(()=>{}); }catch(e){} }
 try{ if(!localStorage.getItem('sv_visited')){ localStorage.setItem('sv_visited','1'); track('visit','app'); } }catch(e){}
 let _lastCommLoad=0;
 async function loadCommunityReports(force){
@@ -1524,6 +1524,10 @@ async function loadStats(){
     const f=n=>Number(n||0).toLocaleString('es-VE');
     const PG={home:'Inicio (web)',ayuda:'Ayuda',desap:'Buscar',ninos:'Niños',grupos:'Grupos por zona',refugios:'Mapas',panel:'Panel',bot:'Bot',info:'Info',salvo:'Estoy a salvo'};
     const pg=Object.entries(d.por_pagina||{}).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const top=(obj,n)=>Object.entries(obj||{}).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,n);
+    const rowLine=arr=>arr.map(([k,v])=>`<div class="dt" style="display:flex;justify-content:space-between"><span>${esc(k)}</span><b>${f(v)}</b></div>`).join('');
+    const fu=top(d.por_fuente,10), pa=top(d.por_pais,8), ci=top(d.por_ciudad,8);
+    const sec=t=>`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;margin:14px 0 6px">${t}</div>`;
     body.innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="card" style="margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--blue)">${f(d.visitantes_unicos)}</div><div style="font-size:11px;color:var(--mut)">Visitantes únicos</div></div>
@@ -1535,7 +1539,10 @@ async function loadStats(){
       <div class="dt">🔎 Búsquedas: <b>${f(d.interacciones?.busquedas)}</b> · 📝 Reportes: <b>${f(d.interacciones?.reportes)}</b> · 🤖 Bot abierto: <b>${f(d.interacciones?.bot)}</b></div>
       <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;margin:14px 0 6px">Vistas por sección</div>
       ${pg.length?pg.map(([k,v])=>`<div class="dt" style="display:flex;justify-content:space-between"><span>${PG[k]||k}</span><b>${f(v)}</b></div>`).join(''):'<div class="dt">Aún sin datos.</div>'}
-      <div style="font-size:10px;color:var(--mut2);margin-top:10px">Datos anónimos (sin información personal). Generado ${d.generado?ago(new Date(d.generado).getTime()):''}.</div>`;
+      ${sec('Cómo llegan (fuente)')}${fu.length?rowLine(fu):'<div class="dt">Aún sin datos.</div>'}
+      ${sec('Desde dónde (país)')}${pa.length?rowLine(pa):'<div class="dt">Aún sin datos.</div>'}
+      ${sec('Ciudades')}${ci.length?rowLine(ci):'<div class="dt">Aún sin datos.</div>'}
+      <div style="font-size:10px;color:var(--mut2);margin-top:10px">Datos anónimos y agregados (sin información personal; ubicación aproximada por IP). Generado ${d.generado?ago(new Date(d.generado).getTime()):''}.</div>`;
   }catch(e){ body.innerHTML='<div class="empty" style="padding:10px">Error de red.</div>'; }
 }
 function delBtn(kind,id){

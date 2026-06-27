@@ -37,11 +37,22 @@ export default async function handler(req: Request): Promise<Response> {
   const por_pagina: Record<string, number> = {};
   await Promise.all(PAGES.map(async p => { por_pagina[p] = await count(`ev=eq.view&page=eq.${p}&select=id`); }));
 
+  // Origen de las visitas: fuente (referente) + país + ciudad (agregado en JS sobre ev=visit)
+  const por_fuente: Record<string, number> = {}, por_pais: Record<string, number> = {}, por_ciudad: Record<string, number> = {};
+  try {
+    const rows = await fetch(`${SB}/rest/v1/analytics_events?ev=eq.visit&select=ref,pais,ciudad&order=ts.desc&limit=20000`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then(r => r.ok ? r.json() : []);
+    for (const r of (Array.isArray(rows) ? rows : [])) {
+      const f = r.ref || 'directo'; por_fuente[f] = (por_fuente[f] || 0) + 1;
+      if (r.pais) por_pais[r.pais] = (por_pais[r.pais] || 0) + 1;
+      if (r.ciudad) por_ciudad[r.ciudad] = (por_ciudad[r.ciudad] || 0) + 1;
+    }
+  } catch { /* sin datos de origen */ }
+
   return json({
     visitantes_unicos: visitantes, visitantes_hoy: visit_hoy,
     vistas, vistas_hoy,
     interacciones: { busquedas, reportes, bot },
-    por_pagina,
+    por_pagina, por_fuente, por_pais, por_ciudad,
     generado: new Date().toISOString(),
   });
 }

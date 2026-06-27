@@ -269,6 +269,16 @@ async function analiticaText(): Promise<string> {
   out += `👁️ Vistas totales: ${f(vistas)}  (hoy: ${f(vistasHoy)})\n\n`;
   out += `Interacciones:\n🔎 Búsquedas: ${f(busq)}\n📝 Reportes: ${f(rep)}\n🤖 Bot abierto: ${f(botEv)}\n\n`;
   out += `Vistas por sección:\n` + (visibles.length ? visibles.map(([l, v]) => `• ${l}: ${f(v)}`).join('\n') : 'Aún sin datos.');
+  // Origen de las visitas: fuente + país + ciudad (agregado sobre ev=visit)
+  try {
+    const rows = await fetch(`${SB}/rest/v1/analytics_events?ev=eq.visit&select=ref,pais,ciudad&order=ts.desc&limit=20000`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then(r => r.ok ? r.json() : []);
+    const list = Array.isArray(rows) ? rows : [];
+    const tally = (key: string, def?: string) => { const m: Record<string, number> = {}; for (const r of list) { const v = r[key] || def; if (v) m[v] = (m[v] || 0) + 1; } return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+    const fu = tally('ref', 'directo').slice(0, 8), pa = tally('pais').slice(0, 6), ci = tally('ciudad').slice(0, 6);
+    if (fu.length) out += `\n\nFuentes (cómo llegan):\n` + fu.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
+    if (pa.length) out += `\n\nPaíses:\n` + pa.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
+    if (ci.length) out += `\n\nCiudades:\n` + ci.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
+  } catch { /* sin datos de origen */ }
   out += `\n\nActualizado: ${ahora} (Caracas)\nEscribe /estadisticas cuando quieras revisar.`;
   return out;
 }
