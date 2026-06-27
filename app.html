@@ -110,6 +110,8 @@
   .badge.crit{background:var(--red-bg);color:var(--crit)} .badge.alta{background:#fdebdd;color:var(--alta)}
   .badge.media{background:#fbf0d4;color:var(--media)} .badge.baja{background:#e7f0fc;color:var(--baja)}
   .badge.st{background:var(--card2);color:var(--mut)}
+  .delrep{margin-left:auto;background:var(--red-bg);color:var(--red);border:1px solid var(--line);border-radius:8px;font-size:13px;line-height:1;padding:3px 8px;cursor:pointer;flex:none}
+  .delrep:active{transform:scale(.92)}
   .ai-why{font-size:11.5px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);
     padding:7px 10px;border-radius:9px;margin-top:8px;display:flex;gap:7px;align-items:flex-start}
   .ai-why b{color:var(--amber)}
@@ -455,6 +457,9 @@
         <p style="margin:0 0 8px">Toca SOS arriba para ver los números. <i>(En el MVP son de ejemplo — se reemplazan por los oficiales reales: 911, Bomberos, Protección Civil, FUNVISIS para info sísmica.)</i></p>
       </div>
     </details>
+
+    <button class="btn ghost" id="adminBtn" onclick="adminToggle()" style="margin-top:16px">🔑 Modo administrador</button>
+    <p style="font-size:11px;color:var(--mut2);margin-top:6px">Para moderadores: permite borrar reportes (logística, zonas afectadas, cobertura, luz) marcados por la gente o por error.</p>
   </section>
 
 </main>
@@ -1039,7 +1044,7 @@ function renderHubPanel(){
     let html='';
     if(zonas.length){
       html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">⚠️ Reportes de la comunidad · ${zonas.length}</div>`
-        + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span></div>
+        + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span>${delBtn('afectada',r.id)}</div>
           <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div></div>`).join('');
     }
     if(aa){
@@ -1082,7 +1087,7 @@ function renderHubPanel(){
     list.innerHTML = LG.length ? ordered.map(r=>{
       const f=r.estado!=='cubierto';
       return `<div class="rep ${f?'crit':'baja'}">
-        <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(LOGI_TIPO[r.tipo]||'Recurso')}</span><span class="badge st">${f?'FALTA':'cubierto'}</span></div>
+        <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(LOGI_TIPO[r.tipo]||'Recurso')}</span><span class="badge st">${f?'FALTA':'cubierto'}</span>${delBtn('logistica',r.id)}</div>
         ${r.nota?`<div class="d">${esc(r.nota)}</div>`:''}
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
       </div>`;
@@ -1103,7 +1108,7 @@ function renderHubPanel(){
       <div class="rep ${k==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
         <div class="h"><span class="t">${k==='cobertura'?'📶':'⚡'} ${statusLabel(k,r.estado)}</span>
           ${k==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
-          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}</div>
+          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${delBtn(k,r.id)}</div>
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
       </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
   }
@@ -1185,6 +1190,42 @@ function openMapReport(kind){
   document.getElementById('mapModal').classList.add('show');
 }
 function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); }
+
+/* ---------- Modo administrador: borrar reportes comunitarios ---------- */
+function isAdmin(){ return !!localStorage.getItem('sismove_admin_key'); }
+function adminToggle(){
+  if(isAdmin()){ localStorage.removeItem('sismove_admin_key'); toast('Modo admin desactivado'); }
+  else {
+    const k=(prompt('Clave de administrador:')||'').trim();
+    if(!k) return;
+    localStorage.setItem('sismove_admin_key', k);
+    toast('🔑 Modo admin activado — toca 🗑️ para borrar');
+  }
+  updateAdminUI();
+  if(curView==='refugios') renderHub();
+}
+function updateAdminUI(){
+  const b=document.getElementById('adminBtn');
+  if(b) b.textContent = isAdmin() ? '🔓 Modo admin ACTIVO (tocar para salir)' : '🔑 Modo administrador';
+}
+function delBtn(kind,id){
+  if(!isAdmin()||!id) return '';
+  return `<button class="delrep" title="Borrar (admin)" onclick="event.stopPropagation();deleteReport('${kind}','${id}',this)">🗑️</button>`;
+}
+async function deleteReport(kind,id,btn){
+  if(!confirm('¿Borrar este reporte para todos?')) return;
+  const key=localStorage.getItem('sismove_admin_key')||'';
+  const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
+  if(btn) btn.textContent='…';
+  try{
+    const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,id,key})});
+    if(res.status===403){ toast('Clave de admin incorrecta','err'); if(btn)btn.textContent='🗑️'; return; }
+    if(!res.ok){ toast('No se pudo borrar','err'); if(btn)btn.textContent='🗑️'; return; }
+    const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:DB.power;
+    const i=arr.findIndex(r=>r.id===id); if(i>=0) arr.splice(i,1);
+    save(); toast('🗑️ Borrado para todos'); renderHub();
+  }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
+}
 function submitMapReport(kind){
   const city=document.getElementById('rpCity').value, base=cityByName(city);
   const lat=reportGeo?reportGeo.lat:base.lat+(Math.random()-.5)*.06;
@@ -1456,7 +1497,7 @@ function toast(msg,type){
 
 /* ---------- Init ---------- */
 renderNeeds(); fillCities('rCity'); fillCities('sCity');
-renderSafe(); updateBackBtn();
+renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
 setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté abierta
 loadCommunityReports(true);             // reportes comunitarios compartidos (Supabase)
