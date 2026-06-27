@@ -339,6 +339,12 @@
       <button class="btn primary" onclick="openDesapReport()">➕ Reportar persona desaparecida</button>
     </div>
 
+    <div class="card" onclick="go('grupos')" style="cursor:pointer;background:linear-gradient(140deg,rgba(42,110,69,.10),transparent);border-color:#1f4a30">
+      <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px">📋 Grupos por zona y edificio</b></div>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0">Grupos de WhatsApp/Telegram de cada <b>edificio o sector</b> donde se comparte información (rescatados, desaparecidos, novedades). Busca el de tu zona o agrega el tuyo.</div>
+      <span style="font-size:13px;color:var(--green);font-weight:700">Ver grupos por zona →</span>
+    </div>
+
     <a class="card" href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:var(--txt)">
       <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px">🔎 ¿No lo encuentras aquí?</b></div>
       <div style="font-size:12px;color:var(--mut);margin:6px 0">Busca también en <b>afectadosporelterremotovenezuela.com</b> — tiene <b>rescatados</b>, hospitalizados, desaparecidos y fallecidos, con búsqueda por nombre.</div>
@@ -392,6 +398,25 @@
       <button class="btn primary" onclick="openDesapReport('nino')">➕ Reportar niño/a (desaparecido o rescatado)</button>
     </div>
     <p style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:8px 11px;border-radius:9px;margin-top:10px">⚠️ Datos de la red de emergencia y reportes ciudadanos: pueden tener errores. La cédula nunca se muestra. Confirma siempre con la <b>Cruz Roja (0422 799 4880)</b>.</p>
+  </section>
+
+  <!-- ============ GRUPOS POR ZONA / EDIFICIO ============ -->
+  <section class="view pad" id="v-grupos">
+    <h2 class="title">📋 Grupos por zona y edificio</h2>
+    <p class="sub">Directorio de grupos de WhatsApp/Telegram donde vecinos comparten información y situaciones, organizados por <b>sector</b> y por <b>edificio</b> (como los grupos de La Guaira). Cualquiera puede agregar el suyo.</p>
+
+    <div class="card" style="background:linear-gradient(140deg,rgba(42,110,69,.10),transparent);border-color:#1f4a30">
+      <b style="font-size:14px">➕ ¿Tienes un grupo de tu edificio o zona?</b>
+      <div style="font-size:13px;color:var(--mut);margin:6px 0 10px">Agrégalo para que familiares y vecinos encuentren información por edificio: rescatados, desaparecidos, ayuda, novedades.</div>
+      <button class="btn primary" onclick="openGrupoReport()">➕ Agregar grupo / situación</button>
+    </div>
+
+    <input id="gruposSearch" placeholder="🔎 Buscar por edificio, zona o nombre…" oninput="renderGrupos()" style="margin:4px 0 10px" />
+    <div class="chips" id="gruposChips" style="margin-bottom:10px"></div>
+    <div id="gruposSync" class="sync-bar"></div>
+    <div id="gruposList"><div class="empty" style="padding:14px">Cargando…</div></div>
+
+    <p style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:8px 11px;border-radius:9px;margin-top:12px">⚠️ Grupos agregados por la comunidad. Verifica siempre antes de compartir datos personales. Para búsqueda formal de familiares: <b>Cruz Roja 0422 799 4880</b>.</p>
   </section>
 
   <!-- ============ MAPAS EN VIVO ============ -->
@@ -520,6 +545,7 @@
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span>Ayuda</button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span>Buscar</button>
     <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span>Niños rescatados y desaparecidos</button>
+    <button class="tab" data-v="grupos" onclick="go('grupos')"><span class="i">📋</span>Grupos por zona</button>
     <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span>Mapas</button>
     <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span>Panel</button>
     <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span>Bot</button>
@@ -695,6 +721,7 @@ function go(v, fromBack){
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
   if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
+  if(v==='grupos') loadGrupos();
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
   updateBackBtn();
@@ -1428,6 +1455,15 @@ async function deleteReport(kind,id,btn){
     }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
     return;
   }
+  if(kind==='grupo'){
+    try{
+      const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'grupos_comunitarios',id,key})});
+      if(res.status===403){ toast('Clave de admin incorrecta','err'); if(btn)btn.textContent='🗑️'; return; }
+      if(!res.ok){ toast('No se pudo borrar','err'); if(btn)btn.textContent='🗑️'; return; }
+      GRUPOS=GRUPOS.filter(x=>x.id!==id); toast('🗑️ Borrado para todos'); renderGrupos();
+    }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
+    return;
+  }
   const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
   try{
     const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,id,key})});
@@ -1643,6 +1679,95 @@ function renderNinos(){
   if(!_ninosLoaded){ elD.innerHTML=elR.innerHTML='<div class="empty" style="padding:14px">Cargando…</div>'; return; }
   elD.innerHTML = desap.length ? desap.map(ninoCard).join('') : `<div class="empty" style="padding:14px">${q?'Sin coincidencias.':'Sin niños desaparecidos en el registro.'}</div>`;
   elR.innerHTML = resc.length  ? resc.map(ninoCard).join('')  : `<div class="empty" style="padding:14px">${q?'Sin coincidencias.':'Aún sin niños rescatados.'}</div>`;
+}
+
+/* ---------- Grupos por zona / edificio (directorio comunitario) ---------- */
+const GTIPOS={edificio:{e:'🏢',l:'Edificio'},zona:{e:'📍',l:'Zona / sector'},accion:{e:'🚨',l:'Acción directa / rescate'},otro:{e:'📋',l:'Otro'}};
+let GRUPOS=[], gruposTipo='all', _gruposLoaded=false;
+function safeUrl(u){
+  let s=String(u||'').trim();
+  if(!s) return '';
+  if(/^(javascript|data|vbscript|file):/i.test(s)) return '';
+  if(!/^https?:\/\//i.test(s)){
+    if(/^[\w.-]+\.[a-z]{2,}/i.test(s)) s='https://'+s; else return '';
+  }
+  return s;
+}
+async function loadGrupos(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/grupos_comunitarios?select=*&order=created_at.desc&limit=1000`,{headers:SB_H});
+    GRUPOS = r.ok ? await r.json() : [];
+  }catch(e){ GRUPOS=[]; }
+  _gruposLoaded=true; renderGrupos();
+}
+function gruposChips(){
+  const present=new Set(GRUPOS.map(g=>g.tipo||'otro'));
+  const opts=[['all','Todos']].concat(Object.keys(GTIPOS).filter(t=>present.has(t)).map(t=>[t,GTIPOS[t].e+' '+GTIPOS[t].l]));
+  if(opts.length<=2) return '';
+  return opts.map(([k,l])=>`<button class="chip ${gruposTipo===k?'on':''}" onclick="gruposTipo='${k}';renderGrupos()">${l}</button>`).join('');
+}
+function grupoCard(g){
+  const t=GTIPOS[g.tipo]||GTIPOS.otro;
+  const url=safeUrl(g.url);
+  return `<div class="person" style="position:relative">${delBtn('grupo',g.id)}<div class="pic">${t.e}</div><div class="info">
+    <div class="nm">${esc(g.nombre)} <span class="badge st">${t.l}</span></div>
+    ${g.nota?`<div class="dt">${esc(g.nota)}</div>`:''}
+    ${g.contacto?`<div class="dt">📞 <a href="tel:${esc(g.contacto)}">${esc(g.contacto)}</a></div>`:''}
+    ${url?`<a class="btn ok" style="text-decoration:none;display:inline-block;margin-top:8px;padding:7px 14px" href="${esc(url)}" target="_blank" rel="noopener">💬 Abrir grupo →</a>`:'<div class="dt" style="color:var(--mut2)">Sin enlace — usa el contacto</div>'}
+  </div></div>`;
+}
+function renderGrupos(){
+  const el=document.getElementById('gruposList'); if(!el) return;
+  const sync=document.getElementById('gruposSync'); if(sync) sync.textContent=_gruposLoaded?`${GRUPOS.length} grupo(s) en el directorio`:'';
+  const ch=document.getElementById('gruposChips'); if(ch) ch.innerHTML=gruposChips();
+  if(!_gruposLoaded){ el.innerHTML='<div class="empty" style="padding:14px">Cargando…</div>'; return; }
+  const q=(document.getElementById('gruposSearch')?.value||'').toLowerCase().trim();
+  let list=GRUPOS.filter(g=>gruposTipo==='all'||(g.tipo||'otro')===gruposTipo);
+  if(q) list=list.filter(g=>(`${g.nombre} ${g.zona||''} ${g.nota||''}`).toLowerCase().includes(q));
+  if(!list.length){ el.innerHTML=`<div class="empty" style="padding:16px">${GRUPOS.length?'Sin coincidencias.':'Todavía no hay grupos. ¡Agrega el primero de tu edificio o zona!'}</div>`; return; }
+  const groups={};
+  list.forEach(g=>{ const z=(g.zona||'').trim()||'Otros'; (groups[z]=groups[z]||[]).push(g); });
+  const zonas=Object.keys(groups).sort((a,b)=> a==='Otros'?1 : b==='Otros'?-1 : a.localeCompare(b,'es'));
+  el.innerHTML=zonas.map(z=>`
+    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">📍 ${esc(z)} · ${groups[z].length}</div>
+    ${groups[z].map(grupoCard).join('')}`).join('');
+}
+function openGrupoReport(){
+  const sheet=document.getElementById('mapSheet');
+  sheet.innerHTML=`<h3>➕ Agregar grupo / situación</h3><p>Comparte un grupo de WhatsApp/Telegram de tu edificio o zona para que vecinos y familiares encuentren información.</p>
+    <label class="fl">Tipo *</label>
+    <select id="gpTipo">
+      <option value="edificio">🏢 Edificio</option>
+      <option value="zona">📍 Zona / sector</option>
+      <option value="accion">🚨 Acción directa / rescate</option>
+      <option value="otro">📋 Otro</option>
+    </select>
+    <label class="fl">Nombre *</label><input id="gpNombre" placeholder="Ej: Edf Oasis  ·  o  ·  Playa Grande" maxlength="80">
+    <label class="fl">Zona / sector (para agrupar)</label><input id="gpZona" placeholder="Ej: Caraballeda, La Guaira" maxlength="80">
+    <label class="fl">Enlace del grupo (WhatsApp/Telegram)</label><input id="gpUrl" placeholder="https://chat.whatsapp.com/…  o  wa.me/…" maxlength="300">
+    <label class="fl">Contacto (teléfono, opcional)</label><input id="gpContacto" placeholder="0414-0000000" maxlength="40">
+    <label class="fl">¿Qué se comparte? (opcional)</label><input id="gpNota" placeholder="Ej: rescatados, desaparecidos y ayuda del edificio" maxlength="200">
+    <button class="btn primary" style="margin-top:14px" onclick="submitGrupo(this)">Agregar</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
+    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Agrega solo grupos reales y públicos. El enlace será visible para todos.</p>`;
+  document.getElementById('mapModal').classList.add('show');
+}
+async function submitGrupo(btn){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
+  const nombre=g('gpNombre');
+  if(nombre.length<2){ toast('Escribe el nombre del grupo','err'); return; }
+  const url=g('gpUrl'), contacto=g('gpContacto');
+  if(!url && !contacto){ toast('Agrega al menos un enlace o un teléfono','err'); return; }
+  if(url && !safeUrl(url)){ toast('El enlace no es válido (usa https://…)','err'); return; }
+  if(btn) btn.textContent='Agregando…';
+  const tipo=g('gpTipo')||'edificio';
+  const row={ nombre, tipo:['edificio','zona','accion','otro'].includes(tipo)?tipo:'otro', zona:g('gpZona').slice(0,80)||null, url:url?safeUrl(url):null, contacto:contacto.slice(0,40)||null, nota:g('gpNota').slice(0,200)||null };
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/grupos_comunitarios`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify([row])});
+    if(!res.ok){ toast('No se pudo agregar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Agregar'; return; }
+    closeMapModal(); track('report','grupo'); toast('✅ ¡Grupo agregado! Gracias por ayudar.');
+    loadGrupos();
+  }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Agregar'; }
 }
 
 /* ---------- Panel / Dashboard ---------- */

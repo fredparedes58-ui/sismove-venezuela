@@ -610,5 +610,16 @@
 })();
 </script>
 <script src="https://widget-v2.dapta.ai/agent.min.js?agentId=360f4949-d6d7-4715-8afe-79d33e476bf2"></script>
-<a href="/app#mapas" style="position:fixed;left:16px;bottom:16px;z-index:2147483000;background:#4B3658;color:#fff;font:600 14px system-ui,sans-serif;padding:11px 16px;border-radius:12px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.28)">🗺️ Mapas en vivo</a></body>
+<style>
+.fab-mapas{position:fixed;left:16px;bottom:16px;z-index:2147483000;display:inline-flex;align-items:center;gap:9px;
+  background:linear-gradient(135deg,#5a4071,#A84E1A);color:#fff;font:700 14.5px system-ui,-apple-system,sans-serif;letter-spacing:.2px;
+  padding:13px 19px;border-radius:999px;text-decoration:none;border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 8px 22px rgba(75,54,88,.45);transition:transform .15s ease,box-shadow .15s ease}
+.fab-mapas:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(75,54,88,.55)}
+.fab-mapas:active{transform:translateY(0)}
+.fab-mapas .ping{width:9px;height:9px;border-radius:50%;background:#39d98a;flex:none;animation:fabping 1.6s ease-out infinite}
+@keyframes fabping{0%{box-shadow:0 0 0 0 rgba(57,217,138,.65)}70%{box-shadow:0 0 0 9px rgba(57,217,138,0)}100%{box-shadow:0 0 0 0 rgba(57,217,138,0)}}
+@media(max-width:380px){.fab-mapas{font-size:13px;padding:11px 15px}}
+</style>
+<a href="/app#mapas" class="fab-mapas"><span class="ping"></span>🗺️ Mapas en vivo</a></body>
 </html>
