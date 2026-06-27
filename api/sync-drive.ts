@@ -343,14 +343,16 @@ function num(s: string): number | null { const v = parseFloat(String(s).replace(
 type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; fileName: string; sheet: string; batch: string };
 const NOCOORDS = Symbol('nocoords');   // fila válida pero descartada por faltar lat/lng (para desglosar el reporte)
 type Adapter = {
-  keywords: RegExp; table: string; conflict: string;
+  keywords: RegExp; table: string; conflict: string; additive?: boolean;
   build: (row: string[], cell: (k: string) => string, ctx: Ctx) => any | typeof NOCOORDS | null;
 };
 // OJO orden: logística ANTES que zona (un archivo "insumos por zona" es logística, no daño
 // estructural); hospitales ANTES que acopio (un "centro de salud" es hospital, no acopio).
 const ADAPTERS: Adapter[] = [
   {
-    keywords: /desaparec|extravi|menores|ni[nñ]os|ni[nñ]as|perdid/i, table: 'desaparecidos_reportes', conflict: 'ext_id',
+    // ADITIVO: Supabase es la fuente de verdad. El Drive solo AGREGA niños nuevos; nunca
+    // sobrescribe ni revierte (estado, etc.) ni borra → las promociones a rescatado en la app quedan.
+    keywords: /desaparec|extravi|menores|ni[nñ]os|ni[nñ]as|perdid/i, table: 'desaparecidos_reportes', conflict: 'ext_id', additive: true,
     build: (row, cell, ctx) => {
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
       const zona = redactText(cell('zona')), visto = redactText(cell('visto')), edad = cleanEdad(cell('edad'));
@@ -470,19 +472,25 @@ export default async function handler(req: Request): Promise<Response> {
         { const ks = new Set<string>(); for (const r of rows) for (const k of Object.keys(r)) ks.add(k); for (const r of rows) for (const k of ks) if (!(k in r)) r[k] = null; }
         let espejo = 'no_aplica';
         if (rows.length) {
-          // cuántas filas tenía ESTE archivo antes (para detectar una descarga truncada)
+          // ADITIVO (desaparecidos): Supabase manda → solo inserta lo nuevo (ignore-duplicates),
+          // NO sobrescribe estado ni borra → las promociones a rescatado en la app persisten.
+          const pref = adapter.additive ? 'resolution=ignore-duplicates,return=minimal' : 'resolution=merge-duplicates,return=minimal';
+          // cuántas filas tenía ESTE archivo antes (solo para el espejo de los NO aditivos)
           let prev = 0;
-          try { const cr = await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) }); prev = parseInt((cr.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; } catch {}
+          if (!adapter.additive) { try { const cr = await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) }); prev = parseInt((cr.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; } catch {} }
           for (let i = 0; i < rows.length; i += 500) {
-            const r = await fetch(`${SB}/rest/v1/${adapter.table}?on_conflict=${adapter.conflict}`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(rows.slice(i, i + 500)) });
+            const r = await fetch(`${SB}/rest/v1/${adapter.table}?on_conflict=${adapter.conflict}`, { method: 'POST', headers: sbH({ Prefer: pref }), body: JSON.stringify(rows.slice(i, i + 500)) });
             if (!r.ok) { const t = (await r.text()).slice(0, 160); throw new Error(/does not exist|could not find the table|on conflict|42P10|PGRST20[45]/i.test(t) ? `falta crear la tabla / correr el SQL (schema_desaparecidos*.sql + schema_drive_sync.sql) [${r.status}]` : `upsert ${r.status}: ${t}`); }
           }
-          // ESPEJO: borra de ESTE archivo (por ID) lo que ya no está. Guardas: solo si parseó filas,
-          // nunca toca reportes de la app (source NULL) ni otros archivos, y NO borra si las filas
-          // caen a <50% de lo previo (posible descarga parcial) → evita borrar gente por un fallo.
-          const stampCol = adapter.table === 'centros_acopio_external' ? 'last_synced' : 'updated_at';
-          if (prev > 0 && rows.length < prev * 0.5) { espejo = 'omitido_posible_descarga_truncada'; }
-          else { await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}&${stampCol}=lt.${encodeURIComponent(batch)}`, { method: 'DELETE', headers: sbH({ Prefer: 'return=minimal' }) }).catch(() => {}); espejo = 'ok'; }
+          if (adapter.additive) { espejo = 'aditivo (no revierte ni borra)'; }
+          else {
+            // ESPEJO: borra de ESTE archivo (por ID) lo que ya no está. Guardas: solo si parseó filas,
+            // nunca toca reportes de la app (source NULL) ni otros archivos, y NO borra si las filas
+            // caen a <50% de lo previo (posible descarga parcial) → evita borrar gente por un fallo.
+            const stampCol = adapter.table === 'centros_acopio_external' ? 'last_synced' : 'updated_at';
+            if (prev > 0 && rows.length < prev * 0.5) { espejo = 'omitido_posible_descarga_truncada'; }
+            else { await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}&${stampCol}=lt.${encodeURIComponent(batch)}`, { method: 'DELETE', headers: sbH({ Prefer: 'return=minimal' }) }).catch(() => {}); espejo = 'ok'; }
+          }
         }
         totalRows += rows.length;
         reports.push({ archivo: f.name, destino: adapter.table, pestanas: sheets.length, importadas: rows.length, descartadas_basura: basura, descartadas_sin_coords: sinCoords, columnas_no_reconocidas: unmapped, espejo });
