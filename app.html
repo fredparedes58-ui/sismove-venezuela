@@ -303,8 +303,7 @@
   <!-- ============ DESAPARECIDOS ============ -->
   <section class="view pad" id="v-desap">
     <h2 class="title">Buscar personas desaparecidas</h2>
-    <p class="sub">Registros de portales oficiales. Si buscas a un familiar, regístralo y contacta a la Cruz Roja.</p>
-    <div id="desapSync" class="sync-bar"></div>
+    <p class="sub">Busca por nombre en desaparecidos reportados e ingresos a hospitales. Si buscas a un familiar, contacta también a la Cruz Roja.</p>
 
     <div class="card" style="background:linear-gradient(140deg,rgba(255,77,79,.08),transparent);border-color:#4a1c1f">
       <b style="font-size:14px">🤝 ¿No encuentras a tu familia?</b>
@@ -312,15 +311,12 @@
       <a class="btn ok" style="text-decoration:none;display:block;text-align:center" href="tel:04227994880">📞 Llamar Cruz Roja · 0422 799 4880</a>
     </div>
 
-    <input id="desapSearch" placeholder="🔎 Buscar por nombre o cédula..." oninput="renderDesap()" style="margin-bottom:12px" />
-    <div id="desapList"></div>
-
     <div class="card" style="margin-top:4px">
       <div style="display:flex;align-items:center;gap:8px">
-        <b style="font-size:14px">🏥 Buscar en ingresos hospitalarios</b>
+        <b style="font-size:14px">🔍 Buscar desaparecidos</b>
         <span id="hospSync" style="margin-left:auto;font-size:11px;color:var(--mut2)"></span>
       </div>
-      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Listados oficiales de personas ingresadas (coordinación en Google Drive). Escribe un nombre o apellido.</div>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Busca por nombre en <b>desaparecidos reportados</b> e <b>ingresos a hospitales</b>. Escribe un nombre o apellido.</div>
       <input id="hospQ" placeholder="🔎 Nombre o apellido de la persona..." oninput="searchHospital()" style="margin-bottom:8px" />
       <div id="hospResults"></div>
       <div style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:7px 10px;border-radius:9px;margin-top:8px">⚠️ Datos de listados oficiales: pueden tener errores o duplicados, y la cédula no se muestra. Confirma siempre con el hospital o la <b>Cruz Roja (0422 799 4880)</b>.</div>
@@ -500,7 +496,7 @@
   <div class="tabs-in">
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span>Ayuda</button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span>Buscar</button>
-    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span>Niños</button>
+    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span>Niños desaparecidos</button>
     <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span>Mapas</button>
     <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span>Panel</button>
     <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span>Bot</button>
@@ -673,7 +669,7 @@ function go(v, fromBack){
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
-  if(v==='desap'){ renderDesap(); loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
+  if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
@@ -792,7 +788,6 @@ async function refreshFeed(){
 }
 function rerenderFeedViews(){
   if(curView==='refugios') renderHub();   // acopio · cobertura(torres) · afectadas(sismos)
-  if(curView==='desap') renderDesap();
 }
 function syncBar(elId, srcKey, fallbackCount){
   const el=document.getElementById(elId); if(!el) return;
