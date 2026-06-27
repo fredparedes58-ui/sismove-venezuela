@@ -736,10 +736,10 @@ async function loadCommunityReports(force){
       fetch(`${SB_URL}/rest/v1/zona_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/logistica_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
-    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
     if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica'].some(k=>activeLayers.has(k))) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
@@ -979,7 +979,7 @@ function buildStatus(kind){
     if(typeof r.lat!=='number') return;
     const col=statusColor(kind,r.estado);
     arr.push(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
-     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}`));
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${fotoPop(r.foto)}`));
   });
   return arr;
 }
@@ -1009,7 +1009,7 @@ function buildAfectadas(){
   (DB.zonas||[]).forEach(r=>{
     if(typeof r.lat!=='number') return;
     arr.push(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
-     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
+     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
   });
   return arr;
 }
@@ -1022,7 +1022,7 @@ function buildLogistica(){
     const falta = r.estado!=='cubierto';
     const col = falta ? '#e23a3c' : '#10a36a';
     arr.push(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
-     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.nota?'<br>'+esc(r.nota):''}<br><span style="color:var(--mut2)">reporte de logística</span>`));
+     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`));
   });
   return arr;
 }
@@ -1045,7 +1045,7 @@ function renderHubPanel(){
     if(zonas.length){
       html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">⚠️ Reportes de la comunidad · ${zonas.length}</div>`
         + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span>${delBtn('afectada',r.id)}</div>
-          <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div></div>`).join('');
+          <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}</div>`).join('');
     }
     if(aa){
       html+=`<div class="card" style="border-color:#4a1c1f;background:linear-gradient(140deg,rgba(255,77,79,.08),transparent)">
@@ -1089,7 +1089,7 @@ function renderHubPanel(){
       return `<div class="rep ${f?'crit':'baja'}">
         <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(LOGI_TIPO[r.tipo]||'Recurso')}</span><span class="badge st">${f?'FALTA':'cubierto'}</span>${delBtn('logistica',r.id)}</div>
         ${r.nota?`<div class="d">${esc(r.nota)}</div>`:''}
-        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
+        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`;
     }).join('') : '<div class="empty">Aún no hay reportes de logística.<br>Marca dónde falta ayuda o qué zona ya está cubierta, para repartir mejor.</div>';
   }
@@ -1109,7 +1109,7 @@ function renderHubPanel(){
         <div class="h"><span class="t">${k==='cobertura'?'📶':'⚡'} ${statusLabel(k,r.estado)}</span>
           ${k==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
           ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${delBtn(k,r.id)}</div>
-        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
+        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
   }
 }
@@ -1122,6 +1122,37 @@ function ubicFields(){
     <button class="btn ghost" style="margin-top:8px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación exacta</button>
     <div id="rpGeo" style="font-size:12px;color:var(--mut);margin-top:6px"></div>`;
 }
+function fotoField(){
+  return `<label class="fl">Foto del sitio (opcional)</label>
+    <input id="rpFoto" type="file" accept="image/*" capture="environment" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px" />
+    <div style="font-size:11px;color:var(--mut2);margin-top:4px">📸 Una foto del lugar ayuda a que otros confíen. Se sube comprimida. No subas rostros ni datos personales.</div>`;
+}
+function resizeImage(file, max, q){
+  return new Promise(resolve=>{
+    try{
+      const img=new Image(), url=URL.createObjectURL(file);
+      img.onload=()=>{ let w=img.width,h=img.height;
+        if(w>h && w>max){ h=Math.round(h*max/w); w=max; } else if(h>max){ w=Math.round(w*max/h); h=max; }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        c.toBlob(b=>{ URL.revokeObjectURL(url); resolve(b||file); }, 'image/jpeg', q);
+      };
+      img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
+      img.src=url;
+    }catch(e){ resolve(file); }
+  });
+}
+async function uploadFoto(file){
+  try{
+    const blob=await resizeImage(file, 1280, 0.7);
+    const name=rid()+Date.now()+'.jpg';
+    const res=await fetch(`${SB_URL}/storage/v1/object/reportes/${name}`,{method:'POST',headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':'image/jpeg'},body:blob});
+    if(!res.ok) return null;
+    return `${SB_URL}/storage/v1/object/public/reportes/${name}`;
+  }catch(e){ return null; }
+}
+function fotoThumb(url){ return url?`<img src="${esc(url)}" loading="lazy" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;margin-top:8px;cursor:pointer" onclick="event.stopPropagation();window.open('${esc(url)}','_blank')">`:''; }
+function fotoPop(url){ return url?`<br><img src="${esc(url)}" style="width:210px;max-width:100%;border-radius:8px;margin-top:6px">`:''; }
 function reportGeoCapture(btn){
   if(!navigator.geolocation){ document.getElementById('rpGeo').textContent='Geolocalización no disponible.'; return; }
   btn.textContent='📍 Obteniendo...';
@@ -1141,6 +1172,7 @@ function openMapReport(kind){
       <label class="fl">Estado de la señal</label>
       <select id="rpEstado"><option value="senal">Con señal</option><option value="intermitente">Intermitente</option><option value="sinsenal">Sin señal</option></select>
       ${ubicFields()}
+      ${fotoField()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('cobertura')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else if(kind==='luz'){
@@ -1148,6 +1180,7 @@ function openMapReport(kind){
       <label class="fl">¿Hay luz?</label>
       <select id="rpEstado"><option value="conluz">Sí, hay luz</option><option value="sinluz">No, sin luz (apagón)</option></select>
       ${ubicFields()}
+      ${fotoField()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('luz')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else if(kind==='logistica'){
@@ -1170,6 +1203,7 @@ function openMapReport(kind){
       <label class="fl">Nota (opcional)</label>
       <input id="rpNota" placeholder="Ej: parque con ~50 niños, falta cena" maxlength="120" />
       ${ubicFields()}
+      ${fotoField()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('logistica')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else {
@@ -1184,6 +1218,7 @@ function openMapReport(kind){
         <option value="otro">⚠️ Otro</option>
       </select>
       ${ubicFields()}
+      ${fotoField()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('afectada')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   }
@@ -1226,27 +1261,31 @@ async function deleteReport(kind,id,btn){
     save(); toast('🗑️ Borrado para todos'); renderHub();
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
 }
-function submitMapReport(kind){
+async function submitMapReport(kind){
   const city=document.getElementById('rpCity').value, base=cityByName(city);
   const lat=reportGeo?reportGeo.lat:base.lat+(Math.random()-.5)*.06;
   const lng=reportGeo?reportGeo.lng:base.lng+(Math.random()-.5)*.06;
+  // Foto (opcional): comprime y sube a Supabase Storage, obtiene URL pública
+  let foto=null;
+  const file=document.getElementById('rpFoto')?.files?.[0];
+  if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); if(!foto) toast('No se pudo subir la foto; se guarda el reporte sin ella','err'); }
   if(kind==='cobertura'){
     const operador=document.getElementById('rpOper').value, estado=document.getElementById('rpEstado').value;
-    DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,ts:Date.now()});
-    pushCommunityReport('cobertura',{lat,lng,ciudad:city,operador,estado});      // compartir en Supabase
+    DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,foto,ts:Date.now()});
+    pushCommunityReport('cobertura',{lat,lng,ciudad:city,operador,estado,foto_url:foto});
   } else if(kind==='luz'){
     const estado=document.getElementById('rpEstado').value;
-    DB.power.unshift({id:rid(),lat,lng,city,estado,ts:Date.now()});
-    pushCommunityReport('luz',{lat,lng,ciudad:city,estado});                     // compartir en Supabase
+    DB.power.unshift({id:rid(),lat,lng,city,estado,foto,ts:Date.now()});
+    pushCommunityReport('luz',{lat,lng,ciudad:city,estado,foto_url:foto});
   } else if(kind==='logistica'){
     const tipo=document.getElementById('rpTipo').value, estado=document.getElementById('rpEstado').value;
     const nota=(document.getElementById('rpNota')?.value||'').trim().slice(0,120);
-    DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota,ts:Date.now()});
-    pushCommunityReport('logistica',{lat,lng,ciudad:city,tipo,estado,nota});     // compartir en Supabase
+    DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota,foto,ts:Date.now()});
+    pushCommunityReport('logistica',{lat,lng,ciudad:city,tipo,estado,nota,foto_url:foto});
   } else {
     const tipo=document.getElementById('rpTipo').value;
-    DB.zonas.unshift({id:rid(),lat,lng,city,tipo,ts:Date.now()});
-    pushCommunityReport('afectada',{lat,lng,ciudad:city,tipo});                  // compartir en Supabase
+    DB.zonas.unshift({id:rid(),lat,lng,city,tipo,foto,ts:Date.now()});
+    pushCommunityReport('afectada',{lat,lng,ciudad:city,tipo,foto_url:foto});
   }
   save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
 }
