@@ -147,6 +147,10 @@
   .acc[open] summary .ph{transform:rotate(45deg)}
   .acc .body{padding:0 16px 16px;color:var(--mut);font-size:14px}
   .acc .body b{color:var(--txt)}
+  .fotos-prev{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .fotos-prev .fp{position:relative;width:72px;height:72px}
+  .fotos-prev .fp img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .fotos-prev .fp button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid #fff;background:var(--red);color:#fff;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
   .step{display:flex;gap:12px;margin:12px 0}
   .step .num{width:26px;height:26px;border-radius:8px;background:var(--amber);color:#1a1205;font-weight:800;display:grid;place-items:center;flex:none;font-size:13px}
 
@@ -309,6 +313,16 @@
       <b style="font-size:14px">🤝 ¿No encuentras a tu familia?</b>
       <div style="font-size:13px;color:var(--mut);margin:6px 0 10px">Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.</div>
       <a class="btn ok" style="text-decoration:none;display:block;text-align:center" href="tel:04227994880">📞 Llamar Cruz Roja · 0422 799 4880</a>
+    </div>
+
+    <div class="card" id="desapCountsCard" style="margin-top:4px">
+      <b style="font-size:14px">📊 Desaparecidos reportados aquí</b>
+      <div class="grid cols3" style="margin-top:10px">
+        <div class="stat"><div class="n" id="cntAdultos">—</div><div class="l">Adultos</div></div>
+        <div class="stat"><div class="n" id="cntNinos">—</div><div class="l">Niños</div></div>
+        <div class="stat"><div class="n" id="cntTotal">—</div><div class="l">Total</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--mut2);margin-top:8px">Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.</div>
     </div>
 
     <div class="card" style="margin-top:4px">
@@ -632,7 +646,7 @@ function save(){ localStorage.setItem(LS, JSON.stringify(DB)); }
 function seed(){
   // Datos DEMO simulados para que el panel no esté vacío
   const now = Date.now();
-  const mk = (o)=>({id:'r'+Math.random().toString(36).slice(2,8), ts:now-o.ago, status:'nuevo', ...o, ...triage(o)});
+  const mk = (o)=>{ const c=cityByName(o.city); return {id:'r'+Math.random().toString(36).slice(2,8), ts:now-o.ago, status:'nuevo', lat:c.lat+(Math.random()-.5)*.06, lng:c.lng+(Math.random()-.5)*.06, ...o, ...triage(o)}; };
   const reports = [
     mk({type:'rescate', desc:'Hay 3 personas atrapadas bajo escombros en planta baja, una no responde', people:3, city:'Caracas', phone:'0414-1112233', demo:true, ago:6*60000}),
     mk({type:'medico',  desc:'Mi vecino tiene una fractura abierta y está sangrando mucho', people:1, city:'Maracay', phone:'0412-5556677', demo:true, ago:18*60000}),
@@ -707,6 +721,8 @@ DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
 DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
 DB.zonas    = DB.zonas    || [];   // reportes comunitarios de zonas afectadas (daños)
 DB.logistica= DB.logistica|| [];   // logística: dónde falta / qué zona está cubierta
+// Retrocompat: reportes guardados antes sin coords → derívalas de la ciudad (para que el mapa del Panel los muestre)
+(function backfillCoords(){ let ch=false; (DB.reports||[]).forEach(r=>{ if(typeof r.lat!=='number'||typeof r.lng!=='number'){ const c=cityByName(r.city); r.lat=c.lat+(Math.random()-.5)*.06; r.lng=c.lng+(Math.random()-.5)*.06; ch=true; } }); if(ch) save(); })();
 
 /* ---------- Navegación ---------- */
 let curView='ayuda', viewHistory=[];
@@ -720,7 +736,7 @@ function go(v, fromBack){
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
-  if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
+  if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
   if(v==='salvo') renderSafe();
@@ -825,19 +841,27 @@ async function loadCommunityReports(force){
       fetch(`${SB_URL}/rest/v1/zona_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/logistica_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
-    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url,ts:Date.parse(r.created_at)||Date.now()}));
+    const ex=r=>({direccion:r.direccion,referencia:r.referencia,descripcion:r.descripcion,fotos:r.fotos});
+    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
     if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica'].some(k=>activeLayers.has(k))) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
 }
 async function pushCommunityReport(kind, row){
+  const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : 'power_reports';
+  const post=r=>fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(r)});
   try{
-    const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : 'power_reports';
-    await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
-  }catch(e){ /* offline: queda guardado en localStorage */ }
+    let res=await post(row);
+    if(!res.ok){
+      const t=await res.text();
+      // columnas nuevas aún sin migrar → reintenta sin ellas (no pierde el reporte)
+      if(/PGRST204|schema cache|column/i.test(t)){ const r2={...row}; ['direccion','referencia','descripcion','fotos'].forEach(k=>delete r2[k]); res=await post(r2); }
+    }
+    return res.ok;
+  }catch(e){ return false; /* offline: queda guardado en localStorage */ }
 }
 
 async function refreshFeed(){
@@ -1079,6 +1103,8 @@ async function fetchLiveTowers(){
   }catch(e){ toast('Modo en vivo: disponible al desplegar el backend','err'); }
 }
 
+// Snippet de popup: dirección + descripción (reportes comunitarios)
+function dirDesc(r){ return `${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.descripcion?'<br>'+esc(r.descripcion):''}`; }
 /* ---- Cobertura / Luz — constructor de capa ---- */
 function buildStatus(kind){
   const arr=[]; const data=statusData(kind);
@@ -1086,7 +1112,7 @@ function buildStatus(kind){
     if(typeof r.lat!=='number') return;
     const col=statusColor(kind,r.estado);
     arr.push(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
-     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${fotoPop(r.foto)}`));
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}`));
   });
   return arr;
 }
@@ -1116,7 +1142,7 @@ function buildAfectadas(){
   (DB.zonas||[]).forEach(r=>{
     if(typeof r.lat!=='number') return;
     arr.push(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
-     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
+     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
   });
   return arr;
 }
@@ -1129,7 +1155,7 @@ function buildLogistica(){
     const falta = r.estado!=='cubierto';
     const col = falta ? '#e23a3c' : '#10a36a';
     arr.push(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
-     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`));
+     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`));
   });
   return arr;
 }
@@ -1235,6 +1261,62 @@ function fotoField(){
     <input id="rpFoto" type="file" accept="image/*" capture="environment" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px" />
     <div style="font-size:11px;color:var(--mut2);margin-top:4px">📸 Una foto del lugar ayuda a que otros confíen. Se sube comprimida. No subas rostros ni datos personales.</div>`;
 }
+
+/* ---------- Campos compartidos: dirección/referencia/descripción ---------- */
+function infoFields(){
+  return `<label class="fl">Dirección (calle, sector, municipio, estado)</label>
+    <input id="rpDir" placeholder="Ej: Av. La Playa, Caraballeda, La Guaira" maxlength="160" />
+    <div style="font-size:11px;color:var(--mut2);margin-top:4px">La dirección se consulta en OpenStreetMap para ubicarla en el mapa.</div>
+    <label class="fl">Punto de referencia (opcional)</label>
+    <input id="rpRef" placeholder="Ej: frente a la plaza, edificio azul" maxlength="100" />
+    <label class="fl">Descripción / detalles</label>
+    <textarea id="rpDescr" placeholder="Describe la situación con el mayor detalle posible"></textarea>`;
+}
+
+/* ---------- Subir varias fotos: preview + eliminar ---------- */
+const PHOTOS = {};      // pickerId -> [File,...]
+const PHOTO_URLS = {};  // pickerId -> [objectURL,...] (para revocarlos y no fugar memoria)
+function fotosField(id, label){
+  label = label || 'Subir fotos';
+  return `<label class="fl">${esc(label)} (opcional)</label>
+    <input id="${id}" type="file" accept="image/*" multiple capture="environment" onchange="onPhotos('${id}',this)" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px" />
+    <div id="${id}_prev" class="fotos-prev"></div>
+    <div style="font-size:11px;color:var(--mut2);margin-top:4px">📸 Puedes subir varias fotos. Se suben comprimidas.</div>`;
+}
+function onPhotos(id, input){
+  PHOTOS[id] = PHOTOS[id] || [];
+  for(const f of Array.from(input.files||[])){ if(f && (f.type||'').startsWith('image/')) PHOTOS[id].push(f); }
+  if(PHOTOS[id].length>8){ PHOTOS[id]=PHOTOS[id].slice(0,8); toast('Máximo 8 fotos'); }
+  input.value='';
+  renderPhotos(id);
+}
+function rmPhoto(id, i){ if(PHOTOS[id]){ PHOTOS[id].splice(i,1); renderPhotos(id); } }
+function renderPhotos(id){
+  const c=document.getElementById(id+'_prev'); if(!c) return;
+  (PHOTO_URLS[id]||[]).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} });   // libera los blobs previos
+  const arr=PHOTOS[id]||[];
+  PHOTO_URLS[id]=arr.map(f=>URL.createObjectURL(f));
+  c.innerHTML = arr.map((f,i)=>`<div class="fp"><img src="${PHOTO_URLS[id][i]}" alt=""><button type="button" title="Quitar" onclick="rmPhoto('${id}',${i})">✕</button></div>`).join('');
+}
+function clearPhotos(id){ (PHOTO_URLS[id]||[]).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); delete PHOTO_URLS[id]; delete PHOTOS[id]; const c=document.getElementById(id+'_prev'); if(c) c.innerHTML=''; }
+async function uploadPhotos(id){
+  const arr=PHOTOS[id]||[];
+  if(!arr.length) return [];
+  const urls=await Promise.all(arr.map(f=>uploadFoto(f)));
+  return urls.filter(Boolean);
+}
+
+/* ---------- Geocodificar dirección → lat/lng (Nominatim/OSM, sesgo Venezuela) ---------- */
+async function geocode(q){
+  q=(q||'').trim(); if(q.length<4) return null;
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${encodeURIComponent(q)}`,{headers:{Accept:'application/json'}});
+    if(!r.ok) return null;
+    const j=await r.json();
+    if(Array.isArray(j)&&j[0]&&j[0].lat) return {lat:parseFloat(j[0].lat), lng:parseFloat(j[0].lon)};
+  }catch(e){}
+  return null;
+}
 function resizeImage(file, max, q){
   return new Promise(resolve=>{
     try{
@@ -1289,16 +1371,18 @@ function openMapReport(kind){
       <select id="rpOper"><option>Movistar</option><option>Digitel</option><option>Movilnet</option><option>Otra</option></select>
       <label class="fl">Estado de la señal</label>
       <select id="rpEstado"><option value="senal">Con señal</option><option value="intermitente">Intermitente</option><option value="sinsenal">Sin señal</option></select>
+      ${infoFields()}
       ${ubicFields()}
-      ${fotoField()}
+      ${fotosField('rpFotos')}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('cobertura')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else if(kind==='luz'){
     sheet.innerHTML=`<h3>⚡ Reportar estado de luz</h3><p>Indica si hay electricidad en tu zona.</p>
       <label class="fl">¿Hay luz?</label>
       <select id="rpEstado"><option value="conluz">Sí, hay luz</option><option value="sinluz">No, sin luz (apagón)</option></select>
+      ${infoFields()}
       ${ubicFields()}
-      ${fotoField()}
+      ${fotosField('rpFotos')}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('luz')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else if(kind==='logistica'){
@@ -1318,10 +1402,9 @@ function openMapReport(kind){
         <option value="falta">🔴 FALTA aquí (hace falta)</option>
         <option value="cubierto">🟢 Ya cubierto / saturado (no hace falta)</option>
       </select>
-      <label class="fl">Nota (opcional)</label>
-      <input id="rpNota" placeholder="Ej: parque con ~50 niños, falta cena" maxlength="120" />
+      ${infoFields()}
       ${ubicFields()}
-      ${fotoField()}
+      ${fotosField('rpFotos')}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('logistica')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else {
@@ -1335,8 +1418,9 @@ function openMapReport(kind){
         <option value="incendio">🔥 Incendio</option>
         <option value="otro">⚠️ Otro</option>
       </select>
+      ${infoFields()}
       ${ubicFields()}
-      ${fotoField()}
+      ${fotosField('rpFotos')}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('afectada')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   }
@@ -1348,49 +1432,64 @@ function closeMapModal(){ document.getElementById('mapModal').classList.remove('
 let _desapCat=null;
 function openDesapReport(cat){
   _desapCat = cat==='nino' ? 'nino' : null;
+  reportGeo=null;
   const sheet=document.getElementById('mapSheet');
   const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
   sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas (o repórtalo como rescatado/encontrado) para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
     <label class="fl">Estado *</label>
     <select id="dpEstado"><option value="buscando">🔴 Desaparecido (lo busco)</option><option value="encontrado">🟢 Rescatado / Encontrado</option></select>
+    <label class="fl">Tipo de persona *</label>
+    <select id="dpTipo"><option value="adulto"${_desapCat?'':' selected'}>🧑 Adulto</option><option value="nino"${_desapCat?' selected':''}>👶 Niño/a</option></select>
     <label class="fl">Nombre y apellido *</label><input id="dpNombre" placeholder="Ej: María Pérez" maxlength="80">
-    <div class="row"><div><label class="fl">Edad</label><input id="dpEdad" placeholder="Ej: 8 años" maxlength="20"></div>
+    <div class="row"><div><label class="fl">Edad (años)</label><input id="dpEdad" type="number" min="0" max="120" placeholder="Ej: 8" maxlength="20"></div>
       <div><label class="fl">Cédula (opcional)</label><input id="dpCedula" placeholder="V-00000000" maxlength="20"></div></div>
     <label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
-    <label class="fl">Dirección (opcional)</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda" maxlength="160">
+    <label class="fl">Dirección (calle, sector, municipio, estado)</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda, La Guaira" maxlength="160">
+    <button class="btn ghost" style="margin-top:8px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación actual</button>
+    <div id="rpGeo" style="font-size:12px;color:var(--mut);margin-top:6px"></div>
+    <div style="font-size:11px;color:var(--mut2);margin-top:2px">La dirección se consulta en OpenStreetMap para ubicarla (se guarda aproximada, a nivel de sector).</div>
+    <label class="fl">Punto de referencia (opcional)</label><input id="dpRef" placeholder="Ej: frente a la plaza, edificio azul" maxlength="100">
     <label class="fl">¿Dónde/cuándo se le vio por última vez?</label><input id="dpVisto" placeholder="Ej: edificio en Chacao, 24 jun" maxlength="160">
     <label class="fl">Contacto de quien reporta (opcional)</label><input id="dpContacto" placeholder="0414-0000000" maxlength="40">
     <label class="fl">Si fue encontrado/rescatado: ¿quién lo encontró? (opcional)</label><input id="dpEncontradoPor" placeholder="Ej: vecino, hospital, Cruz Roja, familiar…" maxlength="80">
-    <label class="fl">Nota (señas, ropa…) opcional</label><input id="dpNota" placeholder="Detalles que ayuden a identificar" maxlength="200">
-    <label class="fl">Foto de la persona (opcional)</label>
-    <input id="dpFoto" type="file" accept="image/*" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
+    <label class="fl">Descripción / detalles (señas, ropa…)</label><textarea id="dpNota" placeholder="Detalles que ayuden a identificar a la persona" maxlength="400"></textarea>
+    ${fotosField('dpFotos','Subir fotos de la persona')}
     <label class="fl" style="margin-top:8px">Documento (cédula, constancia… imagen o PDF, opcional)</label>
     <input id="dpDoc" type="file" accept="image/*,application/pdf" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
     <button class="btn primary" style="margin-top:14px" onclick="submitDesapReport(this)">Publicar</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
-    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y la foto serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
+    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y las fotos serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
   document.getElementById('mapModal').classList.add('show');
 }
 async function submitDesapReport(btn){
   const g=id=>(document.getElementById(id)?.value||'').trim();
   const nombre=g('dpNombre');
   if(nombre.length<3){ toast('Escribe el nombre de la persona','err'); return; }
+  const tipo = g('dpTipo')==='nino' ? 'nino' : 'adulto';
+  const categoria = tipo==='nino' ? 'nino' : null;
   if(btn) btn.textContent='Publicando…';
-  let foto=null; const file=document.getElementById('dpFoto')?.files?.[0];
-  if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); }
+  // Fotos (varias) + documento
+  toast('📤 Subiendo…');
+  const fotos=await uploadPhotos('dpFotos'); const foto=fotos[0]||null;
   let doc=null; const dfile=document.getElementById('dpDoc')?.files?.[0];
-  if(dfile){ toast('📤 Subiendo documento…'); doc=await uploadDoc(dfile); }
+  if(dfile){ doc=await uploadDoc(dfile); }
+  // Ubicación: actual o geocodificada de la dirección (opcional; queda null si no resuelve).
+  // Se REDONDEA a ~1 km para ubicar el sector sin publicar el punto exacto (privacidad).
+  let lat=null, lng=null; const dir=g('dpDireccion').slice(0,160);
+  const rnd=v=>Math.round(v*100)/100;
+  if(reportGeo){ lat=rnd(reportGeo.lat); lng=rnd(reportGeo.lng); }
+  else if(dir){ const gc=await geocode(dir+', '+g('dpZona')+', Venezuela'); if(gc){ lat=rnd(gc.lat); lng=rnd(gc.lng); } }
   const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
-  const row={ nombre, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:g('dpDireccion').slice(0,160), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,200), foto_url:foto, documento_url:doc, estado, categoria:_desapCat };
+  const row={ nombre, tipo_persona:tipo, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:dir, referencia:g('dpRef').slice(0,100), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,400), foto_url:foto, fotos:(fotos.length?fotos:null), documento_url:doc, lat, lng, estado, categoria };
   try{
     const res=await fetch('/api/reportar-persona',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(row)});
     const j=await res.json().catch(()=>({}));
     if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
-    closeMapModal(); track('report', _desapCat||'general');
+    clearPhotos('dpFotos'); closeMapModal(); track('report', categoria||'general');
     if(j.accion==='promovido') toast(`✅ Movido a rescatados (estaba en desaparecidos).`);
     else toast(estado==='encontrado'?'✅ Publicado como rescatado. ¡Gracias!':'✅ Publicado. Gracias — ayuda a difundir.');
-    if(_desapCat==='nino'){ loadNinos(); }
-    else { const q=document.getElementById('desapQ'); if(q){ q.value=nombre.split(' ')[0]; searchDesap(); } }
+    if(tipo==='nino'){ loadNinos(); }
+    else { const q=document.getElementById('desapQ'); if(q){ q.value=nombre.split(' ')[0]; searchDesap(); } loadDesapCounts&&loadDesapCounts(); }
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Publicar'; }
 }
 
@@ -1476,32 +1575,35 @@ async function deleteReport(kind,id,btn){
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
 }
 async function submitMapReport(kind){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
   const city=document.getElementById('rpCity').value, base=cityByName(city);
-  const lat=reportGeo?reportGeo.lat:base.lat+(Math.random()-.5)*.06;
-  const lng=reportGeo?reportGeo.lng:base.lng+(Math.random()-.5)*.06;
-  // Foto (opcional): comprime y sube a Supabase Storage, obtiene URL pública
-  let foto=null;
-  const file=document.getElementById('rpFoto')?.files?.[0];
-  if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); if(!foto) toast('No se pudo subir la foto; se guarda el reporte sin ella','err'); }
+  const direccion=g('rpDir').slice(0,160), referencia=g('rpRef').slice(0,100), descripcion=g('rpDescr').slice(0,400);
+  // Ubicación: 1) ubicación actual capturada  2) geocodificar dirección  3) ciudad + jitter
+  let lat, lng;
+  if(reportGeo){ lat=reportGeo.lat; lng=reportGeo.lng; }
+  else if(direccion){ toast('📍 Ubicando dirección…'); const gc=await geocode(direccion+', '+city+', Venezuela'); if(gc){ lat=gc.lat; lng=gc.lng; } }
+  if(typeof lat!=='number'){ lat=base.lat+(Math.random()-.5)*.06; lng=base.lng+(Math.random()-.5)*.06; if(direccion) toast('No se ubicó la dirección exacta; se usó la ciudad'); }
+  // Fotos (varias, opcional): comprime y sube a Supabase Storage
+  toast('📤 Subiendo…'); const fotos=await uploadPhotos('rpFotos'); const foto=fotos[0]||null;
+  const comun={lat,lng,ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,foto_url:foto,fotos:fotos.length?fotos:null};
   if(kind==='cobertura'){
     const operador=document.getElementById('rpOper').value, estado=document.getElementById('rpEstado').value;
-    DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,foto,ts:Date.now()});
-    pushCommunityReport('cobertura',{lat,lng,ciudad:city,operador,estado,foto_url:foto});
+    DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,foto,direccion,descripcion,ts:Date.now()});
+    pushCommunityReport('cobertura',{...comun,operador,estado});
   } else if(kind==='luz'){
     const estado=document.getElementById('rpEstado').value;
-    DB.power.unshift({id:rid(),lat,lng,city,estado,foto,ts:Date.now()});
-    pushCommunityReport('luz',{lat,lng,ciudad:city,estado,foto_url:foto});
+    DB.power.unshift({id:rid(),lat,lng,city,estado,foto,direccion,descripcion,ts:Date.now()});
+    pushCommunityReport('luz',{...comun,estado});
   } else if(kind==='logistica'){
     const tipo=document.getElementById('rpTipo').value, estado=document.getElementById('rpEstado').value;
-    const nota=(document.getElementById('rpNota')?.value||'').trim().slice(0,120);
-    DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota,foto,ts:Date.now()});
-    pushCommunityReport('logistica',{lat,lng,ciudad:city,tipo,estado,nota,foto_url:foto});
+    DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota:descripcion,foto,direccion,descripcion,ts:Date.now()});
+    pushCommunityReport('logistica',{...comun,tipo,estado,nota:descripcion||null});
   } else {
     const tipo=document.getElementById('rpTipo').value;
-    DB.zonas.unshift({id:rid(),lat,lng,city,tipo,foto,ts:Date.now()});
-    pushCommunityReport('afectada',{lat,lng,ciudad:city,tipo,foto_url:foto});
+    DB.zonas.unshift({id:rid(),lat,lng,city,tipo,foto,direccion,descripcion,ts:Date.now()});
+    pushCommunityReport('afectada',{...comun,tipo});
   }
-  save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
+  clearPhotos('rpFotos'); save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
 }
 
 /* ---------- Desaparecidos (datos reales) ---------- */
@@ -1511,6 +1613,18 @@ function ensureHospitalSync(){
     const s=document.getElementById('hospSync');
     if(s && d && d.count!=null) s.textContent=`${d.count} ingresos · ${d.status==='synced'?'actualizado':'≤30 min'}`;
   }).catch(()=>{});
+}
+// Conteo separado de desaparecidos: adultos (categoria null) vs niños (categoria=nino), solo estado=buscando.
+async function sbCount(q){
+  try{ const r=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?${q}`,{method:'HEAD',headers:{...SB_H,Prefer:'count=exact',Range:'0-0'}}); return parseInt((r.headers.get('content-range')||'').split('/')[1]||'0',10)||0; }catch(e){ return 0; }
+}
+async function loadDesapCounts(){
+  const [ad,ni]=await Promise.all([
+    sbCount('estado=eq.buscando&categoria=is.null&select=id'),
+    sbCount('estado=eq.buscando&categoria=eq.nino&select=id'),
+  ]);
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=Number(v).toLocaleString('es-VE');};
+  set('cntAdultos',ad); set('cntNinos',ni); set('cntTotal',ad+ni);
 }
 // Dos buscadores independientes en Supabase. La cédula no se almacena en hospital_admisiones.
 let _desapT, _hospT;
@@ -1540,6 +1654,7 @@ function searchDesap(){
             <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
             ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
             ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
+            ${d.referencia?`<div class="dt">📌 ${esc(d.referencia)}</div>`:''}
             ${d.estado==='encontrado'&&d.encontrado_por?`<div class="dt" style="color:var(--green)">🙌 Encontrado por: ${esc(d.encontrado_por)}</div>`:''}
             ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
             ${d.documento_url?`<div class="dt">📄 <a href="${esc(d.documento_url)}" target="_blank" rel="noopener">Ver documento</a></div>`:''}
@@ -1662,6 +1777,7 @@ function ninoCard(n){
     <div class="dt">${n.zona?'📍 '+esc(n.zona):''}${n.visto?' · '+esc(n.visto):''}</div>
     ${n.cedula?`<div class="dt">🪪 ${esc(n.cedula)}</div>`:''}
     ${n.direccion?`<div class="dt">🏠 ${esc(n.direccion)}</div>`:''}
+    ${n.referencia?`<div class="dt">📌 ${esc(n.referencia)}</div>`:''}
     ${found&&n.encontrado_por?`<div class="dt" style="color:var(--green)">🙌 Encontrado por: ${esc(n.encontrado_por)}</div>`:''}
     ${n.contacto?`<div class="dt">📞 <a href="tel:${esc(n.contacto)}">${esc(n.contacto)}</a></div>`:''}
     ${n.documento_url?`<div class="dt">📄 <a href="${esc(n.documento_url)}" target="_blank" rel="noopener">Ver documento</a></div>`:''}
@@ -1792,7 +1908,7 @@ function renderPanel(){
   if(markerLayer) markerLayer.remove();
   markerLayer=L.layerGroup().addTo(map);
   const col={crit:'#ff4d4f',alta:'#ff8a3d',media:'#ffb020',baja:'#4d9fff'};
-  rs.filter(r=>r.status!=='hecho').forEach(r=>{
+  rs.filter(r=>r.status!=='hecho' && typeof r.lat==='number' && typeof r.lng==='number').forEach(r=>{
     L.circleMarker([r.lat,r.lng],{radius:r.prio==='crit'?11:8,color:col[r.prio],fillColor:col[r.prio],fillOpacity:.7,weight:2})
      .addTo(markerLayer)
      .bindPopup(`<b>${NEED_MAP[r.type]?.ico} ${NEED_MAP[r.type]?.label}</b> · ${PRIO_LABEL[r.prio]}<br>${esc(r.desc.slice(0,80))}<br><small>${esc(r.city)} · ${ago(r.ts)}</small>`);

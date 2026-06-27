@@ -32,11 +32,18 @@ export default async function handler(req: Request): Promise<Response> {
   const rec: any = {
     nombre, edad: s(b.edad, 20), cedula: s(b.cedula, 20), zona: s(b.zona, 80),
     direccion: s(b.direccion, 160), visto: s(b.visto, 160), contacto: s(b.contacto, 40),
-    nota: s(b.nota, 200), foto_url: b?.foto_url || null, estado, categoria,
+    nota: s(b.nota, 400), foto_url: b?.foto_url || null, estado, categoria,
   };
-  // columnas nuevas: solo se incluyen si traen valor (no rompe si aún falta el SQL)
+  // columnas nuevas: solo se incluyen si traen valor. Si la columna aún no existe en
+  // la BD, el insert/patch reintenta SIN ellas (stripNew) para no fallar del todo.
   const ep = s(b.encontrado_por, 80); if (ep) rec.encontrado_por = ep;
   const du = b?.documento_url || null; if (du) rec.documento_url = du;
+  rec.tipo_persona = b?.tipo_persona === 'nino' ? 'nino' : b?.tipo_persona === 'adulto' ? 'adulto' : (categoria === 'nino' ? 'nino' : 'adulto');
+  const rf = s(b.referencia, 100); if (rf) rec.referencia = rf;
+  const fotos = Array.isArray(b?.fotos) ? b.fotos.filter((u: any) => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 8) : null;
+  if (fotos && fotos.length) rec.fotos = fotos;
+  const lat = Number(b?.lat), lng = Number(b?.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) { rec.lat = lat; rec.lng = lng; }
 
   try {
     if (estado === 'encontrado') {
@@ -47,18 +54,37 @@ export default async function handler(req: Request): Promise<Response> {
       const ids = (Array.isArray(cands) ? cands : []).filter((c: any) => norm(c.nombre) === norm(nombre)).map((c: any) => c.id);
       if (ids.length) {
         const patch: any = { estado: 'encontrado' };
-        for (const k of ['edad', 'cedula', 'zona', 'direccion', 'visto', 'contacto', 'encontrado_por', 'nota', 'foto_url', 'documento_url']) if (rec[k]) patch[k] = rec[k];
-        const r = await fetch(`${SB}/rest/v1/${TBL}?id=in.(${ids.join(',')})`, { method: 'PATCH', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify(patch) });
-        if (!r.ok) return json({ error: 'db', detail: (await r.text()).slice(0, 140) }, 502);
+        for (const k of ['edad', 'cedula', 'zona', 'direccion', 'referencia', 'visto', 'contacto', 'encontrado_por', 'nota', 'foto_url', 'fotos', 'documento_url', 'tipo_persona', 'lat', 'lng']) if (rec[k] != null) patch[k] = rec[k];
+        const r = await write(`${TBL}?id=in.(${ids.join(',')})`, 'PATCH', patch);
+        if (!r.ok) return json({ error: 'db', detail: r.detail }, 502);
         return json({ accion: 'promovido', movidos: ids.length });
       }
     }
-    const r = await fetch(`${SB}/rest/v1/${TBL}`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([rec]) });
-    if (!r.ok) return json({ error: 'db', detail: (await r.text()).slice(0, 140) }, 502);
+    const r = await write(TBL, 'POST', [rec]);
+    if (!r.ok) return json({ error: 'db', detail: r.detail }, 502);
     return json({ accion: 'insertado' });
   } catch (e: any) {
     return json({ error: 'fail', detail: e?.message }, 500);
   }
+}
+
+// Columnas que pueden no existir aún (antes de la migración). Si la BD se queja de
+// una columna desconocida, reintenta una vez sin estas claves.
+const NEW_COLS = ['tipo_persona', 'referencia', 'fotos', 'lat', 'lng', 'encontrado_por', 'documento_url'];
+function stripNew(payload: any): any {
+  const strip = (o: any) => { const c = { ...o }; for (const k of NEW_COLS) delete c[k]; return c; };
+  return Array.isArray(payload) ? payload.map(strip) : strip(payload);
+}
+async function write(path: string, method: string, payload: any): Promise<{ ok: boolean; detail?: string }> {
+  let r = await fetch(`${SB}/rest/v1/${path}`, { method, headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify(payload) });
+  if (r.ok) return { ok: true };
+  const t = await r.text();
+  if (/PGRST204|schema cache|column/i.test(t)) {
+    r = await fetch(`${SB}/rest/v1/${path}`, { method, headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify(stripNew(payload)) });
+    if (r.ok) return { ok: true };
+    return { ok: false, detail: (await r.text()).slice(0, 140) };
+  }
+  return { ok: false, detail: t.slice(0, 140) };
 }
 function json(b: unknown, st = 200): Response {
   return new Response(JSON.stringify(b), { status: st, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } });
