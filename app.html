@@ -770,6 +770,10 @@ let FEED = (typeof window!=='undefined' && window.SISMOVE_FEED)
 const SB_URL='https://lewueqvqdnnkdiqlkrvx.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxld3VlcXZxZG5ua2RpcWxrcnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTQyMjAsImV4cCI6MjA5Nzk3MDIyMH0.YP0XV_UO5jAiinNZOsOIKLXgUGQm2-2vslAX2XwhKEg';
 const SB_H={apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'application/json'};
+// Red Ayuda Venezuela (datos públicos): para búsqueda federada de desaparecidos (96k+ reales)
+const RED_SB='https://cpavwkdonvkvrwygfzfo.supabase.co';
+const RED_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwYXZ3a2RvbnZrdnJ3eWdmemZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjAyODMsImV4cCI6MjA5NzkzNjI4M30.-_FAsA2csTrB9qt267pBfjJkczMP7pcaUi4plMv3kv4';
+const RED_H={apikey:RED_ANON, Authorization:'Bearer '+RED_ANON};
 let _lastCommLoad=0;
 async function loadCommunityReports(force){
   if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
@@ -1397,7 +1401,8 @@ function ensureHospitalSync(){
 }
 // Dos buscadores independientes en Supabase. La cédula no se almacena en hospital_admisiones.
 let _desapT, _hospT;
-// 1) Desaparecidos reportados (desaparecidos_reportes)
+// 1) Desaparecidos: busca en NUESTRA base + en Red Ayuda Venezuela (96k+ reales, filtrando basura)
+const _secHdr=(t)=>`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">${t}</div>`;
 function searchDesap(){
   clearTimeout(_desapT);
   _desapT=setTimeout(async()=>{
@@ -1407,18 +1412,34 @@ function searchDesap(){
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
     const like=encodeURIComponent('*'+q+'*');
     try{
-      const desap=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]);
-      el.innerHTML = (Array.isArray(desap)&&desap.length)
-        ? `<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">🔍 Reportados como desaparecidos · ${desap.length}</div>`
-          + desap.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
+      const [mine,red]=await Promise.all([
+        fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
+        fetch(`${RED_SB}/rest/v1/missing_persons?select=name,age,last_seen,status,contact&name=ilike.${like}&limit=50`,{headers:RED_H}).then(r=>r.ok?r.json():[]).catch(()=>[]),
+      ]);
+      const junk=n=>!(String(n||'').trim().length>=4 && /[a-záéíóúñ].*[a-záéíóúñ]/i.test(String(n||'')));
+      const redF=(Array.isArray(red)?red:[]).filter(x=>!junk(x.name));
+      let html='';
+      if(Array.isArray(mine)&&mine.length){
+        html+=_secHdr('🔍 Reportados aquí · '+mine.length)
+          + mine.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
             <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} ${d.estado==='encontrado'?'<span class="badge st" style="color:var(--green)">encontrado</span>':''}</div>
             <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
             ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
             ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
             ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
             ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
-          </div></div>`).join('')
-        : `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo o contacta a la Cruz Roja (0422 799 4880).</div>`;
+          </div></div>`).join('');
+      }
+      if(redF.length){
+        html+=_secHdr('🌐 Red Ayuda Venezuela · '+redF.length)
+          + redF.map(x=>{const found=x.status==='found';return `<div class="person"><div class="pic">${found?'🟢':'🔍'}</div><div class="info">
+            <div class="nm">${esc(x.name)}${x.age?' · '+esc(String(x.age))+' años':''} ${found?'<span class="badge st" style="color:var(--green)">localizado</span>':''}</div>
+            ${x.last_seen?`<div class="dt">📍 ${esc(x.last_seen)}</div>`:''}
+            ${x.contact?`<div class="dt">📞 ${esc(x.contact)}</div>`:''}
+          </div></div>`;}).join('')
+          + `<a class="ext" href="https://redayudavenezuela.com/desaparecidos" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:6px">Ver más en redayudavenezuela.com →</a>`;
+      }
+      el.innerHTML = html || `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo o contacta a la Cruz Roja (0422 799 4880).</div>`;
     }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora. Intenta de nuevo.</div>'; }
   },300);
 }

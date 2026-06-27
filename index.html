@@ -565,30 +565,28 @@
     var df=document.getElementById('dtvFecha'); if(df && dtv.updated) df.textContent='· '+dtv.updated;
   }).catch(function(){});
 })();
-/* Banner rojo: cifras por FUENTE (scraping de Vozpópuli, OKDIARIO y afectadosporelterremoto
-   vía /api/sismo-stats). Si falla, quedan las cifras del HTML como respaldo. */
+/* Banner rojo: cifras EN VIVO de Red Ayuda Venezuela (vía /api/cifras, refrescado cada 30 min)
+   + ingresos hospitalarios (nuestra base, vía /api/sismo-stats). Vozpópuli quedó obsoleto. */
 (function(){
-  try{
-    fetch('/api/sismo-stats').then(function(r){return r.json();}).then(function(d){
-      var st = (d && d.stats) || {};
-      var ing = d && d.ingresos;                                 // ingresos hospitalarios (nuestra base, en vivo)
-      var fmt = function(n){ return Number(n).toLocaleString('es'); };
-      var f=st.fallecidos, h=st.heridos, de=st.desaparecidos;   // cifras ya consolidadas (sin ruido)
-      // Barra superior
-      var bar=[];
-      if(f!=null) bar.push(fmt(f)+' fallecidos');
-      if(de!=null) bar.push(fmt(de)+' desaparecidos');
-      if(ing!=null && ing>0) bar.push('🏥 '+fmt(ing)+' ingresos a hospitales');
-      if(bar.length) document.querySelectorAll('.balance-bar').forEach(function(e){ e.textContent=bar.join(' · '); });
-      // Ticker (cifras limpias, sin fuente)
-      var tick=[];
-      if(f!=null) tick.push(fmt(f)+' fallecidos');
-      if(h!=null) tick.push('más de '+fmt(h)+' heridos');
-      if(de!=null) tick.push(fmt(de)+' desaparecidos');
-      if(ing!=null && ing>0) tick.push('🏥 '+fmt(ing)+' ingresos a hospitales');
-      if(tick.length) document.querySelectorAll('.balance-ticker').forEach(function(e){ e.textContent=tick.join(' · '); });
-    }).catch(function(){});
-  }catch(e){}
+  var fmt = function(n){ return Number(n).toLocaleString('es'); };
+  Promise.all([
+    fetch('/api/cifras').then(function(r){return r.json();}).catch(function(){return {};}),
+    fetch('/api/sismo-stats').then(function(r){return r.json();}).catch(function(){return {};})
+  ]).then(function(res){
+    var c=res[0]||{}, s=res[1]||{};
+    var f=c.fallecidos, h=c.heridos, de=c.desaparecidos, ing=s.ingresos;
+    var bar=[];
+    if(f!=null) bar.push(fmt(f)+' fallecidos');
+    if(de!=null) bar.push(fmt(de)+' desaparecidos');
+    if(ing!=null && ing>0) bar.push('🏥 '+fmt(ing)+' ingresos a hospitales');
+    if(bar.length) document.querySelectorAll('.balance-bar').forEach(function(e){ e.textContent=bar.join(' · '); });
+    var tick=[];
+    if(f!=null) tick.push(fmt(f)+' fallecidos');
+    if(h!=null) tick.push('más de '+fmt(h)+' heridos');
+    if(de!=null) tick.push(fmt(de)+' desaparecidos');
+    if(ing!=null && ing>0) tick.push('🏥 '+fmt(ing)+' ingresos a hospitales');
+    if(tick.length) document.querySelectorAll('.balance-ticker').forEach(function(e){ e.textContent=tick.join(' · '); });
+  }).catch(function(){});
 })();
 </script>
 <script src="https://widget-v2.dapta.ai/agent.min.js?agentId=360f4949-d6d7-4715-8afe-79d33e476bf2"></script>
