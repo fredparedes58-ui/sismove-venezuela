@@ -21,6 +21,7 @@ const SOURCES = [
   { key: 'notify:centros', table: 'centros_acopio_external', label: '📦 centros de acopio' },
   { key: 'notify:zonas',   table: 'zona_reports',            label: '⚠️ zonas afectadas reportadas' },
   { key: 'notify:logi',    table: 'logistica_reports',       label: '🍲 necesidades / logística' },
+  { key: 'notify:desaprep',table: 'desaparecidos_reportes',  label: '🔍 personas reportadas desaparecidas' },
 ];
 
 function sbH(extra: Record<string, string> = {}) {

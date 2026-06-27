@@ -330,6 +330,12 @@
       </details>
     </div>
 
+    <div class="card">
+      <b style="font-size:14px">🔍 ¿Buscas a alguien? Publícalo aquí</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 10px">Reporta a la persona desaparecida (con foto). Aparecerá en este buscador para que otros y los rescatistas ayuden.</div>
+      <button class="btn primary" onclick="openDesapReport()">➕ Reportar persona desaparecida</button>
+    </div>
+
     <a class="card" href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:var(--txt)">
       <div style="display:flex;align-items:center;gap:8px"><b style="font-size:14px">🔎 ¿No lo encuentras aquí?</b></div>
       <div style="font-size:12px;color:var(--mut);margin:6px 0">Busca también en <b>afectadosporelterremotovenezuela.com</b> — tiene <b>rescatados</b>, hospitalizados, desaparecidos y fallecidos, con búsqueda por nombre.</div>
@@ -1227,6 +1233,39 @@ function openMapReport(kind){
 }
 function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); }
 
+/* ---------- Reportar persona desaparecida (registro propio) ---------- */
+function openDesapReport(){
+  const sheet=document.getElementById('mapSheet');
+  sheet.innerHTML=`<h3>🔍 Reportar persona desaparecida</h3><p>Publica a quien buscas para que otros y los rescatistas ayuden. Aparecerá en el buscador.</p>
+    <label class="fl">Nombre y apellido *</label><input id="dpNombre" placeholder="Ej: María Pérez" maxlength="80">
+    <div class="row"><div><label class="fl">Edad</label><input id="dpEdad" placeholder="Ej: 8 años" maxlength="20"></div>
+      <div><label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select></div></div>
+    <label class="fl">¿Dónde/cuándo se le vio por última vez?</label><input id="dpVisto" placeholder="Ej: edificio en Chacao, 24 jun" maxlength="160">
+    <label class="fl">Contacto de quien busca (opcional)</label><input id="dpContacto" placeholder="0414-0000000" maxlength="40">
+    <label class="fl">Nota (señas, ropa…) opcional</label><input id="dpNota" placeholder="Detalles que ayuden a identificar" maxlength="200">
+    <label class="fl">Foto de la persona (opcional)</label>
+    <input id="dpFoto" type="file" accept="image/*" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
+    <button class="btn primary" style="margin-top:14px" onclick="submitDesapReport(this)">Publicar</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
+    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, el nombre y la foto serán visibles para ayudar a localizar a la persona. No publiques datos sensibles innecesarios. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
+  document.getElementById('mapModal').classList.add('show');
+}
+async function submitDesapReport(btn){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
+  const nombre=g('dpNombre');
+  if(nombre.length<3){ toast('Escribe el nombre de la persona','err'); return; }
+  if(btn) btn.textContent='Publicando…';
+  let foto=null; const file=document.getElementById('dpFoto')?.files?.[0];
+  if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); }
+  const row={ nombre, edad:g('dpEdad').slice(0,20), zona:g('dpZona'), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado:'buscando' };
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
+    if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
+    closeMapModal(); toast('✅ Publicado. Gracias — ayuda a difundir.');
+    const q=document.getElementById('hospQ'); if(q){ q.value=nombre.split(' ')[0]; searchHospital(); }
+  }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Publicar'; }
+}
+
 /* ---------- Modo administrador: borrar reportes comunitarios ---------- */
 function isAdmin(){ return !!localStorage.getItem('sismove_admin_key'); }
 function adminToggle(){
@@ -1308,16 +1347,30 @@ function searchHospital(){
     const el=document.getElementById('hospResults'); if(!el) return;
     if(q.length<2){ el.innerHTML=''; return; }
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    const like=encodeURIComponent('*'+q+'*');
     try{
-      const url=`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,fecha&nombre=ilike.${encodeURIComponent('*'+q+'*')}&order=nombre&limit=40`;
-      const rows=await (await fetch(url,{headers:SB_H})).json();
-      if(!Array.isArray(rows)||!rows.length){
-        el.innerHTML=`<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Revisa los documentos oficiales abajo o contacta a la Cruz Roja (0422 799 4880).</div>`; return;
+      const [hosp,desap]=await Promise.all([
+        fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,fecha&nombre=ilike.${like}&order=nombre&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
+        fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=20`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
+      ]);
+      let html='';
+      if(Array.isArray(desap)&&desap.length){
+        html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">🔍 Reportados como desaparecidos · ${desap.length}</div>`
+          + desap.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
+            <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} ${d.estado==='encontrado'?'<span class="badge st" style="color:var(--green)">encontrado</span>':''}</div>
+            <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
+            ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
+            ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
+          </div></div>`).join('');
       }
-      el.innerHTML=rows.map(x=>`<div class="person"><div class="pic">🏥</div><div class="info">
-        <div class="nm">${esc(x.nombre)}</div>
-        <div class="dt">${x.hospital?esc(x.hospital):'hospital no especificado'}${x.fecha?' · '+esc(x.fecha):''}</div>
-      </div></div>`).join('');
+      if(Array.isArray(hosp)&&hosp.length){
+        html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">🏥 Ingresos a hospitales · ${hosp.length}</div>`
+          + hosp.map(x=>`<div class="person"><div class="pic">🏥</div><div class="info">
+            <div class="nm">${esc(x.nombre)}</div>
+            <div class="dt">${x.hospital?esc(x.hospital):'hospital no especificado'}${x.fecha?' · '+esc(x.fecha):''}</div>
+          </div></div>`).join('');
+      }
+      el.innerHTML = html || `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo, revisa los portales oficiales o contacta a la Cruz Roja (0422 799 4880).</div>`;
     }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora. Intenta de nuevo.</div>'; }
   },300);
 }

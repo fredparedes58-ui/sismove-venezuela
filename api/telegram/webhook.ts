@@ -228,12 +228,12 @@ async function searchText(query: string): Promise<string> {
   let hosp: any[] = [], desap: any[] = [];
   // Misma data que la web: ingresos hospitalarios (OCR) + portales de desaparecidos. NO se muestra cédula.
   try { hosp = await sb(`hospital_admisiones?select=nombre,hospital&nombre=ilike.${q}&limit=8`); } catch {}
-  try { desap = await sb(`desaparecidos_external?select=nombre,zona,encontrado&or=(nombre.ilike.${q},cedula.ilike.${q})&limit=6`); } catch {}
+  try { desap = await sb(`desaparecidos_reportes?select=nombre,zona,estado,contacto&nombre=ilike.${q}&limit=6`); } catch {}
   if (!hosp.length && !desap.length)
     return `No encontré a "${clean}" en los listados.\n• Busca rescatados/encontrados en: afectadosporelterremotovenezuela.com\n• Regístralo en: ${PORTALES}\n• Contacta a la ${CRUZ_ROJA}\nEstos registros ayudan a difundir; no garantizan localizar a la persona.`;
   let out = `Resultados para "${clean}":\n`;
   if (hosp.length) out += `\n🏥 Ingresos a hospitales:\n${hosp.map(r => `• ${r.nombre}${r.hospital ? ' — ' + r.hospital : ''}`).join('\n')}\n`;
-  if (desap.length) out += `\n🔍 Reportes de personas:\n${desap.map(r => `• ${r.nombre}${r.zona ? ' — ' + r.zona : ''}${r.encontrado ? ' — reportado encontrado (sin verificar)' : ''}`).join('\n')}\n`;
+  if (desap.length) out += `\n🔍 Reportados como desaparecidos:\n${desap.map(r => `• ${r.nombre}${r.zona ? ' — ' + r.zona : ''}${r.estado === 'encontrado' ? ' — encontrado' : ''}${r.contacto ? ' · 📞 ' + r.contacto : ''}`).join('\n')}\n`;
   out += `\n🔎 Busca también rescatados/encontrados en: afectadosporelterremotovenezuela.com`;
   out += `\nNota: provienen de listados de difusión; no es verificación propia. Para una búsqueda formal contacta a la ${CRUZ_ROJA}.`;
   return out;
