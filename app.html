@@ -1394,7 +1394,7 @@ function searchHospital(){
     const like=encodeURIComponent('*'+q+'*');
     try{
       const [hosp,desap]=await Promise.all([
-        fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,fecha&nombre=ilike.${like}&order=nombre&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
+        fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,centro,fecha&nombre=ilike.${like}&order=nombre&limit=40`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
         fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&nombre=ilike.${like}&order=created_at.desc&limit=20`,{headers:SB_H}).then(r=>r.ok?r.json():[]),
       ]);
       let html='';
@@ -1414,6 +1414,7 @@ function searchHospital(){
           + hosp.map(x=>`<div class="person"><div class="pic">🏥</div><div class="info">
             <div class="nm">${esc(x.nombre)}</div>
             <div class="dt">${x.hospital?esc(x.hospital):'hospital no especificado'}${x.fecha?' · '+esc(x.fecha):''}</div>
+            ${x.centro?`<div class="dt">📍 ${esc(x.centro)}</div>`:''}
           </div></div>`).join('');
       }
       el.innerHTML = html || `<div class="empty" style="padding:10px">Sin coincidencias para "${esc(q)}". Repórtalo abajo, revisa los portales oficiales o contacta a la Cruz Roja (0422 799 4880).</div>`;

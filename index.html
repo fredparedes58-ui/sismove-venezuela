@@ -140,9 +140,10 @@
     /* ---- Cifras de la emergencia (auto-actualizadas) ---- */
     .cifras { max-width: 760px; margin: 4px auto 0; padding: 0 16px; }
     .cifras-title { font-size: 15px; font-weight: 800; color: var(--texto); text-align: center; margin: 0 0 12px; }
-    .cifras-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-    @media (max-width: 640px) { .cifras-grid { grid-template-columns: repeat(2, 1fr); } }
-    .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .cifras-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 9px; }
+    .cifras-fuente-lbl { font-size: 12.5px; color: var(--texto); font-weight: 800; margin: 0 0 8px; }
+    .cifras-fuente-lbl .tag { font-weight: 600; color: var(--gris); font-size: 11px; }
+    .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 14px; padding: 13px 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
     .cifra-num { font-size: 24px; font-weight: 800; line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; }
     .cifra-lbl { font-size: 10.5px; color: var(--gris); margin-top: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
     .cifra.c-rojo .cifra-num { color: var(--rojo); }
@@ -381,6 +382,27 @@
 
 <section class="cifras" id="cifras">
   <h2 class="cifras-title">📊 Cifras de la emergencia</h2>
+
+  <!-- Bloque 1 · Desaparecidos Terremoto Venezuela (actualización manual) -->
+  <div class="cifras-fuente-lbl">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></div>
+  <div class="cifras-grid" id="dtvGrid">
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Desaparecidos</div></div>
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="sin_contacto">—</div><div class="cifra-lbl">Sin contacto</div></div>
+    <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="en_hospitales">—</div><div class="cifra-lbl">En hospitales</div></div>
+    <div class="cifra c-verde"><div class="cifra-num" data-k="a_salvo">—</div><div class="cifra-lbl">A salvo</div></div>
+    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="danos">—</div><div class="cifra-lbl">Daños</div></div>
+    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="voluntarios">—</div><div class="cifra-lbl">Voluntarios</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="necesidades">—</div><div class="cifra-lbl">Necesidades</div></div>
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="atrapados">—</div><div class="cifra-lbl">Atrapados</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="refugiados">—</div><div class="cifra-lbl">Refugiados</div></div>
+  </div>
+  <p class="cifras-fuente"><a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔗 desaparecidosterremotovenezuela.com →</a></p>
+
+  <!-- Bloque 2 · Red Ayuda Venezuela (en vivo, cada 30 min) -->
+  <div class="cifras-fuente-lbl" style="margin-top:18px">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="cifrasAgo">cada 30 min</span></span></div>
   <div class="cifras-grid" id="cifrasGrid">
     <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Aún sin contacto</div></div>
     <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
@@ -388,12 +410,7 @@
     <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
     <div class="cifra"><div class="cifra-num" data-k="total">—</div><div class="cifra-lbl">Registros totales</div></div>
   </div>
-  <p class="cifras-fuente">Cifras en vivo (se actualizan <span id="cifrasAgo">cada 30 min</span>) vía
-    <a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">Red Ayuda Venezuela</a>.
-  </p>
-  <p class="cifras-fuente" style="margin-top:4px">Desglose oficial (en hospitales · a salvo · daños · voluntarios · necesidades · atrapados · refugiados):
-    <a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">ver dashboard de Desaparecidos Terremoto Venezuela →</a>
-  </p>
+  <p class="cifras-fuente"><a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">🔗 redayudavenezuela.com →</a></p>
 </section>
 
 <div class="grid-wrapper">
@@ -540,8 +557,13 @@
   function fmt(n){ return (n==null)?'—':Number(n).toLocaleString('es-VE'); }
   function ago(t){ var s=(Date.now()-t)/1000; if(s<90)return 'hace instantes'; var m=Math.round(s/60); if(m<60)return 'hace '+m+' min'; var h=Math.round(m/60); return h<24?('hace '+h+' h'):'hace '+Math.round(h/24)+' d'; }
   fetch('/api/cifras').then(function(r){return r.json();}).then(function(d){
+    // Red Ayuda Venezuela (en vivo)
     document.querySelectorAll('#cifrasGrid .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(d[k]!=null) e.textContent=fmt(d[k]); });
     var ag=document.getElementById('cifrasAgo'); if(ag && d.updated_at) ag.textContent=ago(new Date(d.updated_at).getTime());
+    // Desaparecidos Terremoto Venezuela (manual)
+    var dtv=d.dtv||{};
+    document.querySelectorAll('#dtvGrid .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(dtv[k]!=null) e.textContent=fmt(dtv[k]); });
+    var df=document.getElementById('dtvFecha'); if(df && dtv.updated) df.textContent='· '+dtv.updated;
   }).catch(function(){});
 })();
 /* Banner rojo: cifras por FUENTE (scraping de Vozpópuli, OKDIARIO y afectadosporelterremoto

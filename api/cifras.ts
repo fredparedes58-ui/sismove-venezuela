@@ -80,13 +80,17 @@ export default async function handler(req: Request): Promise<Response> {
     heridos: s.heridos ?? cur?.heridos ?? null,
     updated_at: new Date().toISOString(),
   };
+  // NO incluir dtv en el upsert (es manual) → no lo pisamos en cada scrape.
   await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) }).catch(() => {});
-  return json(out(merged));
+  return json(out({ ...merged, dtv: cur?.dtv ?? null }));
 }
 function out(c: any) {
   return {
+    // redayuda (en vivo)
     desaparecidos: c.desaparecidos, localizados: c.localizados, total: c.total,
     fallecidos: c.fallecidos, heridos: c.heridos, updated_at: c.updated_at,
+    // desaparecidosterremoto (manual, jsonb dtv)
+    dtv: c.dtv ?? null,
     fuentes: [
       { nombre: 'Red Ayuda Venezuela', url: 'https://redayudavenezuela.com/' },
       { nombre: 'Desaparecidos Terremoto Venezuela', url: 'https://desaparecidosterremotovenezuela.com/' },

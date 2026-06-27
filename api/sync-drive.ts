@@ -285,7 +285,8 @@ const FIELD_SYNS: [string, RegExp][] = [
   ['edad',      /edad|^a[nñ]os$/],
   ['lat',       /^lat|latitud/],
   ['lng',       /^lon|^lng|longitud/],
-  ['hospital',  /hospital|cl[ií]nic|centro de salud|^centro$|ambulatorio|asistencial/],
+  ['hospital',  /hospital|cl[ií]nic|centro de salud|ambulatorio|asistencial/],
+  ['centro',    /^centro\b|donde est[aá]n?|se encuentran?|^sede|refugio|albergue|donde se encuentra/],
   ['fecha',     /fecha|\bd[ií]a\b/],
   ['contacto',  /tel[eé]fono|tlf|celular|whatsapp|m[oó]vil|contacto/],
   ['direccion', /direcci|^calle|avenida|^av\b|carrera|punto de referencia|domicilio/],
@@ -371,8 +372,12 @@ const ADAPTERS: Adapter[] = [
     keywords: /hospital|ingreso|paciente|admisi|herido|atendid|lesionad|centros? de salud|asistencial|ambulatorio|cl[ií]nica/i, table: 'hospital_admisiones', conflict: 'id',
     build: (row, cell, ctx) => {
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
-      const hospital = redactText(cell('hospital')) || null;
-      return { id: norm(`${nombre}|${hospital || ''}`).slice(0, 200), nombre, hospital, fecha: redactText(cell('fecha')) || null, source: `drive:${ctx.file}`, updated_at: ctx.batch };
+      const hospital = redactText(cell('hospital')) || null; const centro = redactText(cell('centro')) || null;
+      // id estable: igual que antes si no hay centro (no duplica lo ya importado); lo añade si existe.
+      const id = (`${norm(nombre)}|${norm(hospital || '')}` + (centro ? `|${norm(centro)}` : '')).slice(0, 200);
+      const rec: any = { id, nombre, hospital, fecha: redactText(cell('fecha')) || null, source: `drive:${ctx.file}`, updated_at: ctx.batch };
+      if (centro) rec.centro = centro;   // solo se envía si el archivo trae la columna → no rompe si falta la columna en BD
+      return rec;
     },
   },
   {
