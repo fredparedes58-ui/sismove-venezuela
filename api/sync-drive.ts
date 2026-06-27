@@ -286,12 +286,12 @@ const FIELD_SYNS: [string, RegExp][] = [
   ['lat',       /^lat|latitud/],
   ['lng',       /^lon|^lng|longitud/],
   ['hospital',  /hospital|cl[ií]nic|centro de salud|ambulatorio|asistencial/],
-  ['centro',    /^centro\b|donde est[aá]n?|se encuentran?|^sede|refugio|albergue|donde se encuentra/],
   ['fecha',     /fecha|\bd[ií]a\b/],
   ['contacto',  /tel[eé]fono|tlf|celular|whatsapp|m[oó]vil|contacto/],
   ['direccion', /direcci|^calle|avenida|^av\b|carrera|punto de referencia|domicilio/],
   ['zona',      /zona|ciudad|estado|^edo\b|municipio|localidad|sector|parroquia|entidad/],
   ['visto',     /ultima vez|visto|d[oó]nde|ubicaci[oó]n|^lugar|desaparici|desaparecio|^punto/],
+  ['centro',    /^centro\b|^sede\b/],   // "Centro"/"Sede" donde está la persona (ingresos). Anclado: no roba 'visto'
   ['tipo',      /tipo|categor[ií]a|necesidad|insumo|recurso/],
   ['estado',    /situaci[oó]n|estatus|status|condici[oó]n/],
   ['foto_url',  /foto|imagen|^photo$|url|enlace|link/],
@@ -372,11 +372,11 @@ const ADAPTERS: Adapter[] = [
     keywords: /hospital|ingreso|paciente|admisi|herido|atendid|lesionad|centros? de salud|asistencial|ambulatorio|cl[ií]nica/i, table: 'hospital_admisiones', conflict: 'id',
     build: (row, cell, ctx) => {
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
-      const hospital = redactText(cell('hospital')) || null; const centro = redactText(cell('centro')) || null;
-      // id estable: igual que antes si no hay centro (no duplica lo ya importado); lo añade si existe.
-      const id = (`${norm(nombre)}|${norm(hospital || '')}` + (centro ? `|${norm(centro)}` : '')).slice(0, 200);
+      const hospital = redactText(cell('hospital')) || null;
+      const id = `${norm(nombre)}|${norm(hospital || '')}`.slice(0, 200);   // estable: NO incluye centro → no duplica
       const rec: any = { id, nombre, hospital, fecha: redactText(cell('fecha')) || null, source: `drive:${ctx.file}`, updated_at: ctx.batch };
-      if (centro) rec.centro = centro;   // solo se envía si el archivo trae la columna → no rompe si falta la columna en BD
+      // clave 'centro' SOLO si el archivo trae la columna (idx.centro) → uniforme por archivo y no toca la columna si no aplica
+      if (ctx.idx.centro !== undefined) rec.centro = redactText(cell('centro')) || null;
       return rec;
     },
   },
@@ -465,6 +465,9 @@ export default async function handler(req: Request): Promise<Response> {
         }
         const unmapped = [...unmappedAll];
         if (!rows.length) { reports.push({ archivo: f.name, destino: adapter.table, estado: 'vacio', descartadas_basura: basura, descartadas_sin_coords: sinCoords }); continue; }
+        // Claves UNIFORMES en todo el lote (PostgREST exige el mismo set de claves en un bulk insert,
+        // si no → 400 "All object keys must match"). Rellena las que falten con null.
+        { const ks = new Set<string>(); for (const r of rows) for (const k of Object.keys(r)) ks.add(k); for (const r of rows) for (const k of ks) if (!(k in r)) r[k] = null; }
         let espejo = 'no_aplica';
         if (rows.length) {
           // cuántas filas tenía ESTE archivo antes (para detectar una descarga truncada)

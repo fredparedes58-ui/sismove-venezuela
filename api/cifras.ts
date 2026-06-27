@@ -60,13 +60,12 @@ async function stored(): Promise<any | null> {
 export default async function handler(req: Request): Promise<Response> {
   if (!SB || !SERVICE) return json({ error: 'no_supabase' }, 503);
   const url = (() => { try { return new URL(req.url); } catch { return null; } })();
-  const force = !!url && (url.searchParams.get('key') === SECRET || url.searchParams.get('refresh') === '1');
+  const force = !!url && url.searchParams.get('key') === SECRET;   // SOLO el cron (con clave) fuerza scrape/escritura; nunca anónimo
   const cur = await stored();
-  // GET normal (portada): devuelve lo guardado sin scrapear (rápido). Solo scrapea en 1ª vez.
+  // GET normal (portada): devuelve lo guardado sin scrapear (rápido).
   if (!force && cur) return json(out(cur), 200, 'public, s-maxage=120, stale-while-revalidate=600');
-  if (!force && !cur) { /* primera vez: scrape para sembrar */ }
-  // throttle 30 min aun con key (el cron pega cada 10)
-  if (force && cur?.updated_at && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000 && url?.searchParams.get('refresh') !== '1') {
+  // throttle: el cron pega cada 10 min, pero solo re-scrapeamos cada 30
+  if (force && cur?.updated_at && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000) {
     return json(out(cur));
   }
   const s = await scrape();

@@ -140,12 +140,16 @@
     /* ---- Cifras de la emergencia (auto-actualizadas) ---- */
     .cifras { max-width: 760px; margin: 4px auto 0; padding: 0 16px; }
     .cifras-title { font-size: 15px; font-weight: 800; color: var(--texto); text-align: center; margin: 0 0 12px; }
-    .cifras-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 9px; }
+    /* rejilla pareja: 12 marcadores → 6×2 ; bloque redayuda (5) → fila de 5 (.g5) */
+    .cifras-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .cifras-grid.g5 { grid-template-columns: repeat(5, 1fr); }
+    @media (max-width: 700px) { .cifras-grid { grid-template-columns: repeat(4, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 460px) { .cifras-grid { grid-template-columns: repeat(3, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(2, 1fr); } }
     .cifras-fuente-lbl { font-size: 12.5px; color: var(--texto); font-weight: 800; margin: 0 0 8px; }
     .cifras-fuente-lbl .tag { font-weight: 600; color: var(--gris); font-size: 11px; }
-    .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 14px; padding: 13px 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-    .cifra-num { font-size: 24px; font-weight: 800; line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; }
-    .cifra-lbl { font-size: 10.5px; color: var(--gris); margin-top: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+    .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); display: flex; flex-direction: column; justify-content: center; }
+    .cifra-num { font-size: 19px; font-weight: 800; line-height: 1.05; color: var(--texto); font-variant-numeric: tabular-nums; }
+    .cifra-lbl { font-size: 9px; color: var(--gris); margin-top: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: .2px; line-height: 1.15; }
     .cifra.c-rojo .cifra-num { color: var(--rojo); }
     .cifra.c-verde .cifra-num { color: var(--verde); }
     .cifra.c-oro .cifra-num { color: var(--oro); }
@@ -403,7 +407,7 @@
 
   <!-- Bloque 2 · Red Ayuda Venezuela (en vivo, cada 30 min) -->
   <div class="cifras-fuente-lbl" style="margin-top:18px">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="cifrasAgo">cada 30 min</span></span></div>
-  <div class="cifras-grid" id="cifrasGrid">
+  <div class="cifras-grid g5" id="cifrasGrid">
     <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Aún sin contacto</div></div>
     <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
     <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
