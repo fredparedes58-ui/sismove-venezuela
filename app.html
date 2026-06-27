@@ -360,6 +360,7 @@
       <button data-l="acopio" onclick="toggleLayer('acopio')">📦 Acopio</button>
       <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura</button>
       <button data-l="luz" onclick="toggleLayer('luz')">⚡ Luz</button>
+      <button data-l="logistica" onclick="toggleLayer('logistica')">🍲 Logística</button>
     </div>
     <div id="hubSync" class="sync-bar"></div>
     <div id="mapHub" class="card" style="padding:0;overflow:hidden;height:60vh;min-height:420px"></div>
@@ -622,6 +623,7 @@ let DB = load();
 DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
 DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
 DB.zonas    = DB.zonas    || [];   // reportes comunitarios de zonas afectadas (daños)
+DB.logistica= DB.logistica|| [];   // logística: dónde falta / qué zona está cubierta
 
 /* ---------- Navegación ---------- */
 let curView='ayuda', viewHistory=[];
@@ -723,21 +725,23 @@ let _lastCommLoad=0;
 async function loadCommunityReports(force){
   if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
   try{
-    const [cov,pow,zon]=await Promise.all([
+    const [cov,pow,zon,logi]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/coverage_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/power_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/zona_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
+      fetch(`${SB_URL}/rest/v1/logistica_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
     if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
-    if(curView==='refugios'){ ['cobertura','luz','afectadas'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(activeLayers.has('cobertura')||activeLayers.has('luz')||activeLayers.has('afectadas')) renderHubPanel(); }
+    if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica'].some(k=>activeLayers.has(k))) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
 }
 async function pushCommunityReport(kind, row){
   try{
-    const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : 'power_reports';
+    const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : 'power_reports';
     await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
   }catch(e){ /* offline: queda guardado en localStorage */ }
 }
@@ -811,6 +815,7 @@ function addLayer(key){
   ensureHubMap(); removeLayer(key);
   if(key==='afectadas')      hubLayers[key]=buildAfectadas();
   else if(key==='acopio')    hubLayers[key]=buildAcopio();
+  else if(key==='logistica') hubLayers[key]=buildLogistica();
   else if(key==='torres'){   hubLayers[key]=[]; ensureFullTowers(drawTowersInView); drawTowersInView(); }
   else                       hubLayers[key]=buildStatus(key);   // cobertura | luz
 }
@@ -844,6 +849,7 @@ function fitActive(){
   if(activeLayers.has('acopio')) (FEED.centros||[]).forEach(c=>{if(typeof c.lat==='number')pts.push([c.lat,c.lng]);});
   if(activeLayers.has('cobertura')) DB.coverage.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('luz')) DB.power.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(activeLayers.has('logistica')) (DB.logistica||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(pts.length>1) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:9});
 }
 
@@ -893,6 +899,7 @@ function statusLabel(kind,e){
 }
 const OP_COLOR={Movistar:'#4d9fff',Movilnet:'#22c98a',Digitel:'#ffb020',Otra:'#94a6c4'};
 const ZTIPO={colapso:'🏚️ Edificio colapsado',grietas:'🧱 Grietas / daño',inundacion:'🌊 Inundación',via:'🚧 Vía bloqueada',incendio:'🔥 Incendio',otro:'⚠️ Otro daño'};
+const LOGI_TIPO={comida:'🍲 Comida',agua:'💧 Agua',medicinas:'💊 Medicinas',higiene:'🧴 Higiene/pañales',ropa:'👕 Ropa/cobijas',voluntarios:'🙋 Voluntarios',otro:'📦 Otro'};
 
 /* ---- Torres reales: render por VIEWPORT (cualquier barrio/pueblo) ---- */
 let towerLayer=null, liveLayer=null, towersLoading=false;
@@ -1002,6 +1009,19 @@ function buildAfectadas(){
   return arr;
 }
 
+/* ---- Logística / Necesidades — constructor de capa (🔴 falta · 🟢 cubierto) ---- */
+function buildLogistica(){
+  const arr=[];
+  (DB.logistica||[]).forEach(r=>{
+    if(typeof r.lat!=='number') return;
+    const falta = r.estado!=='cubierto';
+    const col = falta ? '#e23a3c' : '#10a36a';
+    arr.push(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
+     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.nota?'<br>'+esc(r.nota):''}<br><span style="color:var(--mut2)">reporte de logística</span>`));
+  });
+  return arr;
+}
+
 /* ---- Panel inferior: depende de la capa enfocada (focusLayer) + capas activas ---- */
 function renderHubPanel(){
   const k=focusLayer;
@@ -1051,6 +1071,22 @@ function renderHubPanel(){
       <div id="towerNote" class="card" style="background:var(--bg2);margin-top:10px;font-size:11.5px;color:var(--mut2)">📡 Cargando torres…</div>`;
     ensureFullTowers(drawTowersInView); drawTowersInView();
     list.innerHTML='';
+  }
+  else if(k==='logistica'){
+    const LG=(DB.logistica||[]);
+    const falta=LG.filter(r=>r.estado!=='cubierto'), cub=LG.filter(r=>r.estado==='cubierto');
+    sync.innerHTML=`<span class="dot err"></span><span><b>${falta.length}</b> zonas con falta · <b>${cub.length}</b> cubiertas/saturadas</span>`;
+    leg.innerHTML=`<span><i style="background:#e23a3c"></i>Falta aquí</span><span><i style="background:#10a36a"></i>Ya cubierto / saturado</span>`;
+    act.innerHTML=`<button class="btn primary" onclick="openMapReport('logistica')">🍲 Reportar dónde falta / qué está cubierto</button>`;
+    const ordered=falta.concat(cub).slice(0,40);   // prioridad: primero lo que falta
+    list.innerHTML = LG.length ? ordered.map(r=>{
+      const f=r.estado!=='cubierto';
+      return `<div class="rep ${f?'crit':'baja'}">
+        <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(LOGI_TIPO[r.tipo]||'Recurso')}</span><span class="badge st">${f?'FALTA':'cubierto'}</span></div>
+        ${r.nota?`<div class="d">${esc(r.nota)}</div>`:''}
+        <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>
+      </div>`;
+    }).join('') : '<div class="empty">Aún no hay reportes de logística.<br>Marca dónde falta ayuda o qué zona ya está cubierta, para repartir mejor.</div>';
   }
   else { // cobertura | luz
     const data=statusData(k);
@@ -1109,6 +1145,28 @@ function openMapReport(kind){
       ${ubicFields()}
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('luz')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
+  } else if(kind==='logistica'){
+    sheet.innerHTML=`<h3>🍲 Reportar logística</h3><p>Marca dónde <b>FALTA</b> ayuda o qué zona ya está <b>cubierta/saturada</b>, para repartir mejor y que ninguna zona quede sin nada.</p>
+      <label class="fl">¿Qué recurso?</label>
+      <select id="rpTipo">
+        <option value="comida">🍲 Comida</option>
+        <option value="agua">💧 Agua</option>
+        <option value="medicinas">💊 Medicinas</option>
+        <option value="higiene">🧴 Higiene / pañales</option>
+        <option value="ropa">👕 Ropa / cobijas</option>
+        <option value="voluntarios">🙋 Voluntarios</option>
+        <option value="otro">📦 Otro</option>
+      </select>
+      <label class="fl">Estado</label>
+      <select id="rpEstado">
+        <option value="falta">🔴 FALTA aquí (hace falta)</option>
+        <option value="cubierto">🟢 Ya cubierto / saturado (no hace falta)</option>
+      </select>
+      <label class="fl">Nota (opcional)</label>
+      <input id="rpNota" placeholder="Ej: parque con ~50 niños, falta cena" maxlength="120" />
+      ${ubicFields()}
+      <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('logistica')">Enviar reporte</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else {
     sheet.innerHTML=`<h3>⚠️ Reportar zona afectada</h3><p>Marca daños que veas para alertar a otros y a los equipos de rescate.</p>
       <label class="fl">Tipo de afectación</label>
@@ -1139,6 +1197,11 @@ function submitMapReport(kind){
     const estado=document.getElementById('rpEstado').value;
     DB.power.unshift({id:rid(),lat,lng,city,estado,ts:Date.now()});
     pushCommunityReport('luz',{lat,lng,ciudad:city,estado});                     // compartir en Supabase
+  } else if(kind==='logistica'){
+    const tipo=document.getElementById('rpTipo').value, estado=document.getElementById('rpEstado').value;
+    const nota=(document.getElementById('rpNota')?.value||'').trim().slice(0,120);
+    DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota,ts:Date.now()});
+    pushCommunityReport('logistica',{lat,lng,ciudad:city,tipo,estado,nota});     // compartir en Supabase
   } else {
     const tipo=document.getElementById('rpTipo').value;
     DB.zonas.unshift({id:rid(),lat,lng,city,tipo,ts:Date.now()});

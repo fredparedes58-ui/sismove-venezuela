@@ -20,6 +20,7 @@ const SOURCES = [
   { key: 'notify:desap',   table: 'desaparecidos_external',  label: '🔍 personas reportadas' },
   { key: 'notify:centros', table: 'centros_acopio_external', label: '📦 centros de acopio' },
   { key: 'notify:zonas',   table: 'zona_reports',            label: '⚠️ zonas afectadas reportadas' },
+  { key: 'notify:logi',    table: 'logistica_reports',       label: '🍲 necesidades / logística' },
 ];
 
 function sbH(extra: Record<string, string> = {}) {
