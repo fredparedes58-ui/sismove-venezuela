@@ -34,6 +34,9 @@ export default async function handler(req: Request): Promise<Response> {
     direccion: s(b.direccion, 160), visto: s(b.visto, 160), contacto: s(b.contacto, 40),
     nota: s(b.nota, 200), foto_url: b?.foto_url || null, estado, categoria,
   };
+  // columnas nuevas: solo se incluyen si traen valor (no rompe si aún falta el SQL)
+  const ep = s(b.encontrado_por, 80); if (ep) rec.encontrado_por = ep;
+  const du = b?.documento_url || null; if (du) rec.documento_url = du;
 
   try {
     if (estado === 'encontrado') {
@@ -44,7 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
       const ids = (Array.isArray(cands) ? cands : []).filter((c: any) => norm(c.nombre) === norm(nombre)).map((c: any) => c.id);
       if (ids.length) {
         const patch: any = { estado: 'encontrado' };
-        for (const k of ['edad', 'cedula', 'zona', 'direccion', 'visto', 'contacto', 'nota', 'foto_url']) if (rec[k]) patch[k] = rec[k];
+        for (const k of ['edad', 'cedula', 'zona', 'direccion', 'visto', 'contacto', 'encontrado_por', 'nota', 'foto_url', 'documento_url']) if (rec[k]) patch[k] = rec[k];
         const r = await fetch(`${SB}/rest/v1/${TBL}?id=in.(${ids.join(',')})`, { method: 'PATCH', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify(patch) });
         if (!r.ok) return json({ error: 'db', detail: (await r.text()).slice(0, 140) }, 502);
         return json({ accion: 'promovido', movidos: ids.length });

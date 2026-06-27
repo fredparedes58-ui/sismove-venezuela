@@ -1211,6 +1211,16 @@ async function uploadFoto(file){
     return `${SB_URL}/storage/v1/object/public/reportes/${name}`;
   }catch(e){ return null; }
 }
+// Documento (imagen o PDF): se sube tal cual (sin redimensionar) con su tipo real.
+async function uploadDoc(file){
+  try{
+    const ext=((file.name||'').split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,5)||'bin';
+    const name=rid()+Date.now()+'.'+ext;
+    const res=await fetch(`${SB_URL}/storage/v1/object/reportes/${name}`,{method:'POST',headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':file.type||'application/octet-stream'},body:file});
+    if(!res.ok) return null;
+    return `${SB_URL}/storage/v1/object/public/reportes/${name}`;
+  }catch(e){ return null; }
+}
 function fotoThumb(url){ return url?`<img src="${esc(url)}" loading="lazy" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;margin-top:8px;cursor:pointer" onclick="event.stopPropagation();window.open('${esc(url)}','_blank')">`:''; }
 function fotoPop(url){ return url?`<br><img src="${esc(url)}" style="width:210px;max-width:100%;border-radius:8px;margin-top:6px">`:''; }
 function reportGeoCapture(btn){
@@ -1302,9 +1312,12 @@ function openDesapReport(cat){
     <label class="fl">Dirección (opcional)</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda" maxlength="160">
     <label class="fl">¿Dónde/cuándo se le vio por última vez?</label><input id="dpVisto" placeholder="Ej: edificio en Chacao, 24 jun" maxlength="160">
     <label class="fl">Contacto de quien reporta (opcional)</label><input id="dpContacto" placeholder="0414-0000000" maxlength="40">
+    <label class="fl">Si fue encontrado/rescatado: ¿quién lo encontró? (opcional)</label><input id="dpEncontradoPor" placeholder="Ej: vecino, hospital, Cruz Roja, familiar…" maxlength="80">
     <label class="fl">Nota (señas, ropa…) opcional</label><input id="dpNota" placeholder="Detalles que ayuden a identificar" maxlength="200">
     <label class="fl">Foto de la persona (opcional)</label>
     <input id="dpFoto" type="file" accept="image/*" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
+    <label class="fl" style="margin-top:8px">Documento (cédula, constancia… imagen o PDF, opcional)</label>
+    <input id="dpDoc" type="file" accept="image/*,application/pdf" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
     <button class="btn primary" style="margin-top:14px" onclick="submitDesapReport(this)">Publicar</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
     <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y la foto serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
@@ -1317,8 +1330,10 @@ async function submitDesapReport(btn){
   if(btn) btn.textContent='Publicando…';
   let foto=null; const file=document.getElementById('dpFoto')?.files?.[0];
   if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); }
+  let doc=null; const dfile=document.getElementById('dpDoc')?.files?.[0];
+  if(dfile){ toast('📤 Subiendo documento…'); doc=await uploadDoc(dfile); }
   const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
-  const row={ nombre, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:g('dpDireccion').slice(0,160), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado, categoria:_desapCat };
+  const row={ nombre, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:g('dpDireccion').slice(0,160), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,200), foto_url:foto, documento_url:doc, estado, categoria:_desapCat };
   try{
     const res=await fetch('/api/reportar-persona',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(row)});
     const j=await res.json().catch(()=>({}));
@@ -1468,7 +1483,9 @@ function searchDesap(){
             <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
             ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
             ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
+            ${d.estado==='encontrado'&&d.encontrado_por?`<div class="dt" style="color:var(--green)">🙌 Encontrado por: ${esc(d.encontrado_por)}</div>`:''}
             ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
+            ${d.documento_url?`<div class="dt">📄 <a href="${esc(d.documento_url)}" target="_blank" rel="noopener">Ver documento</a></div>`:''}
             ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
           </div></div>`).join('');
       }
@@ -1588,7 +1605,9 @@ function ninoCard(n){
     <div class="dt">${n.zona?'📍 '+esc(n.zona):''}${n.visto?' · '+esc(n.visto):''}</div>
     ${n.cedula?`<div class="dt">🪪 ${esc(n.cedula)}</div>`:''}
     ${n.direccion?`<div class="dt">🏠 ${esc(n.direccion)}</div>`:''}
+    ${found&&n.encontrado_por?`<div class="dt" style="color:var(--green)">🙌 Encontrado por: ${esc(n.encontrado_por)}</div>`:''}
     ${n.contacto?`<div class="dt">📞 <a href="tel:${esc(n.contacto)}">${esc(n.contacto)}</a></div>`:''}
+    ${n.documento_url?`<div class="dt">📄 <a href="${esc(n.documento_url)}" target="_blank" rel="noopener">Ver documento</a></div>`:''}
     ${n.nota?`<div class="dt">${esc(n.nota)}</div>`:''}
   </div></div>`;
 }
