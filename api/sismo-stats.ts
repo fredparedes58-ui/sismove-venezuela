@@ -88,7 +88,7 @@ export default async function handler(req: Request): Promise<Response> {
   const refresh = url.searchParams.get('refresh');
   const force = !!url.searchParams.get('key') && url.searchParams.get('key') === SECRET;
 
-  if (!refresh || !force) return json({ stats: await latest() }, 200, true);
+  if (!refresh || !force) return json({ stats: await latest(), ingresos: await count('hospital_admisiones') }, 200, true);
 
   const cur = await latest();
   if (cur && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000)
