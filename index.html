@@ -507,24 +507,20 @@
 (function(){
   try{
     fetch('/api/sismo-stats').then(function(r){return r.json();}).then(function(d){
-      var src = d && d.stats && d.stats.sources;
-      if(!Array.isArray(src) || !src.length) return;
+      var st = d && d.stats;
+      if(!st) return;
       var fmt = function(n){ return Number(n).toLocaleString('es'); };
-      // Por métrica, la cifra más alta entre las fuentes (sin etiquetar la fuente)
-      function topBy(k){ var a=src.filter(function(s){return s[k]!=null;}).sort(function(x,y){return y[k]-x[k];}); return a[0]?a[0][k]:null; }
-      var f=topBy('fallecidos'), h=topBy('heridos'), de=topBy('desaparecidos'), re=topBy('rescatados');
+      var f=st.fallecidos, h=st.heridos, de=st.desaparecidos;   // cifras ya consolidadas (sin ruido)
       // Barra superior
       var bar=[];
       if(f!=null) bar.push(fmt(f)+' fallecidos');
       if(de!=null) bar.push(fmt(de)+' desaparecidos');
-      if(re!=null) bar.push('+'+fmt(re)+' rescatados');
       if(bar.length) document.querySelectorAll('.balance-bar').forEach(function(e){ e.textContent=bar.join(' · '); });
       // Ticker (cifras limpias, sin fuente)
       var tick=[];
       if(f!=null) tick.push(fmt(f)+' fallecidos');
       if(h!=null) tick.push('más de '+fmt(h)+' heridos');
       if(de!=null) tick.push(fmt(de)+' desaparecidos');
-      if(re!=null) tick.push('+'+fmt(re)+' rescatados');
       if(tick.length) document.querySelectorAll('.balance-ticker').forEach(function(e){ e.textContent=tick.join(' · '); });
     }).catch(function(){});
   }catch(e){}

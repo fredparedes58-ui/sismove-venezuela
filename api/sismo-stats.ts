@@ -101,13 +101,20 @@ export default async function handler(req: Request): Promise<Response> {
   const conDatos = sources.filter(s => s.fallecidos != null || s.desaparecidos != null || s.rescatados != null || s.heridos != null);
   if (!conDatos.length) return json({ status: 'sin_datos', stats: cur, debug: sources });
 
-  // Guarda en la tabla EXISTENTE (formato plano): el array de fuentes va como JSON en `fuente`;
-  // las columnas planas se rellenan con la cifra más alta por compatibilidad. (Sin SQL nuevo.)
-  const top = (k: string) => { const a = sources.filter((s: any) => s[k] != null).sort((x: any, y: any) => y[k] - x[k]); return a[0] ? a[0][k] : null; };
+  // Cifra más alta por métrica (con mínimo opcional para filtrar ruido, p.ej. desaparecidos < 1000).
+  const top = (k: string, min = 0) => { const a = sources.filter((s: any) => s[k] != null && s[k] >= min).sort((x: any, y: any) => y[k] - x[k]); return a[0] ? a[0][k] : null; };
+  // Conserva el último valor bueno si el scrape de ahora no trae uno válido (fuentes frágiles).
+  const merge = (k: string, min = 0) => { const n = top(k, min); return n != null ? n : (cur && cur[k] != null ? cur[k] : null); };
   const now = new Date().toISOString();
-  const dbRow = { sources, fallecidos: top('fallecidos'), heridos: top('heridos'), desaparecidos: top('desaparecidos'), fuente: JSON.stringify(sources), url: 'multi-fuente', updated_at: now };
+  const dbRow = {
+    sources,
+    fallecidos: merge('fallecidos'),
+    heridos: merge('heridos'),
+    desaparecidos: merge('desaparecidos', 1000),   // ignora 119/157 (sub-cifras); conserva ~50.000
+    fuente: JSON.stringify(sources), url: 'multi-fuente', updated_at: now,
+  };
   await fetch(`${SB}/rest/v1/sismo_stats`, { method: 'POST', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify([dbRow]) }).catch(() => {});
-  return json({ status: 'actualizado', stats: { sources, updated_at: now } });
+  return json({ status: 'actualizado', stats: dbRow });
 }
 
 function json(b: unknown, s = 200, pub = false): Response {
