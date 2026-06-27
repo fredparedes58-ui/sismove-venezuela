@@ -502,6 +502,14 @@
 
     <button class="btn ghost" id="adminBtn" onclick="adminToggle()" style="margin-top:16px">🔑 Modo administrador</button>
     <p style="font-size:11px;color:var(--mut2);margin-top:6px">Para moderadores: permite borrar reportes (logística, zonas afectadas, cobertura, luz) marcados por la gente o por error.</p>
+
+    <div id="statsCard" class="card" style="display:none;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="font-size:14px">📈 Analítica (solo admin)</b>
+        <button class="btn ghost" style="margin-left:auto;width:auto;padding:6px 12px;font-size:12px" onclick="loadStats()">↻ Actualizar</button>
+      </div>
+      <div id="statsBody" style="margin-top:10px"><div class="empty" style="padding:10px">Toca actualizar para ver visitas e interacciones.</div></div>
+    </div>
   </section>
 
 </main>
@@ -678,6 +686,7 @@ let curView='ayuda', viewHistory=[];
 function go(v, fromBack){
   if(!fromBack && curView && curView!==v) viewHistory.push(curView);   // recordar de dónde vengo
   curView=v;
+  track('view', v);   // analítica anónima
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
@@ -774,6 +783,10 @@ const SB_H={apikey:SB_ANON, Authorization:'Bearer '+SB_ANON, 'Content-Type':'app
 const RED_SB='https://cpavwkdonvkvrwygfzfo.supabase.co';
 const RED_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwYXZ3a2RvbnZrdnJ3eWdmemZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNjAyODMsImV4cCI6MjA5NzkzNjI4M30.-_FAsA2csTrB9qt267pBfjJkczMP7pcaUi4plMv3kv4';
 const RED_H={apikey:RED_ANON, Authorization:'Bearer '+RED_ANON};
+// Analítica anónima (sin PII)
+function svSess(){ try{ var s=localStorage.getItem('sv_sess'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sv_sess',s);} return s; }catch(e){ return ''; } }
+function track(ev,page){ try{ fetch(`${SB_URL}/rest/v1/analytics_events`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify([{ev:ev,page:page,session:svSess()}])}).catch(()=>{}); }catch(e){} }
+try{ if(!localStorage.getItem('sv_visited')){ localStorage.setItem('sv_visited','1'); track('visit','app'); } }catch(e){}
 let _lastCommLoad=0;
 async function loadCommunityReports(force){
   if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
@@ -1310,7 +1323,7 @@ async function submitDesapReport(btn){
     const res=await fetch('/api/reportar-persona',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(row)});
     const j=await res.json().catch(()=>({}));
     if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
-    closeMapModal();
+    closeMapModal(); track('report', _desapCat||'general');
     if(j.accion==='promovido') toast(`✅ Movido a rescatados (estaba en desaparecidos).`);
     else toast(estado==='encontrado'?'✅ Publicado como rescatado. ¡Gracias!':'✅ Publicado. Gracias — ayuda a difundir.');
     if(_desapCat==='nino'){ loadNinos(); }
@@ -1334,6 +1347,34 @@ function adminToggle(){
 function updateAdminUI(){
   const b=document.getElementById('adminBtn');
   if(b) b.textContent = isAdmin() ? '🔓 Modo admin ACTIVO (tocar para salir)' : '🔑 Modo administrador';
+  const sc=document.getElementById('statsCard'); if(sc) sc.style.display = isAdmin()?'block':'none';
+}
+async function loadStats(){
+  const body=document.getElementById('statsBody'); if(!body) return;
+  const key=localStorage.getItem('sismove_admin_key')||'';
+  if(!key){ body.innerHTML='<div class="empty" style="padding:10px">Activa el modo admin primero.</div>'; return; }
+  body.innerHTML='<div class="empty" style="padding:10px">Cargando…</div>';
+  try{
+    const r=await fetch('/api/analytics?key='+encodeURIComponent(key));
+    if(r.status===403){ body.innerHTML='<div class="empty" style="padding:10px">Clave de admin incorrecta.</div>'; return; }
+    if(!r.ok){ body.innerHTML='<div class="empty" style="padding:10px">No se pudo cargar (¿se corrió el SQL?).</div>'; return; }
+    const d=await r.json();
+    const f=n=>Number(n||0).toLocaleString('es-VE');
+    const PG={home:'Inicio (web)',ayuda:'Ayuda',desap:'Buscar',ninos:'Niños',refugios:'Mapas',panel:'Panel',bot:'Bot',info:'Info',salvo:'Estoy a salvo'};
+    const pg=Object.entries(d.por_pagina||{}).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    body.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="card" style="margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--blue)">${f(d.visitantes_unicos)}</div><div style="font-size:11px;color:var(--mut)">Visitantes únicos</div></div>
+        <div class="card" style="margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--blue)">${f(d.vistas)}</div><div style="font-size:11px;color:var(--mut)">Vistas totales</div></div>
+        <div class="card" style="margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)">${f(d.visitantes_hoy)}</div><div style="font-size:11px;color:var(--mut)">Visitantes hoy</div></div>
+        <div class="card" style="margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--green)">${f(d.vistas_hoy)}</div><div style="font-size:11px;color:var(--mut)">Vistas hoy</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;margin:14px 0 6px">Interacciones</div>
+      <div class="dt">🔎 Búsquedas: <b>${f(d.interacciones?.busquedas)}</b> · 📝 Reportes: <b>${f(d.interacciones?.reportes)}</b> · 🤖 Bot abierto: <b>${f(d.interacciones?.bot)}</b></div>
+      <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;margin:14px 0 6px">Vistas por sección</div>
+      ${pg.length?pg.map(([k,v])=>`<div class="dt" style="display:flex;justify-content:space-between"><span>${PG[k]||k}</span><b>${f(v)}</b></div>`).join(''):'<div class="dt">Aún sin datos.</div>'}
+      <div style="font-size:10px;color:var(--mut2);margin-top:10px">Datos anónimos (sin información personal). Generado ${d.generado?ago(new Date(d.generado).getTime()):''}.</div>`;
+  }catch(e){ body.innerHTML='<div class="empty" style="padding:10px">Error de red.</div>'; }
 }
 function delBtn(kind,id){
   if(!isAdmin()||!id) return '';
@@ -1410,6 +1451,7 @@ function searchDesap(){
     const el=document.getElementById('desapResults'); if(!el) return;
     if(q.length<2){ el.innerHTML=''; return; }
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    track('search','desap');
     const like=encodeURIComponent('*'+q+'*');
     try{
       const [mine,red]=await Promise.all([
@@ -1451,6 +1493,7 @@ function searchHosp(){
     const el=document.getElementById('hospResults'); if(!el) return;
     if(q.length<2){ el.innerHTML=''; return; }
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    track('search','hosp');
     const like=encodeURIComponent('*'+q+'*');
     try{
       const hosp=await fetch(`${SB_URL}/rest/v1/hospital_admisiones?select=nombre,hospital,centro,fecha&nombre=ilike.${like}&order=nombre&limit=60`,{headers:SB_H}).then(r=>r.ok?r.json():[]);
@@ -1634,7 +1677,7 @@ function setStatus(id,st){
 ====================================================================== */
 let chatStarted=false, chatState=null;
 function startChat(){
-  chatStarted=true;
+  chatStarted=true; track('bot','app');
   document.getElementById('chat').innerHTML='';
   chatState={step:'type', data:{}};
   bot('Hola, soy el asistente de SismoVE 🤝 Estoy aquí para ayudarte. ¿Qué tipo de ayuda necesitas?');

@@ -561,6 +561,15 @@
 
 
 <script>
+/* Analítica anónima (sin PII): visita única por navegador + vista de página. */
+(function(){
+  var SB='https://lewueqvqdnnkdiqlkrvx.supabase.co';
+  var AK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxld3VlcXZxZG5ua2RpcWxrcnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTQyMjAsImV4cCI6MjA5Nzk3MDIyMH0.YP0XV_UO5jAiinNZOsOIKLXgUGQm2-2vslAX2XwhKEg';
+  function sess(){ try{ var s=localStorage.getItem('sv_sess'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sv_sess',s);} return s; }catch(e){ return ''; } }
+  function track(ev,page){ try{ fetch(SB+'/rest/v1/analytics_events',{method:'POST',headers:{apikey:AK,Authorization:'Bearer '+AK,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify([{ev:ev,page:page,session:sess()}])}).catch(function(){}); }catch(e){} }
+  try{ if(!localStorage.getItem('sv_visited')){ localStorage.setItem('sv_visited','1'); track('visit','home'); } }catch(e){ track('visit','home'); }
+  track('view','home');
+})();
 /* Panel "Cifras de la emergencia": auto-actualizado vía /api/cifras (scraping de
    redayudavenezuela.com cada 30 min). Atribución a las fuentes en el HTML. */
 (function(){
