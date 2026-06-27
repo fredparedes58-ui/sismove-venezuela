@@ -25,6 +25,18 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const TG_LIMIT = 4000;
 const RATE_PER_MIN = 30;
 
+// Estadísticas (analítica anónima): solo para chats admin, definidos por env
+// ADMIN_CHAT_IDS (coma-separado). SIN default → si no está configurado, nadie es
+// admin (falla cerrado). NO se acepta clave por mensaje (evita filtrarla en el chat
+// y un oráculo de fuerza bruta). La identidad del chat viene del payload verificado
+// de Telegram (secret token), no es suplantable por el remitente.
+const ADMIN_CHATS = (process.env.ADMIN_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+const STAT_PAGES: [string, string][] = [
+  ['home', 'Inicio (web)'], ['ayuda', 'Ayuda'], ['desap', 'Buscar'], ['ninos', 'Niños'],
+  ['grupos', 'Grupos por zona'], ['refugios', 'Mapas'], ['panel', 'Panel'], ['bot', 'Bot'],
+  ['info', 'Info'], ['salvo', 'Estoy a salvo'],
+];
+
 // Reglas estrictas para la conversación con IA (Gemini). Las rutas críticas
 // (emergencias, familia, búsqueda de personas) NO usan IA: son deterministas.
 const SYSTEM_PROMPT =
@@ -117,6 +129,11 @@ export default async function handler(req: Request): Promise<Response> {
     if (text.startsWith('/stop'))  { await unsubscribe(chatId); await send(chatId, 'Listo, no recibirás más avisos. Escribe /start para volver.'); return new Response('ok'); }
     if (text.startsWith('/ayuda') || text.startsWith('/menu') || text.startsWith('/help')) { await sendMenu(chatId, WELCOME); return new Response('ok'); }
     if (text.startsWith('/estado') || text.startsWith('/status') || text.startsWith('/novedades')) { await send(chatId, await estadoText()); return new Response('ok'); }
+    if (/^\/(estad[íi]stica[s]?|anal[íi]tica|analytics|stats)(@\w+)?$/i.test(text.split(/\s+/)[0])) {
+      if (!isAdminChat(chatId)) { await send(chatId, '🔒 Las estadísticas de uso son solo para administradores.'); return new Response('ok'); }
+      await send(chatId, await analiticaText());
+      return new Response('ok');
+    }
 
     if (await rateLimited(chatId)) {
       await send(chatId, 'Estás enviando muchos mensajes muy rápido 🙏. Espera un momento. Si es una emergencia, llama al 911.');
@@ -218,6 +235,42 @@ async function estadoText(): Promise<string> {
   } catch {}
   const n = (x: number) => x < 0 ? '—' : x.toLocaleString('es');
   return `📊 Estado de SismoVE\nRevisión automática cada ~10 min · última: ${when}\n\n• 🏥 Ingresos hospitalarios: ${n(h)}\n• 🔍 Personas reportadas: ${n(d)}\n• 📦 Centros de acopio: ${n(c)}\n• ⚠️ Zonas afectadas reportadas: ${n(z)}\n\nSi estos números no cambiaron desde tu último aviso, es que no ha entrado información nueva. Te aviso en automático en cuanto algo cambie. Escribe /estado cuando quieras revisar.`;
+}
+
+/* ─── Estadísticas de uso (analítica anónima, solo admin) ─────────────────── */
+function isAdminChat(chatId: any): boolean {
+  return ADMIN_CHATS.includes(String(chatId));
+}
+async function countEvents(q: string): Promise<number> {
+  try {
+    const r = await fetch(`${SB}/rest/v1/analytics_events?${q}`, { method: 'HEAD', headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, Prefer: 'count=exact', Range: '0-0' } });
+    return parseInt((r.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0;
+  } catch { return 0; }
+}
+async function analiticaText(): Promise<string> {
+  // "hoy" = desde la medianoche en Caracas (UTC-4), expresada en UTC (00:00 Caracas = 04:00Z).
+  const today = new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10) + 'T04:00:00Z';
+  const enc = encodeURIComponent(today);
+  const [visit, visitHoy, vistas, vistasHoy, busq, rep, botEv] = await Promise.all([
+    countEvents('ev=eq.visit&select=id'),
+    countEvents(`ev=eq.visit&ts=gte.${enc}&select=id`),
+    countEvents('ev=eq.view&select=id'),
+    countEvents(`ev=eq.view&ts=gte.${enc}&select=id`),
+    countEvents('ev=eq.search&select=id'),
+    countEvents('ev=eq.report&select=id'),
+    countEvents('ev=eq.bot&select=id'),
+  ]);
+  const pares = await Promise.all(STAT_PAGES.map(async ([k, l]) => [l, await countEvents(`ev=eq.view&page=eq.${k}&select=id`)] as [string, number]));
+  const f = (n: number) => n.toLocaleString('es');
+  const visibles = pares.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const ahora = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+  let out = `📈 Analítica de SismoVE (anónima, sin datos personales)\n\n`;
+  out += `👥 Visitantes únicos: ${f(visit)}  (hoy: ${f(visitHoy)})\n`;
+  out += `👁️ Vistas totales: ${f(vistas)}  (hoy: ${f(vistasHoy)})\n\n`;
+  out += `Interacciones:\n🔎 Búsquedas: ${f(busq)}\n📝 Reportes: ${f(rep)}\n🤖 Bot abierto: ${f(botEv)}\n\n`;
+  out += `Vistas por sección:\n` + (visibles.length ? visibles.map(([l, v]) => `• ${l}: ${f(v)}`).join('\n') : 'Aún sin datos.');
+  out += `\n\nActualizado: ${ahora} (Caracas)\nEscribe /estadisticas cuando quieras revisar.`;
+  return out;
 }
 
 /* ─── Acciones con datos reales (Supabase) ────────────────────────────────── */

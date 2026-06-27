@@ -7,7 +7,7 @@ export const config = { runtime: 'edge' };
 const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ADMIN_KEY = process.env.ADMIN_KEY;
-const PAGES = ['home', 'ayuda', 'desap', 'ninos', 'refugios', 'panel', 'bot', 'info', 'salvo'];
+const PAGES = ['home', 'ayuda', 'desap', 'ninos', 'grupos', 'refugios', 'panel', 'bot', 'info', 'salvo'];
 
 function timingSafeEqual(a: string, b: string): boolean {
   const e = new TextEncoder(); const ab = e.encode(a), bb = e.encode(b);
@@ -23,7 +23,8 @@ export default async function handler(req: Request): Promise<Response> {
   const key = (() => { try { return new URL(req.url).searchParams.get('key') || ''; } catch { return ''; } })();
   if (!timingSafeEqual(key, ADMIN_KEY)) return json({ error: 'forbidden' }, 403);
 
-  const today = new Date().toISOString().slice(0, 10) + 'T00:00:00Z';
+  // "hoy" = desde la medianoche en Caracas (UTC-4), expresada en UTC (00:00 Caracas = 04:00Z).
+  const today = new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10) + 'T04:00:00Z';
   const [visitantes, vistas, vistas_hoy, visit_hoy, busquedas, reportes, bot] = await Promise.all([
     count('ev=eq.visit&select=id'),
     count('ev=eq.view&select=id'),

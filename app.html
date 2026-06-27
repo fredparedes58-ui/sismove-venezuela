@@ -382,15 +382,15 @@
 
     <input id="ninosSearch" placeholder="🔎 Buscar por nombre…" oninput="renderNinos()" style="margin-bottom:12px" />
 
-    <div class="card" style="margin-top:4px">
-      <b style="font-size:14px">🔴 Desaparecidos · <span id="ninosDesapN">—</span></b>
-      <div id="ninosDesap" style="margin-top:8px"><div class="empty" style="padding:14px">Cargando…</div></div>
-    </div>
+    <details class="acc" id="ninosDesapAcc" open style="margin-top:4px">
+      <summary><b style="font-size:14px">🔴 Desaparecidos · <span id="ninosDesapN">—</span></b><span class="ph">+</span></summary>
+      <div class="body"><div id="ninosDesap"><div class="empty" style="padding:14px">Cargando…</div></div></div>
+    </details>
 
-    <div class="card">
-      <b style="font-size:14px">🟢 Rescatados · <span id="ninosRescN">—</span></b>
-      <div id="ninosResc" style="margin-top:8px"><div class="empty" style="padding:14px">Cargando…</div></div>
-    </div>
+    <details class="acc" id="ninosRescAcc" open>
+      <summary><b style="font-size:14px">🟢 Rescatados · <span id="ninosRescN">—</span></b><span class="ph">+</span></summary>
+      <div class="body"><div id="ninosResc"><div class="empty" style="padding:14px">Cargando…</div></div></div>
+    </details>
 
     <div class="card">
       <b style="font-size:14px">➕ ¿Buscas a un niño/a o sabes de uno rescatado?</b>
@@ -533,6 +533,7 @@
         <b style="font-size:14px">📈 Analítica (solo admin)</b>
         <button class="btn ghost" style="margin-left:auto;width:auto;padding:6px 12px;font-size:12px" onclick="loadStats()">↻ Actualizar</button>
       </div>
+      <div style="font-size:11px;color:var(--mut2);margin-top:4px">También en el bot de Telegram: escribe <b>/estadisticas</b> a <a href="https://t.me/EmergenciaVenezuela_bot" target="_blank" rel="noopener" style="color:var(--blue)">@EmergenciaVenezuela_bot</a>.</div>
       <div id="statsBody" style="margin-top:10px"><div class="empty" style="padding:10px">Toca actualizar para ver visitas e interacciones.</div></div>
     </div>
   </section>
@@ -1422,7 +1423,7 @@ async function loadStats(){
     if(!r.ok){ body.innerHTML='<div class="empty" style="padding:10px">No se pudo cargar (¿se corrió el SQL?).</div>'; return; }
     const d=await r.json();
     const f=n=>Number(n||0).toLocaleString('es-VE');
-    const PG={home:'Inicio (web)',ayuda:'Ayuda',desap:'Buscar',ninos:'Niños',refugios:'Mapas',panel:'Panel',bot:'Bot',info:'Info',salvo:'Estoy a salvo'};
+    const PG={home:'Inicio (web)',ayuda:'Ayuda',desap:'Buscar',ninos:'Niños',grupos:'Grupos por zona',refugios:'Mapas',panel:'Panel',bot:'Bot',info:'Info',salvo:'Estoy a salvo'};
     const pg=Object.entries(d.por_pagina||{}).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
     body.innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
