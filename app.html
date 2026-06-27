@@ -1477,7 +1477,7 @@ function renderDesap(){
 let NINOS=[], ninosFilter='all', _ninosLoaded=false;
 async function loadNinos(){
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&categoria=eq.nino&order=created_at.desc&limit=500`,{headers:SB_H});
+    const r=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&categoria=eq.nino&order=created_at.desc&limit=2000`,{headers:SB_H});
     NINOS = r.ok ? await r.json() : [];
   }catch(e){ NINOS=[]; }
   _ninosLoaded=true; renderNinos();

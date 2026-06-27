@@ -194,22 +194,8 @@ function decodeEntities(s: string) {
 }
 function colOf(ref: string) { let c = 0; for (let i = 0; i < ref.length; i++) { const ch = ref.charCodeAt(i); if (ch < 65 || ch > 90) break; c = c * 26 + (ch - 64); } return c - 1; }
 function serialToISO(n: number) { return new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000).toISOString().slice(0, 10); }
-async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
-  const zip = readZip(buf);
-  const sharedXml = await zipRead(zip, 'xl/sharedStrings.xml'); const shared: string[] = [];
-  if (sharedXml) { const siRe = /<si>([\s\S]*?)<\/si>/g; let m: any; while ((m = siRe.exec(sharedXml)) !== null) { const tRe = /<t[^>]*>([\s\S]*?)<\/t>/g; let t: any, s = ''; while ((t = tRe.exec(m[1])) !== null) s += t[1]; shared.push(decodeEntities(s)); } }
-  // estilos de fecha
-  const styleXml = await zipRead(zip, 'xl/styles.xml') || ''; const dateStyles = new Set<number>(); const customDate = new Set<number>();
-  let nf: any; const nfRe = /<numFmt[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
-  while ((nf = nfRe.exec(styleXml)) !== null) { const code = decodeEntities(nf[2]).replace(/"[^"]*"|\[[^\]]*\]/g, ''); if (/yy|y{4}|dd|mm|hh|ss|[dmy][\/\-. ]|[\/\-. ][dmy]/i.test(code)) customDate.add(parseInt(nf[1], 10)); }
-  const builtin = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
-  const xfsBlock = (styleXml.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/) || [, ''])[1]; let xf: any, xi = 0; const xfRe = /<xf\b[^>]*numFmtId="(\d+)"[^>]*\/?>/g;
-  while ((xf = xfRe.exec(xfsBlock)) !== null) { const id = parseInt(xf[1], 10); if (builtin.has(id) || customDate.has(id)) dateStyles.add(xi); xi++; }
-  // primera hoja
-  const wb = await zipRead(zip, 'xl/workbook.xml'); const rels = await zipRead(zip, 'xl/_rels/workbook.xml.rels'); let sheetPath = 'xl/worksheets/sheet1.xml';
-  if (wb && rels) { const rid = (wb.match(/<sheet\b[^>]*r:id="([^"]+)"/) || [])[1]; if (rid) { const tgt = (rels.match(new RegExp(`<Relationship[^>]*Id="${rid}"[^>]*Target="([^"]+)"`)) || [])[1]; if (tgt) sheetPath = 'xl/' + tgt.replace(/^\/?xl\//, '').replace(/^\//, ''); } }
-  const sheet = await zipRead(zip, sheetPath) || ''; const grid: string[][] = [];
-  let r: any; const rowRe = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
+function parseSheetXml(sheet: string, shared: string[], dateStyles: Set<number>): string[][] {
+  const grid: string[][] = []; let r: any; const rowRe = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
   while ((r = rowRe.exec(sheet)) !== null) {
     const cells: string[] = []; let col = 0; let c: any; const cRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
     while ((c = cRe.exec(r[1])) !== null) {
@@ -229,6 +215,31 @@ async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
     grid.push(cells);
   }
   return grid.filter(row => row.some(c => String(c).trim()));
+}
+// Lee TODAS las pestañas del XLSX (la 2ª, 3ª… p.ej. "Rescatados"). Devuelve [{name, grid}].
+async function xlsxSheets(buf: ArrayBuffer): Promise<{ name: string; grid: string[][] }[]> {
+  const zip = readZip(buf);
+  const sharedXml = await zipRead(zip, 'xl/sharedStrings.xml'); const shared: string[] = [];
+  if (sharedXml) { const siRe = /<si>([\s\S]*?)<\/si>/g; let m: any; while ((m = siRe.exec(sharedXml)) !== null) { const tRe = /<t[^>]*>([\s\S]*?)<\/t>/g; let t: any, s = ''; while ((t = tRe.exec(m[1])) !== null) s += t[1]; shared.push(decodeEntities(s)); } }
+  const styleXml = await zipRead(zip, 'xl/styles.xml') || ''; const dateStyles = new Set<number>(); const customDate = new Set<number>();
+  let nf: any; const nfRe = /<numFmt[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
+  while ((nf = nfRe.exec(styleXml)) !== null) { const code = decodeEntities(nf[2]).replace(/"[^"]*"|\[[^\]]*\]/g, ''); if (/yy|y{4}|dd|mm|hh|ss|[dmy][\/\-. ]|[\/\-. ][dmy]/i.test(code)) customDate.add(parseInt(nf[1], 10)); }
+  const builtin = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
+  const xfsBlock = (styleXml.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/) || [, ''])[1]; let xf: any, xi = 0; const xfRe = /<xf\b[^>]*numFmtId="(\d+)"[^>]*\/?>/g;
+  while ((xf = xfRe.exec(xfsBlock)) !== null) { const id = parseInt(xf[1], 10); if (builtin.has(id) || customDate.has(id)) dateStyles.add(xi); xi++; }
+  const wb = await zipRead(zip, 'xl/workbook.xml') || ''; const rels = await zipRead(zip, 'xl/_rels/workbook.xml.rels') || '';
+  const relMap: Record<string, string> = {}; let rl: any; const rlRe = /<Relationship\b[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g;
+  while ((rl = rlRe.exec(rels)) !== null) relMap[rl[1]] = rl[2];
+  const out: { name: string; grid: string[][] }[] = [];
+  let sh: any; const shRe = /<sheet\b[^>]*?\/?>/g;
+  while ((sh = shRe.exec(wb)) !== null) {
+    const tag = sh[0]; const rid = (tag.match(/r:id="([^"]+)"/) || [])[1]; if (!rid) continue;
+    const tgt = relMap[rid]; if (!tgt) continue;
+    const xml = await zipRead(zip, 'xl/' + tgt.replace(/^\/?xl\//, '').replace(/^\//, '')); if (!xml) continue;
+    out.push({ name: decodeEntities((tag.match(/name="([^"]*)"/) || [, ''])[1]), grid: parseSheetXml(xml, shared, dateStyles) });
+  }
+  if (!out.length) { const xml = await zipRead(zip, 'xl/worksheets/sheet1.xml'); if (xml) out.push({ name: '', grid: parseSheetXml(xml, shared, dateStyles) }); }
+  return out;
 }
 
 // ════════════════════ Helpers de saneo / mapeo ════════════════════
@@ -328,7 +339,7 @@ function num(s: string): number | null { const v = parseFloat(String(s).replace(
 
 // ════════════════════ Adaptadores por destino ════════════════════
 // `file` = ID de Drive (estable ante rename); `fileName` = nombre legible (solo reporte).
-type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; fileName: string; batch: string };
+type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; fileName: string; sheet: string; batch: string };
 const NOCOORDS = Symbol('nocoords');   // fila válida pero descartada por faltar lat/lng (para desglosar el reporte)
 type Adapter = {
   keywords: RegExp; table: string; conflict: string;
@@ -343,13 +354,16 @@ const ADAPTERS: Adapter[] = [
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
       const zona = redactText(cell('zona')), visto = redactText(cell('visto')), edad = cleanEdad(cell('edad'));
       const statusRaw = ctx.statusCol !== undefined ? (row[ctx.statusCol] || '') : cell('estado');
-      // Apartado dedicado de niños: si el NOMBRE DEL ARCHIVO indica menores, marca categoria='nino'
-      const categoria = /ni[nñ]o|menor|infante/i.test(ctx.fileName) ? 'nino' : null;
+      // El estado puede venir de la PESTAÑA (p.ej. hoja "Rescatados" → encontrado) o de una columna.
+      const fromSheet = /rescatad|encontrad|ubicad|hallad|a salvo|salvo|vivo/i.test(norm(ctx.sheet));
+      // Apartado dedicado de niños: si el NOMBRE DEL ARCHIVO indica menores, marca categoria='nino'.
+      // norm() quita acentos y ñ descompuesta (los nombres de Drive a veces traen ñ = n + U+0303).
+      const categoria = /ni[nñ]o|menor|infante/i.test(norm(ctx.fileName)) ? 'nino' : null;
       return {
-        ext_id: `drive:${ctx.file}:${norm([nombre, zona, visto, edad].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch,
+        ext_id: `drive:${ctx.file}:${norm(ctx.sheet)}:${norm([nombre, zona, visto, edad].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch,
         nombre, edad: edad || null, zona: zona || null, visto: visto || null,
         contacto: cleanPhone(cell('contacto')) || null, nota: redactText(cell('nota') || cell('direccion')) || null,
-        foto_url: safeFoto(cell('foto_url')), estado: FOUND_RE.test(statusRaw) ? 'encontrado' : 'buscando', categoria,
+        foto_url: safeFoto(cell('foto_url')), estado: (fromSheet || FOUND_RE.test(statusRaw)) ? 'encontrado' : 'buscando', categoria,
       };
     },
   },
@@ -394,7 +408,7 @@ const ADAPTERS: Adapter[] = [
   },
 ];
 function normTipo(v: string, allowed: string[]): string { const n = norm(v); return allowed.find(a => n.includes(a.slice(0, 4))) || 'otro'; }
-function routeOf(name: string): Adapter | null { for (const a of ADAPTERS) if (a.keywords.test(name)) return a; return null; }
+function routeOf(name: string): Adapter | null { const n = norm(name); for (const a of ADAPTERS) if (a.keywords.test(n)) return a; return null; }
 
 // ════════════════════ Handler ════════════════════
 export default async function handler(req: Request): Promise<Response> {
@@ -416,32 +430,36 @@ export default async function handler(req: Request): Promise<Response> {
       if (!adapter) { reports.push({ archivo: f.name, estado: 'sin_clasificar', nota: 'el nombre no indica el destino' }); continue; }
       const sourceVal = `drive:${f.id}`;   // identidad por ID de Drive (estable ante rename)
       try {
-        const grid = f.kind === 'xlsx' ? await xlsxToGrid(await downloadBytes(f))
-          : f.kind === 'json' ? jsonToGrid(await downloadText(f))
-            : parseCSV(await downloadText(f));
-        if (grid.length < 2) { reports.push({ archivo: f.name, destino: adapter.table, estado: 'vacio' }); continue; }
-        const header = grid[0]; const { idx, unmapped } = mapHeaders(header);
-        // Concatena TODAS las columnas de nombre (p.ej. Apellidos + Nombres) → no pierde la mitad
-        const nombreCols = header.map((_, i) => i).filter(i => nameRe.test(norm(header[i])));
-        // estatus por VALOR: si la columna 'zona' tiene valores de estatus, muévela a estado
-        let statusCol: number | undefined;
-        if (idx.zona !== undefined && looksLikeStatus(gridColumn(grid, idx.zona))) { statusCol = idx.zona; delete idx.zona; }
-        if (statusCol === undefined && idx.estado === undefined) {
-          for (let c = 0; c < header.length; c++) if (!Object.values(idx).includes(c) && looksLikeStatus(gridColumn(grid, c))) { statusCol = c; break; }
+        const sheets = f.kind === 'xlsx' ? await xlsxSheets(await downloadBytes(f))
+          : f.kind === 'json' ? [{ name: '', grid: jsonToGrid(await downloadText(f)) }]
+            : [{ name: '', grid: parseCSV(await downloadText(f)) }];
+        const rows: any[] = []; const seen = new Set<string>(); let basura = 0, sinCoords = 0; const unmappedAll = new Set<string>();
+        for (const sht of sheets) {                       // procesa TODAS las pestañas (p.ej. Desaparecidos + Rescatados)
+          const grid = sht.grid; if (grid.length < 2) continue;
+          const header = grid[0]; const { idx, unmapped } = mapHeaders(header); unmapped.forEach(u => unmappedAll.add(u));
+          // Concatena TODAS las columnas de nombre (p.ej. Apellidos + Nombres) → no pierde la mitad
+          const nombreCols = header.map((_, i) => i).filter(i => nameRe.test(norm(header[i])));
+          // estatus por VALOR: si la columna 'zona' tiene valores de estatus, muévela a estado
+          let statusCol: number | undefined;
+          if (idx.zona !== undefined && looksLikeStatus(gridColumn(grid, idx.zona))) { statusCol = idx.zona; delete idx.zona; }
+          if (statusCol === undefined && idx.estado === undefined) {
+            for (let c = 0; c < header.length; c++) if (!Object.values(idx).includes(c) && looksLikeStatus(gridColumn(grid, c))) { statusCol = c; break; }
+          }
+          const ctx: Ctx = { idx, header, statusCol: statusCol ?? idx.estado, file: f.id, fileName: f.name, sheet: sht.name, batch };
+          const cellFor = (row: string[]) => (k: string) => {
+            if (k === 'nombre' && nombreCols.length) return nombreCols.map(i => (row[i] || '').trim()).filter(Boolean).join(' ');
+            const i = idx[k]; return i === undefined ? '' : (row[i] || '').trim();
+          };
+          for (let r = 1; r < grid.length && rows.length < MAX_ROWS; r++) {
+            const rec = adapter.build(grid[r], cellFor(grid[r]), ctx);
+            if (rec === NOCOORDS) { sinCoords++; continue; }
+            if (!rec) { basura++; continue; }
+            const key = (rec as any)[adapter.conflict]; if (seen.has(key)) continue; seen.add(key);
+            rows.push(rec);
+          }
         }
-        const ctx: Ctx = { idx, header, statusCol: statusCol ?? idx.estado, file: f.id, fileName: f.name, batch };
-        const cellFor = (row: string[]) => (k: string) => {
-          if (k === 'nombre' && nombreCols.length) return nombreCols.map(i => (row[i] || '').trim()).filter(Boolean).join(' ');
-          const i = idx[k]; return i === undefined ? '' : (row[i] || '').trim();
-        };
-        const rows: any[] = []; const seen = new Set<string>(); let basura = 0, sinCoords = 0;
-        for (let r = 1; r < grid.length && rows.length < MAX_ROWS; r++) {
-          const rec = adapter.build(grid[r], cellFor(grid[r]), ctx);
-          if (rec === NOCOORDS) { sinCoords++; continue; }
-          if (!rec) { basura++; continue; }
-          const key = (rec as any)[adapter.conflict]; if (seen.has(key)) continue; seen.add(key);
-          rows.push(rec);
-        }
+        const unmapped = [...unmappedAll];
+        if (!rows.length) { reports.push({ archivo: f.name, destino: adapter.table, estado: 'vacio', descartadas_basura: basura, descartadas_sin_coords: sinCoords }); continue; }
         let espejo = 'no_aplica';
         if (rows.length) {
           // cuántas filas tenía ESTE archivo antes (para detectar una descarga truncada)
@@ -459,7 +477,7 @@ export default async function handler(req: Request): Promise<Response> {
           else { await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}&${stampCol}=lt.${encodeURIComponent(batch)}`, { method: 'DELETE', headers: sbH({ Prefer: 'return=minimal' }) }).catch(() => {}); espejo = 'ok'; }
         }
         totalRows += rows.length;
-        reports.push({ archivo: f.name, destino: adapter.table, importadas: rows.length, descartadas_basura: basura, descartadas_sin_coords: sinCoords, columnas_no_reconocidas: unmapped, espejo });
+        reports.push({ archivo: f.name, destino: adapter.table, pestanas: sheets.length, importadas: rows.length, descartadas_basura: basura, descartadas_sin_coords: sinCoords, columnas_no_reconocidas: unmapped, espejo });
       } catch (e: any) { reports.push({ archivo: f.name, destino: adapter.table, error: e?.message || 'parse' }); }
     }
     await mark(totalRows);
