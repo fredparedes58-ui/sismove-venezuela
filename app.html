@@ -1487,7 +1487,7 @@ function renderNinos(){
   const sync=document.getElementById('ninosSync'); if(sync) sync.textContent=_ninosLoaded?`${NINOS.length} niño(s) en el registro`:'';
   const c={all:NINOS.length, buscando:NINOS.filter(n=>n.estado!=='encontrado').length, encontrado:NINOS.filter(n=>n.estado==='encontrado').length};
   const chEl=document.getElementById('ninosChips');
-  if(chEl) chEl.innerHTML=[['all','Todos',c.all],['buscando','🔴 Buscando',c.buscando],['encontrado','🟢 Encontrados',c.encontrado]]
+  if(chEl) chEl.innerHTML=[['all','Todos',c.all],['buscando','🔴 Desaparecidos',c.buscando],['encontrado','🟢 Rescatados',c.encontrado]]
     .map(([k,l,n])=>`<button class="chip ${ninosFilter===k?'on':''}" onclick="ninosFilter='${k}';renderNinos()">${l} · ${n}</button>`).join('');
   if(!_ninosLoaded){ el.innerHTML='<div class="empty" style="padding:14px">Cargando…</div>'; return; }
   if(!NINOS.length){ el.innerHTML='<div class="empty" style="padding:14px">Aún no hay niños en el registro.<br>En cuanto se sincronice el archivo de la red de emergencia (o reportes), aparecerán aquí.</div>'; return; }
@@ -1498,7 +1498,7 @@ function renderNinos(){
   if(q) list=list.filter(n=>(`${n.nombre} ${n.zona||''} ${n.visto||''}`).toLowerCase().includes(q));
   el.innerHTML = list.length ? list.map(n=>{
     const found=n.estado==='encontrado';
-    const badge = found?'<span class="badge st" style="color:var(--green)">✅ encontrado</span>':'<span class="badge alta">buscando</span>';
+    const badge = found?'<span class="badge st" style="color:var(--green)">✅ rescatado</span>':'<span class="badge alta">🔴 desaparecido</span>';
     const pic = n.foto_url
       ? `<img src="${esc(n.foto_url)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.outerHTML='<div class=&quot;pic&quot;>👶</div>'">`
       : '👶';
