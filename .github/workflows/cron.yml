@@ -36,6 +36,7 @@ jobs:
             echo "──── iteración $n/30 · $(date -u +%H:%M) UTC ────"
             node scraper/scrape.mjs --post || true                                    # centros · sismos USGS
             curl -s "$BASE/api/sync-hospitales?key=$KEY" -o /dev/null -w "  hospitales %{http_code}\n" || true
+            curl -s "$BASE/api/sync-desaparecidos?key=$KEY" -o /dev/null -w "  desaparecidos %{http_code}\n" || true
             curl -s "$BASE/api/drive-docs" -o /dev/null -w "  drive-docs %{http_code}\n" || true
             for i in $(seq 1 20); do                                                   # drena OCR de fotos nuevas
               R=$(curl -s "$BASE/api/sync-fotos?key=$KEY")
