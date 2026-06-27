@@ -10,7 +10,8 @@ export const config = { runtime: 'edge' };
 
 const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const FOLDER = process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI';
+const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
+const MAX_DEPTH = 4, MAX_FOLDERS = 80;
 const THROTTLE_MIN = 30;
 
 // Palabras que NO son nombres de persona (encabezados / fragmentos del tabulado)
@@ -33,16 +34,22 @@ const KNOWN_DOCS = [
   { id: '125LObYNRazMhUuxeF8FFthiA5YJaGFyApKiUHyO4olo', name: 'Registro maestro de pacientes' },
   { id: '1SHnWBNnzxsJ30Yr1bY8cF3SP2By7mX2jtquHiyKLesU', name: 'Listas de personas en múltiples hospitales' },
 ];
-// Recorre raíz + subcarpetas y junta TODOS los Google Docs + la semilla fija (dedup por id)
+// Recorre TODAS las carpetas (FOLDERS) recursivamente y junta TODOS los Google Docs +
+// la semilla fija (dedup por id).
 async function listDocs(): Promise<{ id: string; name: string }[]> {
   const docs: { id: string; name: string }[] = [...KNOWN_DOCS];
-  try {
-    const root = await listEntries(FOLDER);
-    for (const e of root) if (e.url.includes('/document/')) docs.push({ id: e.id, name: e.name });
-    for (const f of root.filter(e => e.url.includes('/drive/folders/'))) {
-      try { for (const c of await listEntries(f.id)) if (c.url.includes('/document/')) docs.push({ id: c.id, name: c.name }); } catch {}
+  const seenFolders = new Set<string>(); let visited = 0;
+  const queue: { id: string; depth: number }[] = FOLDERS.map(id => ({ id, depth: 0 }));
+  while (queue.length && visited < MAX_FOLDERS) {
+    const { id, depth } = queue.shift()!;
+    if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
+    let entries: { id: string; name: string; url: string }[] = [];
+    try { entries = await listEntries(id); } catch { continue; }
+    for (const e of entries) {
+      if (e.url.includes('/drive/folders/')) { if (depth < MAX_DEPTH && !seenFolders.has(e.id)) queue.push({ id: e.id, depth: depth + 1 }); }
+      else if (e.url.includes('/document/')) docs.push({ id: e.id, name: e.name });
     }
-  } catch {}
+  }
   const seen = new Set<string>();
   return docs.filter(d => seen.has(d.id) ? false : (seen.add(d.id), true));
 }

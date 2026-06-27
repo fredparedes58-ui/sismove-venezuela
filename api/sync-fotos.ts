@@ -13,7 +13,8 @@ export const config = { runtime: 'edge' };
 const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const GEMINI = process.env.GEMINI_API_KEY;
-const FOLDER = process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI';
+const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
+const MAX_DEPTH = 4, MAX_FOLDERS = 80;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_PER_RUN = 1;        // 1 por invocación (PDFs lentos → evitar timeout del Edge)
 const THROTTLE_MIN = 10;
@@ -34,14 +35,24 @@ async function listFolder(id: string) {
   while ((m = ENTRY_RE.exec(html)) !== null) { const name = m[3].trim(); if (name) out.push({ id: m[1], name, url: m[2], tipo: tipoOf(m[2], name) }); }
   return out;
 }
+// Recorre TODAS las carpetas (FOLDERS) recursivamente; el "hospital" es el nombre de la
+// carpeta contenedora (para datos sueltos en raíz queda 'Drive'/'PDF').
 async function allFiles() {
-  const root = await listFolder(FOLDER);
   const files: { id: string; hospital: string; tipo: string }[] = [];
-  for (const it of root) if (it.tipo === 'imagen' || it.tipo === 'pdf') files.push({ id: it.id, hospital: it.tipo === 'pdf' ? 'PDF' : 'Drive', tipo: it.tipo });
-  for (const it of root.filter(i => i.tipo === 'carpeta')) {
-    try { for (const c of await listFolder(it.id)) if (c.tipo === 'imagen' || c.tipo === 'pdf') files.push({ id: c.id, hospital: it.name, tipo: c.tipo }); } catch {}
+  const seenFolders = new Set<string>(); let visited = 0;
+  const queue: { id: string; name: string; depth: number }[] = FOLDERS.map(id => ({ id, name: 'Drive', depth: 0 }));
+  while (queue.length && visited < MAX_FOLDERS) {
+    const { id, name, depth } = queue.shift()!;
+    if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
+    let entries: any[] = [];
+    try { entries = await listFolder(id); } catch { continue; }
+    for (const it of entries) {
+      if (it.tipo === 'carpeta') { if (depth < MAX_DEPTH && !seenFolders.has(it.id)) queue.push({ id: it.id, name: it.name, depth: depth + 1 }); }
+      else if (it.tipo === 'imagen' || it.tipo === 'pdf') files.push({ id: it.id, hospital: it.tipo === 'pdf' ? 'PDF' : (name === 'Drive' ? 'Drive' : name), tipo: it.tipo });
+    }
   }
-  return files;
+  const seen = new Set<string>();
+  return files.filter(f => seen.has(f.id) ? false : (seen.add(f.id), true));
 }
 function toBase64(buf: ArrayBuffer): string {
   const b = new Uint8Array(buf); let s = '';

@@ -28,7 +28,10 @@ export const config = { runtime: 'edge' };
 
 const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const FOLDER = process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI';
+// Varias carpetas (separadas por coma). Por defecto: la original + la nueva ("AGENTE").
+const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
+const MAX_DEPTH = 4;          // recorre subcarpetas (y sub-sub…) hasta esta profundidad
+const MAX_FOLDERS = 80;       // tope de carpetas visitadas por corrida (evita timeouts)
 const THROTTLE_MIN = 15;
 const MAX_FILES = 8;          // tope por corrida (tiempo del Edge)
 const MAX_ROWS = 5000;        // tope defensivo de filas por archivo
@@ -54,13 +57,20 @@ function kindOf(name: string, url: string): Kind | null {
   if (/\.json$/i.test(name)) return 'json';
   return null;
 }
+// Recorre TODAS las carpetas (FOLDERS) de forma recursiva (raíz + subcarpetas anidadas).
 async function allCandidates() {
   const out: { id: string; name: string; kind: Kind }[] = [];
-  const root = await listFolder(FOLDER);
-  const consider = (e: { id: string; name: string; url: string }) => { const k = kindOf(e.name, e.url); if (k) out.push({ id: e.id, name: e.name, kind: k }); };
-  for (const e of root) consider(e);
-  for (const f of root.filter(e => e.url.includes('/drive/folders/'))) {
-    try { for (const c of await listFolder(f.id)) consider(c); } catch {}
+  const seenFolders = new Set<string>(); let visited = 0;
+  const queue: { id: string; depth: number }[] = FOLDERS.map(id => ({ id, depth: 0 }));
+  while (queue.length && visited < MAX_FOLDERS) {
+    const { id, depth } = queue.shift()!;
+    if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
+    let entries: { id: string; name: string; url: string }[] = [];
+    try { entries = await listFolder(id); } catch { continue; }
+    for (const e of entries) {
+      if (e.url.includes('/drive/folders/')) { if (depth < MAX_DEPTH && !seenFolders.has(e.id)) queue.push({ id: e.id, depth: depth + 1 }); }
+      else { const k = kindOf(e.name, e.url); if (k) out.push({ id: e.id, name: e.name, kind: k }); }
+    }
   }
   const seen = new Set<string>();
   return out.filter(f => seen.has(f.id) ? false : (seen.add(f.id), true));
@@ -125,10 +135,37 @@ function jsonToGrid(text: string): string[][] {
 // — Lector XLSX sin dependencias (ZIP + DecompressionStream + XML por regex) —
 const u16 = (b: Uint8Array, o: number) => b[o] | (b[o + 1] << 8);
 const u32 = (b: Uint8Array, o: number) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
-async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  const ds = new (globalThis as any).DecompressionStream('deflate-raw');
-  const stream = (new Response(bytes).body as any).pipeThrough(ds);
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+// INFLATE (raw DEFLATE) en JS puro, estilo "puff". Vercel Edge NO expone DecompressionStream,
+// así que descomprimimos sin dependencias. Validado byte-a-byte contra zlib.
+function inflateRaw(source: Uint8Array): Uint8Array {
+  let bitBuf = 0, bitCnt = 0, pos = 0; const out: number[] = [];
+  const getBit = () => { if (bitCnt === 0) { bitBuf = source[pos++]; bitCnt = 8; } const b = bitBuf & 1; bitBuf >>= 1; bitCnt--; return b; };
+  const getBits = (n: number) => { let v = 0; for (let i = 0; i < n; i++) v |= getBit() << i; return v >>> 0; };
+  const construct = (lengths: number[], n: number) => { const count = new Array(16).fill(0); for (let i = 0; i < n; i++) count[lengths[i]]++; const symbol = new Array(n); const offs = new Array(16).fill(0); for (let len = 1; len < 15; len++) offs[len + 1] = offs[len] + count[len]; for (let i = 0; i < n; i++) if (lengths[i]) symbol[offs[lengths[i]]++] = i; return { count, symbol }; };
+  const decode = (h: any) => { let code = 0, first = 0, index = 0; for (let len = 1; len <= 15; len++) { code |= getBit(); const c = h.count[len]; if (code - c < first) return h.symbol[index + (code - first)]; index += c; first += c; first <<= 1; code <<= 1; } throw new Error('bad_code'); };
+  const lenBase = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+  const lenExtra = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+  const distBase = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+  const distExtra = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+  let last: number;
+  do {
+    last = getBit(); const type = getBits(2);
+    if (type === 0) { bitCnt = 0; const len = source[pos] | (source[pos + 1] << 8); pos += 4; for (let i = 0; i < len; i++) out.push(source[pos++]); }
+    else {
+      let lenTree: any, distTree: any;
+      if (type === 1) { const ll = new Array(288); for (let i = 0; i < 144; i++) ll[i] = 8; for (let i = 144; i < 256; i++) ll[i] = 9; for (let i = 256; i < 280; i++) ll[i] = 7; for (let i = 280; i < 288; i++) ll[i] = 8; lenTree = construct(ll, 288); distTree = construct(new Array(30).fill(5), 30); }
+      else if (type === 2) {
+        const hlit = getBits(5) + 257, hdist = getBits(5) + 1, hclen = getBits(4) + 4;
+        const order = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+        const cl = new Array(19).fill(0); for (let i = 0; i < hclen; i++) cl[order[i]] = getBits(3);
+        const clTree = construct(cl, 19); const lengths = new Array(hlit + hdist).fill(0); let i = 0;
+        while (i < hlit + hdist) { const s = decode(clTree); if (s < 16) lengths[i++] = s; else if (s === 16) { const r = getBits(2) + 3, p = lengths[i - 1]; for (let j = 0; j < r; j++) lengths[i++] = p; } else if (s === 17) { const r = getBits(3) + 3; for (let j = 0; j < r; j++) lengths[i++] = 0; } else { const r = getBits(7) + 11; for (let j = 0; j < r; j++) lengths[i++] = 0; } }
+        lenTree = construct(lengths.slice(0, hlit), hlit); distTree = construct(lengths.slice(hlit), hdist);
+      } else throw new Error('bad_block');
+      while (true) { const sym = decode(lenTree); if (sym === 256) break; if (sym < 256) out.push(sym); else { const s = sym - 257; const len = lenBase[s] + getBits(lenExtra[s]); const ds = decode(distTree); const dist = distBase[ds] + getBits(distExtra[ds]); let from = out.length - dist; for (let j = 0; j < len; j++) out.push(out[from++]); } }
+    }
+  } while (!last);
+  return new Uint8Array(out);
 }
 function readZip(buf: ArrayBuffer) {
   const b = new Uint8Array(buf); let eocd = -1;
@@ -410,7 +447,7 @@ export default async function handler(req: Request): Promise<Response> {
           try { const cr = await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) }); prev = parseInt((cr.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; } catch {}
           for (let i = 0; i < rows.length; i += 500) {
             const r = await fetch(`${SB}/rest/v1/${adapter.table}?on_conflict=${adapter.conflict}`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(rows.slice(i, i + 500)) });
-            if (!r.ok) { const t = (await r.text()).slice(0, 160); throw new Error(/does not exist|on conflict|42P10|PGRST204/i.test(t) ? `falta correr schema_drive_sync.sql (${r.status})` : `upsert ${r.status}: ${t}`); }
+            if (!r.ok) { const t = (await r.text()).slice(0, 160); throw new Error(/does not exist|could not find the table|on conflict|42P10|PGRST20[45]/i.test(t) ? `falta crear la tabla / correr el SQL (schema_desaparecidos*.sql + schema_drive_sync.sql) [${r.status}]` : `upsert ${r.status}: ${t}`); }
           }
           // ESPEJO: borra de ESTE archivo (por ID) lo que ya no está. Guardas: solo si parseó filas,
           // nunca toca reportes de la app (source NULL) ni otros archivos, y NO borra si las filas

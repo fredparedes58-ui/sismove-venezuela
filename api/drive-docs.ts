@@ -7,7 +7,7 @@
  */
 export const config = { runtime: 'edge' };
 
-const FOLDER = process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI';
+const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
 const ENTRY_RE = /<div class="flip-entry"[^>]*id="entry-([^"]+)"[\s\S]*?<a href="([^"]+)"[\s\S]*?<div class="flip-entry-title">([^<]*)<\/div>/g;
 
 function tipoOf(url: string, name: string): string {
@@ -32,15 +32,20 @@ async function listFolder(id: string) {
 
 export default async function handler(): Promise<Response> {
   try {
-    const items = await listFolder(FOLDER);
-    // Recursión 1 nivel: contenido de cada subcarpeta
-    await Promise.all(items.filter(i => i.tipo === 'carpeta').map(async it => {
-      try { it.children = await listFolder(it.id); } catch { it.children = []; }
-    }));
-    const total = items.reduce((n, it) => n + 1 + (it.children ? it.children.length : 0), 0);
-    return json({ folder_url: `https://drive.google.com/drive/folders/${FOLDER}`, count: total, fetched_at: new Date().toISOString(), items });
+    const carpetas: any[] = [];
+    for (const FOLDER of FOLDERS) {
+      let items: any[] = [];
+      try { items = await listFolder(FOLDER); } catch { continue; }
+      // Recursión 1 nivel: contenido de cada subcarpeta
+      await Promise.all(items.filter(i => i.tipo === 'carpeta').map(async it => {
+        try { it.children = await listFolder(it.id); } catch { it.children = []; }
+      }));
+      carpetas.push({ folder_url: `https://drive.google.com/drive/folders/${FOLDER}`, items });
+    }
+    const total = carpetas.reduce((n, c) => n + c.items.reduce((m: number, it: any) => m + 1 + (it.children ? it.children.length : 0), 0), 0);
+    return json({ count: total, carpetas, fetched_at: new Date().toISOString() });
   } catch (e: any) {
-    return json({ error: 'drive_unreachable', detail: e?.message, items: [] }, 502);
+    return json({ error: 'drive_unreachable', detail: e?.message, carpetas: [] }, 502);
   }
 }
 
