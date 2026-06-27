@@ -44,6 +44,14 @@ async function latest(): Promise<any | null> {
 
 const numOrNull = (v: any) => (typeof v === 'number' && isFinite(v) ? Math.round(v) : null);
 
+async function count(table: string): Promise<number> {
+  try {
+    const r = await fetch(`${SB}/rest/v1/${table}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) });
+    const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
+    return Number.isFinite(n) ? n : 0;
+  } catch { return 0; }
+}
+
 async function extraer(f: { nombre: string; url: string; api?: string }) {
   const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
   let limpio = '';
