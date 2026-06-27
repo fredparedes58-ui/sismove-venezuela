@@ -1,23 +1,24 @@
-name: SismoVE · scraping cada 10 min
+name: SismoVE · sincronización cada 10 min
 
-# Cron REAL: corre cada ~10 min aunque nadie visite la web.
-# Scrapea las fuentes públicas y dispara las sincronizaciones del Drive.
-# Secrets requeridos (Settings → Secrets → Actions):
-#   SCRAPER_WEBHOOK_URL    = https://sismove-venezuela.vercel.app/api/webhooks/scraper
-#   SCRAPER_WEBHOOK_SECRET = (el mismo de Vercel)
+# Pinger REAL cada 10 min, robusto al throttle de GitHub:
+# GitHub espacia los crons programados (a veces cada varias horas), así que en vez de
+# depender del horario, CADA corrida hace un BUCLE de ~5 h pingeando cada 10 min.
+# Con concurrency (cancel-in-progress:false) la siguiente corrida se encola y arranca
+# al terminar la anterior → cobertura casi continua.
+# Secrets (Settings → Secrets → Actions): SCRAPER_WEBHOOK_URL, SCRAPER_WEBHOOK_SECRET.
 on:
   schedule:
-    - cron: '*/10 * * * *'   # cada 10 min (UTC; GitHub puede retrasarlo unos min)
+    - cron: '*/10 * * * *'   # GitHub lo dispara cuando puede; el bucle cubre los huecos
   workflow_dispatch: {}
 
 concurrency:
   group: sismove-cron
-  cancel-in-progress: false
+  cancel-in-progress: false   # encola la siguiente; no corta la que está corriendo
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 340       # ~5.6 h; el bucle dura ~5 h y deja margen
     env:
       BASE: https://sismove-venezuela.vercel.app
       KEY: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
@@ -26,29 +27,22 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      - name: Fuentes públicas (centros · sismos · desaparecidos) → webhook → Supabase
+      - name: Bucle de sincronización (≈30 iteraciones · 1 cada 10 min ≈ 5 h)
         env:
           SCRAPER_WEBHOOK_URL: ${{ secrets.SCRAPER_WEBHOOK_URL }}
           SCRAPER_WEBHOOK_SECRET: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
-        run: node scraper/scrape.mjs --post || true
-
-      - name: Sync Drive (Docs de ingresos) → Supabase
-        run: curl -s "$BASE/api/sync-hospitales?key=$KEY"; echo
-
-      - name: Refrescar árbol del Drive (cache)
-        run: curl -s "$BASE/api/drive-docs" -o /dev/null -w "drive-docs %{http_code}\n"
-
-      - name: Auto-OCR de archivos nuevos del Drive (drenar cola)
         run: |
-          for i in $(seq 1 25); do
-            R=$(curl -s "$BASE/api/sync-fotos?key=$KEY")
-            echo "vuelta $i: $R"
-            echo "$R" | grep -q '"status":"al_dia"' && break
-            sleep 2
+          for n in $(seq 1 30); do
+            echo "──── iteración $n/30 · $(date -u +%H:%M) UTC ────"
+            node scraper/scrape.mjs --post || true                                    # centros · sismos USGS
+            curl -s "$BASE/api/sync-hospitales?key=$KEY" -o /dev/null -w "  hospitales %{http_code}\n" || true
+            curl -s "$BASE/api/drive-docs" -o /dev/null -w "  drive-docs %{http_code}\n" || true
+            for i in $(seq 1 20); do                                                   # drena OCR de fotos nuevas
+              R=$(curl -s "$BASE/api/sync-fotos?key=$KEY")
+              echo "$R" | grep -q '"status":"al_dia"' && break
+              sleep 2
+            done
+            curl -s "$BASE/api/sismo-stats?key=$KEY&refresh=1" -o /dev/null -w "  sismo-stats %{http_code}\n" || true
+            curl -s "$BASE/api/notify?key=$KEY" -o /dev/null -w "  notify %{http_code}\n" || true
+            [ "$n" -lt 30 ] && sleep 600                                               # 10 min hasta el siguiente
           done
-
-      - name: Refrescar cifras oficiales del banner (Wikipedia → Gemini, throttle 30 min)
-        run: curl -s "$BASE/api/sismo-stats?key=$KEY&refresh=1"; echo
-
-      - name: Avisar a suscriptores de Telegram si hay datos nuevos
-        run: curl -s "$BASE/api/notify?key=$KEY"; echo
