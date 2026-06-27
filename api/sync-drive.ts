@@ -76,26 +76,23 @@ async function downloadText(f: { id: string; kind: Kind }): Promise<string> {
   let r = await fetch(`https://drive.google.com/uc?export=download&id=${f.id}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } });
   let txt = await r.text();
   if (isHtml(txt)) {
-    const token = (txt.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1];
-    const retry = token
-      ? `https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=${token}`
-      : `https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=t`;
-    r = await fetch(retry, { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } });
+    const token = (txt.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || 't';
+    r = await fetch(`https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=${token}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } });
     txt = await r.text();
     if (isHtml(txt)) throw new Error('drive_html');
-  }
+  } else if (!r.ok) throw new Error('download ' + r.status);
   return txt;
 }
 async function downloadBytes(f: { id: string }): Promise<ArrayBuffer> {
   let r = await fetch(`https://drive.google.com/uc?export=download&id=${f.id}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } });
   let buf = await r.arrayBuffer();
-  // ¿interstitial? (los primeros bytes serían texto HTML)
-  const head = new TextDecoder().decode(new Uint8Array(buf.slice(0, 64)));
+  // ¿interstitial? Decodifica 4KB (no 64 B): el token confirm= aparece dentro del HTML, no al inicio.
+  const head = new TextDecoder().decode(new Uint8Array(buf.slice(0, 4096)));
   if (isHtml(head)) {
     const token = (head.match(/confirm=([0-9A-Za-z_-]+)/) || [])[1] || 't';
     r = await fetch(`https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=${token}`, { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } });
     buf = await r.arrayBuffer();
-  }
+  } else if (!r.ok) throw new Error('download ' + r.status);
   return buf;
 }
 
@@ -167,7 +164,7 @@ async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
   // estilos de fecha
   const styleXml = await zipRead(zip, 'xl/styles.xml') || ''; const dateStyles = new Set<number>(); const customDate = new Set<number>();
   let nf: any; const nfRe = /<numFmt[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
-  while ((nf = nfRe.exec(styleXml)) !== null) { const code = decodeEntities(nf[2]).replace(/"[^"]*"|\[[^\]]*\]/g, ''); if (/[dmyhs]/i.test(code)) customDate.add(parseInt(nf[1], 10)); }
+  while ((nf = nfRe.exec(styleXml)) !== null) { const code = decodeEntities(nf[2]).replace(/"[^"]*"|\[[^\]]*\]/g, ''); if (/yy|y{4}|dd|mm|hh|ss|[dmy][\/\-. ]|[\/\-. ][dmy]/i.test(code)) customDate.add(parseInt(nf[1], 10)); }
   const builtin = new Set([14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47]);
   const xfsBlock = (styleXml.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/) || [, ''])[1]; let xf: any, xi = 0; const xfRe = /<xf\b[^>]*numFmtId="(\d+)"[^>]*\/?>/g;
   while ((xf = xfRe.exec(xfsBlock)) !== null) { const id = parseInt(xf[1], 10); if (builtin.has(id) || customDate.has(id)) dateStyles.add(xi); xi++; }
@@ -177,7 +174,7 @@ async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
   const sheet = await zipRead(zip, sheetPath) || ''; const grid: string[][] = [];
   let r: any; const rowRe = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
   while ((r = rowRe.exec(sheet)) !== null) {
-    const cells: string[] = []; let c: any; const cRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    const cells: string[] = []; let col = 0; let c: any; const cRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
     while ((c = cRe.exec(r[1])) !== null) {
       const attrs = c[1], inner = c[2] || '';
       const ref = (attrs.match(/r="([A-Z]+)\d+"/) || [])[1]; const t = (attrs.match(/t="([^"]+)"/) || [])[1]; const s = (attrs.match(/s="(\d+)"/) || [])[1];
@@ -188,7 +185,8 @@ async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
       else if (t === 'b') val = ((inner.match(/<v>([\s\S]*?)<\/v>/) || [, ''])[1] === '1') ? 'TRUE' : 'FALSE';
       else if (t === 'e') val = '';
       else { const v = (inner.match(/<v>([\s\S]*?)<\/v>/) || [, ''])[1]; val = (v !== '' && s !== undefined && dateStyles.has(parseInt(s, 10))) ? serialToISO(parseFloat(v)) : v; }
-      cells[ref ? colOf(ref) : cells.length] = val;
+      const ci = ref ? colOf(ref) : col;     // sin r=: avanza secuencial (no cells.length, que mezcla huecos)
+      cells[ci] = val; col = ci + 1;
     }
     for (let i = 0; i < cells.length; i++) if (cells[i] === undefined) cells[i] = '';
     grid.push(cells);
@@ -200,8 +198,8 @@ async function xlsxToGrid(buf: ArrayBuffer): Promise<string[][]> {
 const norm = (s: string) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 
 // Patrones de documento de identidad venezolano (cédula/pasaporte) — se REDACTAN siempre.
-const DOC_RE = /\b[vejpg][-\s.]?\d{1,2}[.\s]?\d{3}[.\s]?\d{3}\b|\b\d{1,3}[.\s]\d{3}[.\s]\d{3}\b|\b(?:c[ií]|c\.i|cedula|cédula|dni|documento|pasaporte|rif)\b[:\s.\-]*[\w.\-]*\d{5,}/gi;
-const DIGRUN_RE = /\b\d{7,9}\b/g;   // secuencia suelta de 7-9 dígitos (probable cédula); teléfonos VE tienen 10-11
+const DOC_RE = /[vejpg][-\s.]?\d{1,2}[.\s]?\d{3}[.\s]?\d{3}|\d{1,3}[.\s]\d{3}[.\s]\d{3}|(?:c[ií]|c\.i|cedula|cédula|dni|documento|pasaporte|rif)\b[:\s.\-]*[\w.\-]*\d{5,}/gi;
+const DIGRUN_RE = /\d{6,}/g;   // cualquier corrida de 6+ dígitos (cédula 6-9 / pasaporte / sin \b para pillar embebidos)
 function redactText(s: string): string {
   return String(s).replace(DOC_RE, ' ').replace(DIGRUN_RE, ' ').replace(/\s{2,}/g, ' ').trim();
 }
@@ -221,28 +219,34 @@ function fixDriveImg(u: string): string {
   const m = u.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^]*?id=)|drive\.usercontent\.google\.com\/download\?[^]*?id=|docs\.google\.com\/uc\?[^]*?id=|lh3\.googleusercontent\.com\/d\/)([-\w]{20,})/);
   return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000` : u;
 }
+function hostAllowed(host: string): boolean {
+  // Coincidencia EXACTA con frontera de punto (evita bypass tipo evilgoogle.com)
+  return host === 'drive.google.com' || host === 'drive.usercontent.google.com' || host === 'docs.google.com'
+    || host === 'lh3.googleusercontent.com' || host.endsWith('.googleusercontent.com')
+    || host === SB_HOST;
+}
 function safeFoto(u: string): string | null {
   const url = String(u).trim(); if (!/^https:\/\//i.test(url)) return null;
   let host = ''; try { host = new URL(url).host.toLowerCase(); } catch { return null; }
-  const ok = host.endsWith('google.com') || host.endsWith('googleusercontent.com') || host === SB_HOST;
-  if (!ok) return null;
-  return /google\.com|googleusercontent/.test(host) ? fixDriveImg(url) : url;
+  if (!hostAllowed(host)) return null;
+  return host === SB_HOST ? url : fixDriveImg(url);
 }
 // Encabezados → campo (por INCLUSIÓN; cada columna a UN solo campo)
 const FIELD_SYNS: [string, RegExp][] = [
-  ['nombre',   /nombre|^persona$|^menor$|^nin[oa]s?$|desaparecid|^paciente$|apellid/],
-  ['edad',     /edad|^a[nñ]os$/],
-  ['lat',      /^lat|latitud/],
-  ['lng',      /^lon|^lng|longitud/],
-  ['hospital', /hospital|cl[ií]nic|centro de salud|^centro$/],
-  ['fecha',    /fecha|d[ií]a/],
-  ['contacto', /tel[eé]fono|tlf|celular|whatsapp|m[oó]vil|contacto|^n[uú]mero/],
-  ['zona',     /zona|ciudad|estado|^edo\b|municipio|localidad|sector|parroquia|entidad|direcci[oó]n/],
-  ['visto',    /ultima vez|visto|d[oó]nde|ubicaci[oó]n|^lugar|desaparici|desaparecio|^punto/],
-  ['tipo',     /tipo|categor[ií]a|necesidad|insumo|recurso/],
-  ['estado',   /situaci[oó]n|estatus|status|condici[oó]n/],
-  ['foto_url', /foto|imagen|^photo$|url|enlace|link/],
-  ['nota',     /nota|observaci|detalle|descripci|se[nñ]as|ropa|caracter|direccion|comentario/],
+  ['nombre',    /nombre|^persona$|^menor$|^nin[oa]s?$|desaparecid|^paciente$|apellid/],
+  ['edad',      /edad|^a[nñ]os$/],
+  ['lat',       /^lat|latitud/],
+  ['lng',       /^lon|^lng|longitud/],
+  ['hospital',  /hospital|cl[ií]nic|centro de salud|^centro$|ambulatorio|asistencial/],
+  ['fecha',     /fecha|\bd[ií]a\b/],
+  ['contacto',  /tel[eé]fono|tlf|celular|whatsapp|m[oó]vil|contacto/],
+  ['direccion', /direcci|^calle|avenida|^av\b|carrera|punto de referencia|domicilio/],
+  ['zona',      /zona|ciudad|estado|^edo\b|municipio|localidad|sector|parroquia|entidad/],
+  ['visto',     /ultima vez|visto|d[oó]nde|ubicaci[oó]n|^lugar|desaparici|desaparecio|^punto/],
+  ['tipo',      /tipo|categor[ií]a|necesidad|insumo|recurso/],
+  ['estado',    /situaci[oó]n|estatus|status|condici[oó]n/],
+  ['foto_url',  /foto|imagen|^photo$|url|enlace|link/],
+  ['nota',      /nota|observaci|detalle|descripci|se[nñ]as|ropa|caracter|comentario/],
 ];
 function mapHeaders(header: string[]): { idx: Record<string, number>; unmapped: string[] } {
   const idx: Record<string, number> = {}; const unmapped: string[] = [];
@@ -266,6 +270,7 @@ function validName(name: string, header: string[]): boolean {
   const n = name.trim(); const nn = norm(n);
   if (n.length < 3 || /^[\d#]/.test(n) || /^#(ref|n\/?a|value|name|div)/i.test(n)) return false;
   if (!/[a-záéíóúñ]/i.test(n) || NON_NAMES.test(nn) || JUNK_START.test(nn)) return false;
+  if (/\d{5,}/.test(n)) return false;                   // dígitos residuales tras redactar → posible documento colado
   if (header.some(h => norm(h) === nn)) return false;   // fila que repite el encabezado
   return true;
 }
@@ -285,11 +290,15 @@ function geocode(city: string): [number, number] | null { const g = GAZ[norm(cit
 function num(s: string): number | null { const v = parseFloat(String(s).replace(',', '.')); return Number.isFinite(v) ? v : null; }
 
 // ════════════════════ Adaptadores por destino ════════════════════
-type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; batch: string };
+// `file` = ID de Drive (estable ante rename); `fileName` = nombre legible (solo reporte).
+type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; fileName: string; batch: string };
+const NOCOORDS = Symbol('nocoords');   // fila válida pero descartada por faltar lat/lng (para desglosar el reporte)
 type Adapter = {
   keywords: RegExp; table: string; conflict: string;
-  build: (row: string[], cell: (k: string) => string, ctx: Ctx) => any | null;
+  build: (row: string[], cell: (k: string) => string, ctx: Ctx) => any | typeof NOCOORDS | null;
 };
+// OJO orden: logística ANTES que zona (un archivo "insumos por zona" es logística, no daño
+// estructural); hospitales ANTES que acopio (un "centro de salud" es hospital, no acopio).
 const ADAPTERS: Adapter[] = [
   {
     keywords: /desaparec|extravi|menores|ni[nñ]os|ni[nñ]as|perdid/i, table: 'desaparecidos_reportes', conflict: 'ext_id',
@@ -297,52 +306,51 @@ const ADAPTERS: Adapter[] = [
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
       const zona = redactText(cell('zona')), visto = redactText(cell('visto')), edad = cleanEdad(cell('edad'));
       const statusRaw = ctx.statusCol !== undefined ? (row[ctx.statusCol] || '') : cell('estado');
-      const foto = safeFoto(cell('foto_url'));
       return {
         ext_id: `drive:${ctx.file}:${norm([nombre, zona, visto, edad].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch,
         nombre, edad: edad || null, zona: zona || null, visto: visto || null,
-        contacto: cleanPhone(cell('contacto')) || null, nota: redactText(cell('nota')) || null,
-        foto_url: foto, estado: FOUND_RE.test(statusRaw) ? 'encontrado' : 'buscando',
+        contacto: cleanPhone(cell('contacto')) || null, nota: redactText(cell('nota') || cell('direccion')) || null,
+        foto_url: safeFoto(cell('foto_url')), estado: FOUND_RE.test(statusRaw) ? 'encontrado' : 'buscando',
       };
     },
   },
   {
-    keywords: /hospital|ingreso|paciente|admisi|herido|atendid|lesionad/i, table: 'hospital_admisiones', conflict: 'id',
+    keywords: /hospital|ingreso|paciente|admisi|herido|atendid|lesionad|centros? de salud|asistencial|ambulatorio|cl[ií]nica/i, table: 'hospital_admisiones', conflict: 'id',
     build: (row, cell, ctx) => {
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
-      const hospital = redactText(cell('hospital')) || null; const fecha = cell('fecha') || null;
-      return { id: norm(`${nombre}|${hospital || ''}`).slice(0, 200), nombre, hospital, fecha, source: `drive:${ctx.file}`, updated_at: ctx.batch };
+      const hospital = redactText(cell('hospital')) || null;
+      return { id: norm(`${nombre}|${hospital || ''}`).slice(0, 200), nombre, hospital, fecha: redactText(cell('fecha')) || null, source: `drive:${ctx.file}`, updated_at: ctx.batch };
     },
   },
   {
-    keywords: /acopio|centros?\b|donaci|suministro|colecta|insumos?/i, table: 'centros_acopio_external', conflict: 'external_id',
+    keywords: /acopio|donaci|colecta|suministro|centro de acopio/i, table: 'centros_acopio_external', conflict: 'external_id',
     build: (row, cell, ctx) => {
       const nombre = redactText(cell('nombre')); if (nombre.length < 3 || !/[a-záéíóúñ]/i.test(nombre)) return null;
       const lat = num(cell('lat')), lng = num(cell('lng')); const g = (lat == null || lng == null) ? geocode(cell('zona')) : null;
       return {
         external_id: `drive:${ctx.file}:${norm(nombre)}`.slice(0, 200), source: `drive:${ctx.file}`, last_synced: ctx.batch,
-        nombre, direccion: redactText(cell('zona') || cell('nota')) || null, telefono: cleanPhone(cell('contacto')) || null,
+        nombre, direccion: redactText(cell('direccion') || cell('zona') || cell('nota')) || null, telefono: cleanPhone(cell('contacto')) || null,
         lat: lat ?? g?.[0] ?? null, lng: lng ?? g?.[1] ?? null,
       };
     },
   },
   {
-    keywords: /zona|afectad|da[nñ]o|derrumbe|colapso|damnificad|grieta/i, table: 'zona_reports', conflict: 'ext_id',
+    keywords: /log[ií]stic|necesidad|insumo|comida|agua|refugio|albergue|ayuda|v[ií]vere|damnificad/i, table: 'logistica_reports', conflict: 'ext_id',
     build: (row, cell, ctx) => {
-      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
-      if (lat == null || lng == null) return null;  // zona_reports exige coordenadas
-      const ciudad = redactText(cell('zona')) || null; const tipo = normTipo(cell('tipo'), ['colapso', 'grietas', 'inundacion', 'via', 'incendio', 'otro']);
-      return { ext_id: `drive:${ctx.file}:${norm([ciudad, tipo, lat, lng].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo };
-    },
-  },
-  {
-    keywords: /log[ií]stic|necesidad|insumo|comida|agua|refugio|albergue|ayuda|v[ií]vere/i, table: 'logistica_reports', conflict: 'ext_id',
-    build: (row, cell, ctx) => {
-      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
-      if (lat == null || lng == null) return null;
+      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
+      if (lat == null || lng == null) return NOCOORDS;
       const ciudad = redactText(cell('zona')) || null; const tipo = normTipo(cell('tipo'), ['comida', 'agua', 'medicinas', 'higiene', 'ropa', 'voluntarios', 'otro']);
       const estado = /cubiert|saturad|ok|listo/i.test(cell('estado')) ? 'cubierto' : 'falta';
       return { ext_id: `drive:${ctx.file}:${norm([ciudad, tipo, lat, lng].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo, estado, nota: redactText(cell('nota')) || null };
+    },
+  },
+  {
+    keywords: /zona|afectad|da[nñ]o|derrumbe|colapso|grieta|estructura/i, table: 'zona_reports', conflict: 'ext_id',
+    build: (row, cell, ctx) => {
+      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
+      if (lat == null || lng == null) return NOCOORDS;  // zona_reports exige coordenadas
+      const ciudad = redactText(cell('zona')) || null; const tipo = normTipo(cell('tipo'), ['colapso', 'grietas', 'inundacion', 'via', 'incendio', 'otro']);
+      return { ext_id: `drive:${ctx.file}:${norm([ciudad, tipo, lat, lng].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo };
     },
   },
 ];
@@ -363,42 +371,56 @@ export default async function handler(req: Request): Promise<Response> {
     if (!cands.length) { await mark(0); return json({ status: 'sin_archivos', hint: 'Sube un .csv, .xlsx, .json o Google Sheet con un nombre como "desaparecidos", "hospitales", "acopio", "zonas" o "logistica".' }); }
 
     const batch = new Date().toISOString(); const reports: any[] = []; let totalRows = 0;
+    const nameRe = FIELD_SYNS.find(([k]) => k === 'nombre')![1];
     for (const f of cands.slice(0, MAX_FILES)) {
       const adapter = routeOf(f.name);
       if (!adapter) { reports.push({ archivo: f.name, estado: 'sin_clasificar', nota: 'el nombre no indica el destino' }); continue; }
+      const sourceVal = `drive:${f.id}`;   // identidad por ID de Drive (estable ante rename)
       try {
         const grid = f.kind === 'xlsx' ? await xlsxToGrid(await downloadBytes(f))
           : f.kind === 'json' ? jsonToGrid(await downloadText(f))
             : parseCSV(await downloadText(f));
         if (grid.length < 2) { reports.push({ archivo: f.name, destino: adapter.table, estado: 'vacio' }); continue; }
         const header = grid[0]; const { idx, unmapped } = mapHeaders(header);
+        // Concatena TODAS las columnas de nombre (p.ej. Apellidos + Nombres) → no pierde la mitad
+        const nombreCols = header.map((_, i) => i).filter(i => nameRe.test(norm(header[i])));
         // estatus por VALOR: si la columna 'zona' tiene valores de estatus, muévela a estado
         let statusCol: number | undefined;
         if (idx.zona !== undefined && looksLikeStatus(gridColumn(grid, idx.zona))) { statusCol = idx.zona; delete idx.zona; }
         if (statusCol === undefined && idx.estado === undefined) {
           for (let c = 0; c < header.length; c++) if (!Object.values(idx).includes(c) && looksLikeStatus(gridColumn(grid, c))) { statusCol = c; break; }
         }
-        const ctx: Ctx = { idx, header, statusCol: statusCol ?? idx.estado, file: f.name, batch };
-        const cellFor = (row: string[]) => (k: string) => { const i = idx[k]; return i === undefined ? '' : (row[i] || '').trim(); };
-        const rows: any[] = []; const seen = new Set<string>(); let skipped = 0;
+        const ctx: Ctx = { idx, header, statusCol: statusCol ?? idx.estado, file: f.id, fileName: f.name, batch };
+        const cellFor = (row: string[]) => (k: string) => {
+          if (k === 'nombre' && nombreCols.length) return nombreCols.map(i => (row[i] || '').trim()).filter(Boolean).join(' ');
+          const i = idx[k]; return i === undefined ? '' : (row[i] || '').trim();
+        };
+        const rows: any[] = []; const seen = new Set<string>(); let basura = 0, sinCoords = 0;
         for (let r = 1; r < grid.length && rows.length < MAX_ROWS; r++) {
           const rec = adapter.build(grid[r], cellFor(grid[r]), ctx);
-          if (!rec) { skipped++; continue; }
-          const key = rec[adapter.conflict]; if (seen.has(key)) continue; seen.add(key);
+          if (rec === NOCOORDS) { sinCoords++; continue; }
+          if (!rec) { basura++; continue; }
+          const key = (rec as any)[adapter.conflict]; if (seen.has(key)) continue; seen.add(key);
           rows.push(rec);
         }
+        let espejo = 'no_aplica';
         if (rows.length) {
+          // cuántas filas tenía ESTE archivo antes (para detectar una descarga truncada)
+          let prev = 0;
+          try { const cr = await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) }); prev = parseInt((cr.headers.get('content-range') || '').split('/')[1] || '0', 10) || 0; } catch {}
           for (let i = 0; i < rows.length; i += 500) {
             const r = await fetch(`${SB}/rest/v1/${adapter.table}?on_conflict=${adapter.conflict}`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(rows.slice(i, i + 500)) });
-            if (!r.ok) throw new Error(`upsert ${r.status}: ${(await r.text()).slice(0, 140)}`);
+            if (!r.ok) { const t = (await r.text()).slice(0, 160); throw new Error(/does not exist|on conflict|42P10|PGRST204/i.test(t) ? `falta correr schema_drive_sync.sql (${r.status})` : `upsert ${r.status}: ${t}`); }
           }
-          // ESPEJO: borra de ESTE archivo lo que ya no está (sin tocar reportes de la app ni otros orígenes).
-          // Solo si el archivo parseó con filas → nunca vacía la tabla por un fallo de descarga.
+          // ESPEJO: borra de ESTE archivo (por ID) lo que ya no está. Guardas: solo si parseó filas,
+          // nunca toca reportes de la app (source NULL) ni otros archivos, y NO borra si las filas
+          // caen a <50% de lo previo (posible descarga parcial) → evita borrar gente por un fallo.
           const stampCol = adapter.table === 'centros_acopio_external' ? 'last_synced' : 'updated_at';
-          await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(`drive:${f.name}`)}&${stampCol}=lt.${encodeURIComponent(batch)}`, { method: 'DELETE', headers: sbH({ Prefer: 'return=minimal' }) }).catch(() => {});
+          if (prev > 0 && rows.length < prev * 0.5) { espejo = 'omitido_posible_descarga_truncada'; }
+          else { await fetch(`${SB}/rest/v1/${adapter.table}?source=eq.${encodeURIComponent(sourceVal)}&${stampCol}=lt.${encodeURIComponent(batch)}`, { method: 'DELETE', headers: sbH({ Prefer: 'return=minimal' }) }).catch(() => {}); espejo = 'ok'; }
         }
         totalRows += rows.length;
-        reports.push({ archivo: f.name, destino: adapter.table, importadas: rows.length, descartadas: skipped, columnas_no_reconocidas: unmapped });
+        reports.push({ archivo: f.name, destino: adapter.table, importadas: rows.length, descartadas_basura: basura, descartadas_sin_coords: sinCoords, columnas_no_reconocidas: unmapped, espejo });
       } catch (e: any) { reports.push({ archivo: f.name, destino: adapter.table, error: e?.message || 'parse' }); }
     }
     await mark(totalRows);

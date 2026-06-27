@@ -2,8 +2,11 @@
 node_modules/
 # secretos
 .env
+.env.*
 .env.local
 .vercel
+# scratch temporal de pruebas
+_scratch/
 # notas personales ajenas al proyecto
 informacion Andrea.txt
 # datos derivados pesados (intermedios del importador; se regeneran)
