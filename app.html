@@ -1265,18 +1265,22 @@ function openDesapReport(cat){
   _desapCat = cat==='nino' ? 'nino' : null;
   const sheet=document.getElementById('mapSheet');
   const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
-  sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
+  sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas (o repórtalo como rescatado/encontrado) para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
+    <label class="fl">Estado *</label>
+    <select id="dpEstado"><option value="buscando">🔴 Desaparecido (lo busco)</option><option value="encontrado">🟢 Rescatado / Encontrado</option></select>
     <label class="fl">Nombre y apellido *</label><input id="dpNombre" placeholder="Ej: María Pérez" maxlength="80">
     <div class="row"><div><label class="fl">Edad</label><input id="dpEdad" placeholder="Ej: 8 años" maxlength="20"></div>
-      <div><label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select></div></div>
+      <div><label class="fl">Cédula (opcional)</label><input id="dpCedula" placeholder="V-00000000" maxlength="20"></div></div>
+    <label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
+    <label class="fl">Dirección (opcional)</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda" maxlength="160">
     <label class="fl">¿Dónde/cuándo se le vio por última vez?</label><input id="dpVisto" placeholder="Ej: edificio en Chacao, 24 jun" maxlength="160">
-    <label class="fl">Contacto de quien busca (opcional)</label><input id="dpContacto" placeholder="0414-0000000" maxlength="40">
+    <label class="fl">Contacto de quien reporta (opcional)</label><input id="dpContacto" placeholder="0414-0000000" maxlength="40">
     <label class="fl">Nota (señas, ropa…) opcional</label><input id="dpNota" placeholder="Detalles que ayuden a identificar" maxlength="200">
     <label class="fl">Foto de la persona (opcional)</label>
     <input id="dpFoto" type="file" accept="image/*" style="width:100%;font-size:13px;padding:9px;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px">
     <button class="btn primary" style="margin-top:14px" onclick="submitDesapReport(this)">Publicar</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
-    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, el nombre y la foto serán visibles para ayudar a localizar a la persona. No publiques datos sensibles innecesarios. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
+    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y la foto serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
   document.getElementById('mapModal').classList.add('show');
 }
 async function submitDesapReport(btn){
@@ -1286,11 +1290,12 @@ async function submitDesapReport(btn){
   if(btn) btn.textContent='Publicando…';
   let foto=null; const file=document.getElementById('dpFoto')?.files?.[0];
   if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); }
-  const row={ nombre, edad:g('dpEdad').slice(0,20), zona:g('dpZona'), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado:'buscando', categoria:_desapCat };
+  const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
+  const row={ nombre, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:g('dpDireccion').slice(0,160), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado, categoria:_desapCat };
   try{
     const res=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
     if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
-    closeMapModal(); toast('✅ Publicado. Gracias — ayuda a difundir.');
+    closeMapModal(); toast(estado==='encontrado'?'✅ Publicado como rescatado/encontrado. ¡Gracias!':'✅ Publicado. Gracias — ayuda a difundir.');
     if(_desapCat==='nino'){ loadNinos(); }
     else { const q=document.getElementById('hospQ'); if(q){ q.value=nombre.split(' ')[0]; searchHospital(); } }
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Publicar'; }
@@ -1398,6 +1403,8 @@ function searchHospital(){
           + desap.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🔍'}</div><div class="info">
             <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} ${d.estado==='encontrado'?'<span class="badge st" style="color:var(--green)">encontrado</span>':''}</div>
             <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
+            ${d.cedula?`<div class="dt">🪪 ${esc(d.cedula)}</div>`:''}
+            ${d.direccion?`<div class="dt">🏠 ${esc(d.direccion)}</div>`:''}
             ${d.contacto?`<div class="dt">📞 <a href="tel:${esc(d.contacto)}">${esc(d.contacto)}</a></div>`:''}
             ${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}
           </div></div>`).join('');
@@ -1492,7 +1499,8 @@ function renderNinos(){
   if(!_ninosLoaded){ el.innerHTML='<div class="empty" style="padding:14px">Cargando…</div>'; return; }
   if(!NINOS.length){ el.innerHTML='<div class="empty" style="padding:14px">Aún no hay niños en el registro.<br>En cuanto se sincronice el archivo de la red de emergencia (o reportes), aparecerán aquí.</div>'; return; }
   const q=(document.getElementById('ninosSearch')?.value||'').toLowerCase().trim();
-  let list=NINOS;
+  // Rescatados (encontrados) PRIMERO → buenas noticias arriba
+  let list=NINOS.slice().sort((a,b)=>(b.estado==='encontrado')-(a.estado==='encontrado'));
   if(ninosFilter==='buscando') list=list.filter(n=>n.estado!=='encontrado');
   else if(ninosFilter==='encontrado') list=list.filter(n=>n.estado==='encontrado');
   if(q) list=list.filter(n=>(`${n.nombre} ${n.zona||''} ${n.visto||''}`).toLowerCase().includes(q));
@@ -1505,6 +1513,8 @@ function renderNinos(){
     return `<div class="person" style="position:relative">${delBtn('desap',n.id)}<div class="pic">${pic}</div><div class="info">
       <div class="nm">${esc(n.nombre)}${n.edad?' · '+esc(n.edad):''} ${badge}</div>
       <div class="dt">${n.zona?'📍 '+esc(n.zona):''}${n.visto?' · '+esc(n.visto):''}</div>
+      ${n.cedula?`<div class="dt">🪪 ${esc(n.cedula)}</div>`:''}
+      ${n.direccion?`<div class="dt">🏠 ${esc(n.direccion)}</div>`:''}
       ${n.contacto?`<div class="dt">📞 <a href="tel:${esc(n.contacto)}">${esc(n.contacto)}</a></div>`:''}
       ${n.nota?`<div class="dt">${esc(n.nota)}</div>`:''}
     </div></div>`;

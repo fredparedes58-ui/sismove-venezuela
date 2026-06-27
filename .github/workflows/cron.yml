@@ -44,6 +44,7 @@ jobs:
               sleep 2
             done
             curl -s "$BASE/api/sismo-stats?key=$KEY&refresh=1" -o /dev/null -w "  sismo-stats %{http_code}\n" || true
+            curl -s "$BASE/api/cifras?key=$KEY" -o /dev/null -w "  cifras (redayuda, 30min) %{http_code}\n" || true
             curl -s "$BASE/api/notify?key=$KEY" -o /dev/null -w "  notify %{http_code}\n" || true
             [ "$n" -lt 30 ] && sleep 600                                               # 10 min hasta el siguiente
           done

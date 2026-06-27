@@ -137,6 +137,21 @@
     }
     @media (max-width: 400px) { .grid { grid-template-columns: 1fr; } }
 
+    /* ---- Cifras de la emergencia (auto-actualizadas) ---- */
+    .cifras { max-width: 760px; margin: 4px auto 0; padding: 0 16px; }
+    .cifras-title { font-size: 15px; font-weight: 800; color: var(--texto); text-align: center; margin: 0 0 12px; }
+    .cifras-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    @media (max-width: 640px) { .cifras-grid { grid-template-columns: repeat(2, 1fr); } }
+    .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .cifra-num { font-size: 24px; font-weight: 800; line-height: 1; color: var(--texto); font-variant-numeric: tabular-nums; }
+    .cifra-lbl { font-size: 10.5px; color: var(--gris); margin-top: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+    .cifra.c-rojo .cifra-num { color: var(--rojo); }
+    .cifra.c-verde .cifra-num { color: var(--verde); }
+    .cifra.c-oro .cifra-num { color: var(--oro); }
+    .cifra.c-mor .cifra-num { color: var(--morado); }
+    .cifras-fuente { text-align: center; font-size: 11px; color: var(--gris); margin: 10px 0 0; line-height: 1.5; }
+    .cifras-fuente a { color: var(--naranja); font-weight: 700; text-decoration: none; }
+
     .bloque {
       background: var(--surface);
       border: 1.5px solid var(--borde);
@@ -364,6 +379,21 @@
   <p class="cta-sub">Responde tus preguntas en tiempo real · Disponible ahora</p>
 </div>
 
+<section class="cifras" id="cifras">
+  <h2 class="cifras-title">📊 Cifras de la emergencia</h2>
+  <div class="cifras-grid" id="cifrasGrid">
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Aún sin contacto</div></div>
+    <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
+    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
+    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="total">—</div><div class="cifra-lbl">Registros totales</div></div>
+  </div>
+  <p class="cifras-fuente">Actualizado <span id="cifrasAgo">cada 30 min</span> · Fuentes:
+    <a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">Red Ayuda Venezuela</a> ·
+    <a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">Desaparecidos Terremoto Venezuela</a>
+  </p>
+</section>
+
 <div class="grid-wrapper">
   <p class="grid-intro">Toca el bloque que necesitas — se abre en una nueva pestaña.</p>
   <div class="grid">
@@ -502,6 +532,16 @@
 
 
 <script>
+/* Panel "Cifras de la emergencia": auto-actualizado vía /api/cifras (scraping de
+   redayudavenezuela.com cada 30 min). Atribución a las fuentes en el HTML. */
+(function(){
+  function fmt(n){ return (n==null)?'—':Number(n).toLocaleString('es-VE'); }
+  function ago(t){ var s=(Date.now()-t)/1000; if(s<90)return 'hace instantes'; var m=Math.round(s/60); if(m<60)return 'hace '+m+' min'; var h=Math.round(m/60); return h<24?('hace '+h+' h'):'hace '+Math.round(h/24)+' d'; }
+  fetch('/api/cifras').then(function(r){return r.json();}).then(function(d){
+    document.querySelectorAll('#cifrasGrid .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(d[k]!=null) e.textContent=fmt(d[k]); });
+    var ag=document.getElementById('cifrasAgo'); if(ag && d.updated_at) ag.textContent=ago(new Date(d.updated_at).getTime());
+  }).catch(function(){});
+})();
 /* Banner rojo: cifras por FUENTE (scraping de Vozpópuli, OKDIARIO y afectadosporelterremoto
    vía /api/sismo-stats). Si falla, quedan las cifras del HTML como respaldo. */
 (function(){
