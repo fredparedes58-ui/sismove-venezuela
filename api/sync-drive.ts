@@ -343,11 +343,13 @@ const ADAPTERS: Adapter[] = [
       const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
       const zona = redactText(cell('zona')), visto = redactText(cell('visto')), edad = cleanEdad(cell('edad'));
       const statusRaw = ctx.statusCol !== undefined ? (row[ctx.statusCol] || '') : cell('estado');
+      // Apartado dedicado de niños: si el NOMBRE DEL ARCHIVO indica menores, marca categoria='nino'
+      const categoria = /ni[nñ]o|menor|infante/i.test(ctx.fileName) ? 'nino' : null;
       return {
         ext_id: `drive:${ctx.file}:${norm([nombre, zona, visto, edad].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch,
         nombre, edad: edad || null, zona: zona || null, visto: visto || null,
         contacto: cleanPhone(cell('contacto')) || null, nota: redactText(cell('nota') || cell('direccion')) || null,
-        foto_url: safeFoto(cell('foto_url')), estado: FOUND_RE.test(statusRaw) ? 'encontrado' : 'buscando',
+        foto_url: safeFoto(cell('foto_url')), estado: FOUND_RE.test(statusRaw) ? 'encontrado' : 'buscando', categoria,
       };
     },
   },

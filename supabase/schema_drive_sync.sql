@@ -6,6 +6,8 @@
 
 -- desaparecidos_reportes (ext_id y source ya vienen de schema_desaparecidos_sync.sql)
 alter table desaparecidos_reportes add column if not exists updated_at timestamptz default now();
+alter table desaparecidos_reportes add column if not exists categoria  text;   -- 'nino' = apartado de niños; null = general
+create index if not exists idx_desap_rep_categoria on desaparecidos_reportes(categoria);
 
 -- zona_reports — necesita clave estable + sello de lote para espejar el archivo sin duplicar
 alter table zona_reports add column if not exists ext_id     text;

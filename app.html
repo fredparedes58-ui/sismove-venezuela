@@ -359,6 +359,30 @@
     </div>
   </section>
 
+  <!-- ============ NIÑOS DESAPARECIDOS (apartado dedicado) ============ -->
+  <section class="view pad" id="v-ninos">
+    <h2 class="title">👶 Niños desaparecidos y rescatados</h2>
+    <p class="sub">Apartado exclusivo de niñas y niños. Si reconoces a alguno o tienes información, contacta de inmediato a la Cruz Roja.</p>
+    <div id="ninosSync" class="sync-bar"></div>
+
+    <div class="card" style="background:linear-gradient(140deg,rgba(255,77,79,.08),transparent);border-color:#4a1c1f">
+      <b style="font-size:14px">🤝 ¿Reconoces a un niño/a o buscas al tuyo?</b>
+      <div style="font-size:13px;color:var(--mut);margin:6px 0 10px">Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.</div>
+      <a class="btn ok" style="text-decoration:none;display:block;text-align:center" href="tel:04227994880">📞 Llamar Cruz Roja · 0422 799 4880</a>
+    </div>
+
+    <input id="ninosSearch" placeholder="🔎 Buscar por nombre…" oninput="renderNinos()" style="margin-bottom:10px" />
+    <div id="ninosChips" class="chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="ninosList"><div class="empty" style="padding:14px">Cargando…</div></div>
+
+    <div class="card" style="margin-top:8px">
+      <b style="font-size:14px">➕ ¿Buscas a un niño/a? Publícalo aquí</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 10px">Aparecerá en este apartado (con foto) para que la comunidad y los rescatistas ayuden.</div>
+      <button class="btn primary" onclick="openDesapReport('nino')">➕ Reportar niño/a desaparecido</button>
+    </div>
+    <p style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:8px 11px;border-radius:9px;margin-top:10px">⚠️ Datos de la red de emergencia y reportes ciudadanos: pueden tener errores. La cédula nunca se muestra. Confirma siempre con la <b>Cruz Roja (0422 799 4880)</b>.</p>
+  </section>
+
   <!-- ============ MAPAS EN VIVO ============ -->
   <section class="view pad" id="v-refugios">
     <h2 class="title">Mapas en vivo</h2>
@@ -476,6 +500,7 @@
   <div class="tabs-in">
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span>Ayuda</button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span>Buscar</button>
+    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span>Niños</button>
     <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span>Mapas</button>
     <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span>Panel</button>
     <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span>Bot</button>
@@ -649,6 +674,7 @@ function go(v, fromBack){
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
   if(v==='desap'){ renderDesap(); loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
+  if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
   updateBackBtn();
@@ -1234,9 +1260,12 @@ function openMapReport(kind){
 function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); }
 
 /* ---------- Reportar persona desaparecida (registro propio) ---------- */
-function openDesapReport(){
+let _desapCat=null;
+function openDesapReport(cat){
+  _desapCat = cat==='nino' ? 'nino' : null;
   const sheet=document.getElementById('mapSheet');
-  sheet.innerHTML=`<h3>🔍 Reportar persona desaparecida</h3><p>Publica a quien buscas para que otros y los rescatistas ayuden. Aparecerá en el buscador.</p>
+  const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
+  sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
     <label class="fl">Nombre y apellido *</label><input id="dpNombre" placeholder="Ej: María Pérez" maxlength="80">
     <div class="row"><div><label class="fl">Edad</label><input id="dpEdad" placeholder="Ej: 8 años" maxlength="20"></div>
       <div><label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select></div></div>
@@ -1257,12 +1286,13 @@ async function submitDesapReport(btn){
   if(btn) btn.textContent='Publicando…';
   let foto=null; const file=document.getElementById('dpFoto')?.files?.[0];
   if(file){ toast('📤 Subiendo foto…'); foto=await uploadFoto(file); }
-  const row={ nombre, edad:g('dpEdad').slice(0,20), zona:g('dpZona'), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado:'buscando' };
+  const row={ nombre, edad:g('dpEdad').slice(0,20), zona:g('dpZona'), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), nota:g('dpNota').slice(0,200), foto_url:foto, estado:'buscando', categoria:_desapCat };
   try{
     const res=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(row)});
     if(!res.ok){ toast('No se pudo publicar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Publicar'; return; }
     closeMapModal(); toast('✅ Publicado. Gracias — ayuda a difundir.');
-    const q=document.getElementById('hospQ'); if(q){ q.value=nombre.split(' ')[0]; searchHospital(); }
+    if(_desapCat==='nino'){ loadNinos(); }
+    else { const q=document.getElementById('hospQ'); if(q){ q.value=nombre.split(' ')[0]; searchHospital(); } }
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='Publicar'; }
 }
 
@@ -1290,8 +1320,17 @@ function delBtn(kind,id){
 async function deleteReport(kind,id,btn){
   if(!confirm('¿Borrar este reporte para todos?')) return;
   const key=localStorage.getItem('sismove_admin_key')||'';
-  const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
   if(btn) btn.textContent='…';
+  if(kind==='desap'){   // desaparecidos_reportes (incluye el apartado de niños)
+    try{
+      const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'desaparecidos_reportes',id,key})});
+      if(res.status===403){ toast('Clave de admin incorrecta','err'); if(btn)btn.textContent='🗑️'; return; }
+      if(!res.ok){ toast('No se pudo borrar','err'); if(btn)btn.textContent='🗑️'; return; }
+      NINOS=NINOS.filter(n=>n.id!==id); toast('🗑️ Borrado para todos'); renderNinos();
+    }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
+    return;
+  }
+  const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
   try{
     const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,id,key})});
     if(res.status===403){ toast('Clave de admin incorrecta','err'); if(btn)btn.textContent='🗑️'; return; }
@@ -1432,6 +1471,44 @@ function renderDesap(){
         <div class="dt">${d.cedula?'CI '+esc(d.cedula)+' · ':''}${d.zona?esc(d.zona):''}${d.created_at?' · '+ago(new Date(d.created_at).getTime()):''}</div>
       </div></div>`;
   }).join('') : '<div class="empty">Sin coincidencias para ese nombre/cédula.</div>';
+}
+
+/* ---------- Niños desaparecidos (apartado dedicado) ---------- */
+let NINOS=[], ninosFilter='all', _ninosLoaded=false;
+async function loadNinos(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=*&categoria=eq.nino&order=created_at.desc&limit=500`,{headers:SB_H});
+    NINOS = r.ok ? await r.json() : [];
+  }catch(e){ NINOS=[]; }
+  _ninosLoaded=true; renderNinos();
+}
+function renderNinos(){
+  const el=document.getElementById('ninosList'); if(!el) return;
+  const sync=document.getElementById('ninosSync'); if(sync) sync.textContent=_ninosLoaded?`${NINOS.length} niño(s) en el registro`:'';
+  const c={all:NINOS.length, buscando:NINOS.filter(n=>n.estado!=='encontrado').length, encontrado:NINOS.filter(n=>n.estado==='encontrado').length};
+  const chEl=document.getElementById('ninosChips');
+  if(chEl) chEl.innerHTML=[['all','Todos',c.all],['buscando','🔴 Buscando',c.buscando],['encontrado','🟢 Encontrados',c.encontrado]]
+    .map(([k,l,n])=>`<button class="chip ${ninosFilter===k?'on':''}" onclick="ninosFilter='${k}';renderNinos()">${l} · ${n}</button>`).join('');
+  if(!_ninosLoaded){ el.innerHTML='<div class="empty" style="padding:14px">Cargando…</div>'; return; }
+  if(!NINOS.length){ el.innerHTML='<div class="empty" style="padding:14px">Aún no hay niños en el registro.<br>En cuanto se sincronice el archivo de la red de emergencia (o reportes), aparecerán aquí.</div>'; return; }
+  const q=(document.getElementById('ninosSearch')?.value||'').toLowerCase().trim();
+  let list=NINOS;
+  if(ninosFilter==='buscando') list=list.filter(n=>n.estado!=='encontrado');
+  else if(ninosFilter==='encontrado') list=list.filter(n=>n.estado==='encontrado');
+  if(q) list=list.filter(n=>(`${n.nombre} ${n.zona||''} ${n.visto||''}`).toLowerCase().includes(q));
+  el.innerHTML = list.length ? list.map(n=>{
+    const found=n.estado==='encontrado';
+    const badge = found?'<span class="badge st" style="color:var(--green)">✅ encontrado</span>':'<span class="badge alta">buscando</span>';
+    const pic = n.foto_url
+      ? `<img src="${esc(n.foto_url)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.outerHTML='<div class=&quot;pic&quot;>👶</div>'">`
+      : '👶';
+    return `<div class="person" style="position:relative">${delBtn('desap',n.id)}<div class="pic">${pic}</div><div class="info">
+      <div class="nm">${esc(n.nombre)}${n.edad?' · '+esc(n.edad):''} ${badge}</div>
+      <div class="dt">${n.zona?'📍 '+esc(n.zona):''}${n.visto?' · '+esc(n.visto):''}</div>
+      ${n.contacto?`<div class="dt">📞 <a href="tel:${esc(n.contacto)}">${esc(n.contacto)}</a></div>`:''}
+      ${n.nota?`<div class="dt">${esc(n.nota)}</div>`:''}
+    </div></div>`;
+  }).join('') : '<div class="empty" style="padding:14px">Sin coincidencias para ese filtro/nombre.</div>';
 }
 
 /* ---------- Panel / Dashboard ---------- */
