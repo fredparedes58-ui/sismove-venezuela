@@ -63,7 +63,7 @@ export default async function handler(req: Request): Promise<Response> {
   const force = !!url && (url.searchParams.get('key') === SECRET || url.searchParams.get('refresh') === '1');
   const cur = await stored();
   // GET normal (portada): devuelve lo guardado sin scrapear (rápido). Solo scrapea en 1ª vez.
-  if (!force && cur) return json(out(cur));
+  if (!force && cur) return json(out(cur), 200, 'public, s-maxage=120, stale-while-revalidate=600');
   if (!force && !cur) { /* primera vez: scrape para sembrar */ }
   // throttle 30 min aun con key (el cron pega cada 10)
   if (force && cur?.updated_at && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000 && url?.searchParams.get('refresh') !== '1') {
@@ -93,6 +93,6 @@ function out(c: any) {
     ],
   };
 }
-function json(b: unknown, s = 200): Response {
-  return new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } });
+function json(b: unknown, s = 200, cache = 'no-store'): Response {
+  return new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': cache } });
 }
