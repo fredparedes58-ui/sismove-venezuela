@@ -143,8 +143,9 @@
     /* rejilla pareja: 12 marcadores → 6×2 ; bloque redayuda (5) → fila de 5 (.g5) */
     .cifras-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
     .cifras-grid.g5 { grid-template-columns: repeat(5, 1fr); }
+    .cifras-grid.g4 { grid-template-columns: repeat(4, 1fr); }
     @media (max-width: 700px) { .cifras-grid { grid-template-columns: repeat(4, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 460px) { .cifras-grid { grid-template-columns: repeat(3, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 460px) { .cifras-grid { grid-template-columns: repeat(3, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(2, 1fr); } .cifras-grid.g4 { grid-template-columns: repeat(2, 1fr); } }
     .cifras-fuente-lbl { font-size: 12.5px; color: var(--texto); font-weight: 800; margin: 0 0 8px; }
     .cifras-fuente-lbl .tag { font-weight: 600; color: var(--gris); font-size: 11px; }
     .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); display: flex; flex-direction: column; justify-content: center; }
@@ -389,19 +390,11 @@
 
   <!-- Bloque 1 · Desaparecidos Terremoto Venezuela (actualización manual) -->
   <div class="cifras-fuente-lbl">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></div>
-  <div class="cifras-grid" id="dtvGrid">
-    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Desaparecidos</div></div>
-    <div class="cifra c-rojo"><div class="cifra-num" data-k="sin_contacto">—</div><div class="cifra-lbl">Sin contacto</div></div>
+  <div class="cifras-grid g4" id="dtvGrid">
+    <div class="cifra"><div class="cifra-num" data-k="reportes">—</div><div class="cifra-lbl">Cantidad de reportes</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="personas_unicas">—</div><div class="cifra-lbl">Personas únicas (aprox.)</div></div>
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="sin_contacto">—</div><div class="cifra-lbl">Aún sin contacto</div></div>
     <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="en_hospitales">—</div><div class="cifra-lbl">En hospitales</div></div>
-    <div class="cifra c-verde"><div class="cifra-num" data-k="a_salvo">—</div><div class="cifra-lbl">A salvo</div></div>
-    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="danos">—</div><div class="cifra-lbl">Daños</div></div>
-    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="voluntarios">—</div><div class="cifra-lbl">Voluntarios</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="necesidades">—</div><div class="cifra-lbl">Necesidades</div></div>
-    <div class="cifra c-rojo"><div class="cifra-num" data-k="atrapados">—</div><div class="cifra-lbl">Atrapados</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="refugiados">—</div><div class="cifra-lbl">Refugiados</div></div>
   </div>
   <p class="cifras-fuente"><a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔗 desaparecidosterremotovenezuela.com →</a></p>
 

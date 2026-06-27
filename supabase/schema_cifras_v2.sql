@@ -6,11 +6,10 @@
 -- auto-scrapear; se guardan a mano en este jsonb y se muestran con su enlace y fecha).
 alter table cifras add column if not exists dtv jsonb;
 
+-- 4 marcadores de desaparecidosterremotovenezuela.com (manual; su web tiene reCAPTCHA).
 insert into cifras (id, dtv) values (1, '{
-  "desaparecidos": 92297, "sin_contacto": 55031, "localizados": 13022,
-  "en_hospitales": 10511, "a_salvo": 9564, "heridos": 4500, "danos": 1073,
-  "fallecidos": 920, "voluntarios": 482, "necesidades": 141, "atrapados": 104,
-  "refugiados": null, "updated": "2026-06-27"
+  "reportes": 77922, "personas_unicas": 69227, "sin_contacto": 55465,
+  "localizados": 13762, "updated": "2026-06-27"
 }'::jsonb)
 on conflict (id) do update set dtv = excluded.dtv;
 
