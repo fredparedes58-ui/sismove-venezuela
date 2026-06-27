@@ -388,8 +388,25 @@
 <section class="cifras" id="cifras">
   <h2 class="cifras-title">📊 Cifras de la emergencia</h2>
 
-  <!-- Bloque 1 · Desaparecidos Terremoto Venezuela (actualización manual) -->
-  <div class="cifras-fuente-lbl">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></div>
+  <!-- Bloque 1 · Red Ayuda Venezuela (EN VIVO, cada 30 min) -->
+  <div class="cifras-fuente-lbl">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="redAgo">cada 30 min</span></span></div>
+  <div class="cifras-grid" id="redGrid">
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Desaparecidos</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="hospital">—</div><div class="cifra-lbl">En hospitales</div></div>
+    <div class="cifra c-verde"><div class="cifra-num" data-k="salvo">—</div><div class="cifra-lbl">A salvo</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="ninos">—</div><div class="cifra-lbl">Niños</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="denuncias">—</div><div class="cifra-lbl">Denuncias</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="voluntarios">—</div><div class="cifra-lbl">Voluntarios</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="necesidades">—</div><div class="cifra-lbl">Necesidades</div></div>
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="atrapados">—</div><div class="cifra-lbl">Atrapados</div></div>
+    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="danos">—</div><div class="cifra-lbl">Daños</div></div>
+    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
+  </div>
+  <p class="cifras-fuente"><a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">🔗 redayudavenezuela.com →</a></p>
+
+  <!-- Bloque 2 · Desaparecidos Terremoto Venezuela (manual) -->
+  <div class="cifras-fuente-lbl" style="margin-top:18px">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></div>
   <div class="cifras-grid g4" id="dtvGrid">
     <div class="cifra"><div class="cifra-num" data-k="reportes">—</div><div class="cifra-lbl">Cantidad de reportes</div></div>
     <div class="cifra"><div class="cifra-num" data-k="personas_unicas">—</div><div class="cifra-lbl">Personas únicas (aprox.)</div></div>
@@ -398,16 +415,17 @@
   </div>
   <p class="cifras-fuente"><a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔗 desaparecidosterremotovenezuela.com →</a></p>
 
-  <!-- Bloque 2 · Red Ayuda Venezuela (en vivo, cada 30 min) -->
-  <div class="cifras-fuente-lbl" style="margin-top:18px">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="cifrasAgo">cada 30 min</span></span></div>
-  <div class="cifras-grid g5" id="cifrasGrid">
-    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Aún sin contacto</div></div>
-    <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
-    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos</div></div>
-    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
-    <div class="cifra"><div class="cifra-num" data-k="total">—</div><div class="cifra-lbl">Registros totales</div></div>
+  <!-- Bloque 3 · Afectados por el Terremoto · Balance oficial (manual) -->
+  <div class="cifras-fuente-lbl" style="margin-top:18px">Afectados por el Terremoto · Balance oficial <span class="tag">· actualización manual <span id="afeFecha"></span></span></div>
+  <div class="cifras-grid" id="afeGrid">
+    <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos oficiales</div></div>
+    <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos oficiales</div></div>
+    <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Desaparecidos oficiales</div></div>
+    <div class="cifra c-verde"><div class="cifra-num" data-k="rescatados">—</div><div class="cifra-lbl">Rescatados oficiales</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="familias">—</div><div class="cifra-lbl">Familias afectadas</div></div>
+    <div class="cifra"><div class="cifra-num" data-k="edificaciones">—</div><div class="cifra-lbl">Edificaciones afectadas</div></div>
   </div>
-  <p class="cifras-fuente"><a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">🔗 redayudavenezuela.com →</a></p>
+  <p class="cifras-fuente"><a href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener">🔗 afectadosporelterremotovenezuela.com →</a></p>
 </section>
 
 <div class="grid-wrapper">
@@ -546,16 +564,16 @@
 /* Panel "Cifras de la emergencia": auto-actualizado vía /api/cifras (scraping de
    redayudavenezuela.com cada 30 min). Atribución a las fuentes en el HTML. */
 (function(){
-  function fmt(n){ return (n==null)?'—':Number(n).toLocaleString('es-VE'); }
+  function fmt(n){ if(n==null) return '—'; if(typeof n==='string') return n; return Number(n).toLocaleString('es-VE'); }
   function ago(t){ var s=(Date.now()-t)/1000; if(s<90)return 'hace instantes'; var m=Math.round(s/60); if(m<60)return 'hace '+m+' min'; var h=Math.round(m/60); return h<24?('hace '+h+' h'):'hace '+Math.round(h/24)+' d'; }
+  function fill(gridId, obj){ if(!obj) return; document.querySelectorAll('#'+gridId+' .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(obj[k]!=null) e.textContent=fmt(obj[k]); }); }
   fetch('/api/cifras').then(function(r){return r.json();}).then(function(d){
-    // Red Ayuda Venezuela (en vivo)
-    document.querySelectorAll('#cifrasGrid .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(d[k]!=null) e.textContent=fmt(d[k]); });
-    var ag=document.getElementById('cifrasAgo'); if(ag && d.updated_at) ag.textContent=ago(new Date(d.updated_at).getTime());
-    // Desaparecidos Terremoto Venezuela (manual)
-    var dtv=d.dtv||{};
-    document.querySelectorAll('#dtvGrid .cifra-num').forEach(function(e){ var k=e.getAttribute('data-k'); if(dtv[k]!=null) e.textContent=fmt(dtv[k]); });
-    var df=document.getElementById('dtvFecha'); if(df && dtv.updated) df.textContent='· '+dtv.updated;
+    fill('redGrid', d.red);   // Red Ayuda Venezuela (en vivo)
+    var ag=document.getElementById('redAgo'); if(ag && d.updated_at) ag.textContent=ago(new Date(d.updated_at).getTime());
+    fill('dtvGrid', d.dtv);   // Desaparecidos Terremoto Venezuela (manual)
+    var df=document.getElementById('dtvFecha'); if(df && d.dtv && d.dtv.updated) df.textContent='· '+d.dtv.updated;
+    fill('afeGrid', d.afe);   // Afectados · Balance oficial (manual)
+    var af=document.getElementById('afeFecha'); if(af && d.afe && d.afe.updated) af.textContent='· '+d.afe.updated;
   }).catch(function(){});
 })();
 /* Banner rojo: cifras EN VIVO de Red Ayuda Venezuela (vía /api/cifras, refrescado cada 30 min)

@@ -33,24 +33,23 @@ async function redCount(query: string): Promise<number | null> {
   } catch { return null; }
 }
 async function scrape() {
-  const [desap, local, total] = await Promise.all([
-    redCount('status=eq.active&select=id'),
-    redCount('status=eq.found&select=id'),
-    redCount('select=id'),
-  ]);
-  let fallecidos: number | null = null, heridos: number | null = null;
+  // Red Ayuda Venezuela: dashboard COMPLETO en vivo vía /api/stats (1 llamada).
+  let red: any = null, desap: number | null = null, fallecidos: number | null = null, heridos: number | null = null;
   try {
-    const o: any = await fetch('https://redayudavenezuela.com/api/official', { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } }).then(r => r.json());
-    fallecidos = o?.applied?.fallecidos ?? o?.parsed?.deaths ?? null;
-    heridos = o?.applied?.heridos ?? o?.parsed?.injured ?? null;
+    const j: any = await fetch('https://redayudavenezuela.com/api/stats', { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } }).then(r => r.json());
+    const st = j?.stats || {}, off = j?.official || {};
+    red = {
+      desaparecidos: st.desaparecidos ?? null, hospital: st.hospital ?? null, salvo: st.salvo ?? null,
+      ninos: j?.ninos ?? null, denuncias: j?.denuncias ?? null, voluntarios: st.voluntarios ?? null,
+      necesidades: st.necesidades ?? null, atrapados: st.atrapados ?? null, danos: st.danos ?? null,
+      heridos: off.heridos ?? null, fallecidos: off.fallecidos ?? null, puntos: st.puntos ?? null,
+    };
+    desap = st.desaparecidos ?? null; fallecidos = off.fallecidos ?? null; heridos = off.heridos ?? null;
   } catch {}
-  if (fallecidos == null || heridos == null) {   // respaldo: tabla official_stats de redayuda
-    try {
-      const os: any = await fetch(`${RED_SB}/rest/v1/official_stats?id=eq.1&select=fallecidos,heridos`, { headers: { apikey: RED_ANON, Authorization: `Bearer ${RED_ANON}` } }).then(r => r.json());
-      if (Array.isArray(os) && os[0]) { fallecidos = fallecidos ?? os[0].fallecidos; heridos = heridos ?? os[0].heridos; }
-    } catch {}
-  }
-  return { desaparecidos: desap, localizados: local, total, fallecidos, heridos };
+  let local: number | null = null;
+  try { local = await redCount('status=eq.found&select=id'); } catch {}
+  const total = (desap != null && local != null) ? desap + local : null;
+  return { desaparecidos: desap, localizados: local, total, fallecidos, heridos, red };
 }
 async function stored(): Promise<any | null> {
   const r = await fetch(`${SB}/rest/v1/cifras?id=eq.1&select=*`, { headers: sbH() }).then(x => x.json()).catch(() => []);
@@ -60,39 +59,44 @@ async function stored(): Promise<any | null> {
 export default async function handler(req: Request): Promise<Response> {
   if (!SB || !SERVICE) return json({ error: 'no_supabase' }, 503);
   const url = (() => { try { return new URL(req.url); } catch { return null; } })();
-  const force = !!url && url.searchParams.get('key') === SECRET;   // SOLO el cron (con clave) fuerza scrape/escritura; nunca anónimo
+  const force = !!url && url.searchParams.get('key') === SECRET;   // SOLO con clave (cron); nunca anónimo
+  const bypass = force && url.searchParams.get('refresh') === '1'; // key + refresh=1 → fuerza scrape (salta throttle)
   const cur = await stored();
   // GET normal (portada): devuelve lo guardado sin scrapear (rápido).
   if (!force && cur) return json(out(cur), 200, 'public, s-maxage=120, stale-while-revalidate=600');
-  // throttle: el cron pega cada 10 min, pero solo re-scrapeamos cada 30
-  if (force && cur?.updated_at && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000) {
+  // throttle: el cron pega cada 10 min, pero solo re-scrapeamos cada 30 (salvo bypass con clave)
+  if (force && !bypass && cur?.updated_at && Date.now() - new Date(cur.updated_at).getTime() < REFRESH_MIN * 60000) {
     return json(out(cur));
   }
   const s = await scrape();
   // no pisar con null si la fuente falló: conserva el último valor bueno
-  const merged = {
+  const merged: any = {
     id: 1,
     desaparecidos: s.desaparecidos ?? cur?.desaparecidos ?? null,
     localizados: s.localizados ?? cur?.localizados ?? null,
     total: s.total ?? cur?.total ?? null,
     fallecidos: s.fallecidos ?? cur?.fallecidos ?? null,
     heridos: s.heridos ?? cur?.heridos ?? null,
+    red: s.red ?? cur?.red ?? null,                 // dashboard live de Red Ayuda (jsonb)
     updated_at: new Date().toISOString(),
   };
-  // NO incluir dtv en el upsert (es manual) → no lo pisamos en cada scrape.
-  await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) }).catch(() => {});
-  return json(out({ ...merged, dtv: cur?.dtv ?? null }));
+  // NO incluir dtv/afe en el upsert (son manuales) → no se pisan en cada scrape.
+  let r = await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) });
+  if (!r.ok) { delete merged.red; await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) }).catch(() => {}); }  // si falta la col 'red', guarda al menos lo demás
+  return json(out({ ...merged, red: s.red ?? cur?.red ?? null, dtv: cur?.dtv ?? null, afe: cur?.afe ?? null }));
 }
 function out(c: any) {
   return {
-    // redayuda (en vivo)
+    // banner / compat
     desaparecidos: c.desaparecidos, localizados: c.localizados, total: c.total,
     fallecidos: c.fallecidos, heridos: c.heridos, updated_at: c.updated_at,
-    // desaparecidosterremoto (manual, jsonb dtv)
-    dtv: c.dtv ?? null,
+    red: c.red ?? null,   // Red Ayuda Venezuela (live, 11 marcadores)
+    dtv: c.dtv ?? null,   // Desaparecidos Terremoto Venezuela (manual, 4)
+    afe: c.afe ?? null,   // Afectados por el Terremoto · Balance oficial (manual, 6)
     fuentes: [
       { nombre: 'Red Ayuda Venezuela', url: 'https://redayudavenezuela.com/' },
       { nombre: 'Desaparecidos Terremoto Venezuela', url: 'https://desaparecidosterremotovenezuela.com/' },
+      { nombre: 'Afectados por el Terremoto Venezuela', url: 'https://www.afectadosporelterremotovenezuela.com/' },
     ],
   };
 }
