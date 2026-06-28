@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' };
 const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ADMIN_KEY = process.env.ADMIN_KEY;
-const TABLES = new Set(['logistica_reports', 'zona_reports', 'coverage_reports', 'power_reports', 'desaparecidos_reportes', 'grupos_comunitarios']);
+const TABLES = new Set(['logistica_reports', 'zona_reports', 'coverage_reports', 'power_reports', 'sos_reports', 'desaparecidos_reportes', 'grupos_comunitarios']);
 
 function timingSafeEqual(a: string, b: string): boolean {
   const e = new TextEncoder(); const ab = e.encode(a), bb = e.encode(b);

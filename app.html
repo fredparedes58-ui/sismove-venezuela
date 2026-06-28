@@ -53,6 +53,9 @@
   .pad{padding-top:18px}
   h2.title{font-size:21px;margin:4px 0 2px;letter-spacing:-.3px}
   p.sub{color:var(--mut);margin:0 0 16px;font-size:14px}
+  .sos-cta{display:block;width:100%;margin:10px 0 4px;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,#e23a3c,#b71c1c);color:#fff;font-size:15px;font-weight:800;letter-spacing:.2px;cursor:pointer;box-shadow:0 6px 18px rgba(226,58,60,.35);animation:sospulse 2s ease-in-out infinite}
+  .sos-cta:hover{filter:brightness(1.07)}
+  @keyframes sospulse{0%,100%{box-shadow:0 6px 18px rgba(226,58,60,.30)}50%{box-shadow:0 6px 26px rgba(226,58,60,.65)}}
 
   /* ---------- Cards & grid ---------- */
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
@@ -462,9 +465,11 @@
   <!-- ============ MAPAS EN VIVO ============ -->
   <section class="view pad" id="v-refugios">
     <h2 class="title">Mapas en vivo</h2>
+    <button class="sos-cta" onclick="openSosReport()">🆘 Estoy atrapado / necesito rescate · Pedir ayuda</button>
     <p class="sub">Activa una o varias capas y <b>crúzalas</b> sobre el mapa (OpenStreetMap). Ej: 🔥 zonas afectadas × 📡 celdas.</p>
     <div class="seg multi" id="mapLayers">
       <button class="on" data-l="afectadas" onclick="toggleLayer('afectadas')">🔥 Zonas afectadas</button>
+      <button data-l="sos" onclick="toggleLayer('sos')">🆘 SOS</button>
       <button data-l="torres" onclick="toggleLayer('torres')">📡 Celdas</button>
       <button data-l="acopio" onclick="toggleLayer('acopio')">📦 Acopio</button>
       <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura</button>
@@ -808,6 +813,7 @@ DB.coverage = DB.coverage || [];   // reportes comunitarios de cobertura móvil
 DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico (apagones)
 DB.zonas    = DB.zonas    || [];   // reportes comunitarios de zonas afectadas (daños)
 DB.logistica= DB.logistica|| [];   // logística: dónde falta / qué zona está cubierta
+DB.sos      = DB.sos      || [];   // SOS en sitio: personas atrapadas / piden rescate
 // Retrocompat: reportes guardados antes sin coords → derívalas de la ciudad (para que el mapa del Panel los muestre)
 (function backfillCoords(){ let ch=false; (DB.reports||[]).forEach(r=>{ if(typeof r.lat!=='number'||typeof r.lng!=='number'){ const c=cityByName(r.city); r.lat=c.lat+(Math.random()-.5)*.06; r.lng=c.lng+(Math.random()-.5)*.06; ch=true; } }); if(ch) save(); })();
 
@@ -923,23 +929,25 @@ let _lastCommLoad=0;
 async function loadCommunityReports(force){
   if(!force && Date.now()-_lastCommLoad<30000) return;   // throttle 30s
   try{
-    const [cov,pow,zon,logi]=await Promise.all([
+    const [cov,pow,zon,logi,sos]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/coverage_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/power_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/zona_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
       fetch(`${SB_URL}/rest/v1/logistica_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
+      fetch(`${SB_URL}/rest/v1/sos_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
     const ex=r=>({direccion:r.direccion,referencia:r.referencia,descripcion:r.descripcion,fotos:r.fotos});
     if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
     if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(sos)) DB.sos     = sos.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,nota:r.nota,contacto:r.contacto,personas:r.personas,estado:r.estado,direccion:r.direccion,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
-    if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica'].some(k=>activeLayers.has(k))) renderHubPanel(); }
+    if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica','sos'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica','sos'].some(k=>activeLayers.has(k))) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
 }
 async function pushCommunityReport(kind, row){
-  const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : 'power_reports';
+  const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : kind==='sos' ? 'sos_reports' : 'power_reports';
   const post=r=>fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(r)});
   let r={...row};
   try{
@@ -1025,6 +1033,7 @@ function addLayer(key){
   if(key==='afectadas')      hubLayers[key]=buildAfectadas();
   else if(key==='acopio')    hubLayers[key]=buildAcopio();
   else if(key==='logistica') hubLayers[key]=buildLogistica();
+  else if(key==='sos')       hubLayers[key]=buildSos();
   else if(key==='torres'){   hubLayers[key]=[]; ensureFullTowers(drawTowersInView); drawTowersInView(); }
   else                       hubLayers[key]=buildStatus(key);   // cobertura | luz
 }
@@ -1059,6 +1068,7 @@ function fitActive(){
   if(activeLayers.has('cobertura')) DB.coverage.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('luz')) DB.power.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('logistica')) (DB.logistica||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(activeLayers.has('sos')) (DB.sos||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(pts.length>1) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:9});
 }
 
@@ -1258,6 +1268,17 @@ function buildLogistica(){
   });
   return arr;
 }
+/* ---- SOS en sitio (personas atrapadas / piden rescate) ---- */
+function buildSos(){
+  const arr=[];
+  (DB.sos||[]).forEach(r=>{
+    if(typeof r.lat!=='number') return;
+    const atendido = r.estado==='atendido';
+    arr.push(hov(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:`<div style="font-size:24px;line-height:1;filter:drop-shadow(0 0 4px #000)${atendido?';opacity:.5':''}">🆘</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(mapHub)
+     .bindPopup(`<b style="color:#e23a3c">🆘 ${atendido?'Atendido':'SOS · necesita rescate'}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.personas?'<br>👥 '+esc(String(r.personas))+' persona(s)':''}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>📝 '+esc(r.nota):''}${r.contacto?'<br>📞 <a href="tel:'+esc(r.contacto)+'">'+esc(r.contacto)+'</a>':''}<br><a href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" rel="noopener">📍 Cómo llegar</a>${fotoPop(r.foto)}${popupEdit('sos',r.id)}`)));
+  });
+  return arr;
+}
 
 /* ---- Panel inferior: depende de la capa enfocada (focusLayer) + capas activas ---- */
 function renderHubPanel(){
@@ -1325,6 +1346,24 @@ function renderHubPanel(){
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`;
     }).join('') : '<div class="empty">Aún no hay reportes de logística.<br>Marca dónde falta ayuda o qué zona ya está cubierta, para repartir mejor.</div>';
+  }
+  else if(k==='sos'){
+    const SS=(DB.sos||[]);
+    const activos=SS.filter(r=>r.estado!=='atendido'), at=SS.filter(r=>r.estado==='atendido');
+    sync.innerHTML=`<span class="dot err"></span><span><b>${activos.length}</b> pidiendo rescate · <b>${at.length}</b> atendidos</span>`;
+    leg.innerHTML=`<span>🆘 Necesita rescate</span><span style="opacity:.55">🆘 Atendido</span>`;
+    act.innerHTML=`<div class="card" style="border-color:#5a1c1f;background:linear-gradient(140deg,rgba(226,58,60,.14),transparent);margin-bottom:10px;font-size:12.5px">🆘 <b>¿Estás atrapado/a o necesitas rescate?</b> Marca tu ubicación (GPS o manual) y deja una nota. Aparecerás en el mapa para rescatistas y voluntarios.</div>
+      <button class="btn primary" style="background:#e23a3c;border-color:#e23a3c" onclick="openSosReport()">🆘 Pedir ayuda (SOS) aquí</button>`;
+    const ordered=activos.concat(at).slice(0,60);   // prioridad: primero los activos
+    list.innerHTML = SS.length ? ordered.map(r=>{
+      const a=r.estado!=='atendido';
+      return `<div class="rep ${a?'crit':'baja'}">
+        <div class="h"><span class="t">🆘 ${a?'SOS · necesita rescate':'Atendido'}</span>${r.personas?`<span class="badge st">👥 ${esc(String(r.personas))}</span>`:''}${editBtn('sos',r.id)}${delBtn('sos',r.id)}</div>
+        ${r.nota?`<div class="d">${esc(r.nota)}</div>`:''}
+        ${r.contacto?`<div class="d">📞 ${esc(r.contacto)}</div>`:''}
+        <div class="meta"><span>📍 ${esc(r.city||r.direccion||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
+      </div>`;
+    }).join('') : '<div class="empty">Por ahora nadie ha pedido SOS por aquí.<br>Si estás atrapado/a o necesitas rescate, pulsa “Pedir ayuda (SOS)”.</div>';
   }
   else { // cobertura | luz
     const data=statusData(k);
@@ -1541,6 +1580,73 @@ function openMapReport(kind, rec){
 }
 function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); _edit=null; }
 
+/* ---------- SOS en sitio (pedir rescate · GPS o manual) ---------- */
+function openSosReport(rec){
+  reportGeo=null; _edit=null; reportGeoFresh=false; _editOrigDir='';
+  const sheet=document.getElementById('mapSheet');
+  sheet.innerHTML=`<h3>🆘 Pedir ayuda (SOS en sitio)</h3>
+    <p>Si estás <b>atrapado/a</b> o necesitas <b>rescate</b>, marca dónde estás. Aparecerás en el mapa para rescatistas y voluntarios. Si puedes, llama también al <b>171</b>.</p>
+    <button class="btn primary" style="background:#e23a3c;border-color:#e23a3c;margin:4px 0 4px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación exacta (recomendado)</button>
+    <div id="rpGeo" style="font-size:12px;color:var(--mut);margin:4px 0 8px"></div>
+    <div style="font-size:11.5px;color:var(--mut2);margin-bottom:6px">¿No funciona el GPS? Indícalo manual abajo:</div>
+    ${estadoMuniFields('loc')}
+    <label class="fl">Dirección / dónde estás (calle, edificio, piso…)</label>
+    <input id="sosDir" placeholder="Ej: Edificio Golf Mar, piso 4, Caraballeda" maxlength="180">
+    <label class="fl">¿Cuántas personas? (opcional)</label>
+    <input id="sosPers" type="number" min="1" max="999" placeholder="Ej: 3">
+    <label class="fl">Nota / qué necesitas (heridos, niños, atrapados…)</label>
+    <textarea id="sosNota" placeholder="Describe tu situación: cuántos están heridos, si hay niños o mayores, qué necesitas…" maxlength="500"></textarea>
+    <label class="fl">Teléfono de contacto (opcional)</label>
+    <input id="sosTel" placeholder="0414-0000000" maxlength="40">
+    ${fotosField('sosFotos','Subir fotos del lugar')}
+    <button class="btn primary" style="margin-top:14px;background:#e23a3c;border-color:#e23a3c" onclick="submitSos(this)">🆘 Enviar SOS</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
+    <p style="font-size:11px;color:var(--mut2);margin-top:8px">Tu ubicación y nota serán visibles públicamente para que te ayuden. Emergencias oficiales: <b>171</b> · Bomberos · Protección Civil.</p>`;
+  if(rec){   // edición admin
+    _edit={ table:'sos_reports', id:rec.id }; _editOrigDir=rec.direccion||'';
+    if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};
+    const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
+    setEstadoMuni('loc', rec.city||rec.ciudad); set('sosDir',rec.direccion); set('sosPers',rec.personas); set('sosNota',rec.nota); set('sosTel',rec.contacto);
+    const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar SOS';
+    document.querySelectorAll('#mapSheet .btn.primary').forEach(b=>b.textContent='Guardar cambios');
+  }
+  document.getElementById('mapModal').classList.add('show');
+}
+async function submitSos(){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
+  const estado=g('locEstado'), municipio=g('locMuni'); const city=emCiudad('loc')||estado, base=emBase('loc');
+  const direccion=g('sosDir').slice(0,180), nota=g('sosNota').slice(0,500), contacto=g('sosTel').slice(0,40);
+  const personas=parseInt(g('sosPers'),10)||null;
+  if(_edit && !reportGeoFresh && direccion && direccion!==_editOrigDir) reportGeo=null;
+  let lat,lng;
+  if(reportGeo){ lat=reportGeo.lat; lng=reportGeo.lng; }
+  else if(direccion||municipio||estado){ toast('📍 Ubicando…'); const gc=await geocode([direccion,municipio,estado,'Venezuela'].filter(Boolean).join(', ')); if(gc){ lat=gc.lat; lng=gc.lng; } }
+  if(typeof lat!=='number'){
+    if(base){ lat=base.lat+(Math.random()-.5)*.06; lng=base.lng+(Math.random()-.5)*.06; toast('No se ubicó exacto; se usó el estado'); }
+    else { toast('Activa tu ubicación o elige estado/municipio','err'); return; }
+  }
+  let fotos=[];
+  if((PHOTOS['sosFotos']||[]).length){ toast('📤 Subiendo fotos…'); try{ fotos=await uploadPhotos('sosFotos'); }catch(e){ fotos=[]; } }
+  const foto=fotos[0]||null;
+  if(_edit){
+    const fields={direccion:direccion||null,nota:nota||null,contacto:contacto||null,personas,lat,lng};
+    if(city) fields.ciudad=city;
+    if(fotos.length) fields.foto_url=foto;
+    const ed=_edit; const ok=await adminUpdate(ed.table, ed.id, fields);
+    if(ok){
+      const rec=(DB.sos||[]).find(x=>x.id===ed.id);
+      if(rec){ rec.lat=lat; rec.lng=lng; if(city) rec.city=city; rec.direccion=direccion; rec.nota=nota; rec.contacto=contacto; rec.personas=personas; if(fotos.length) rec.foto=foto; }
+      save(); clearPhotos('sosFotos'); closeMapModal(); toast('✅ Cambios guardados'); renderHub();
+    }
+    return;
+  }
+  DB.sos=DB.sos||[]; DB.sos.unshift({id:rid(),lat,lng,city,direccion,nota,contacto,personas,estado:'activo',foto,ts:Date.now()});
+  const row={lat,lng,ciudad:city,direccion:direccion||null,nota:nota||null,contacto:contacto||null,personas,estado:'activo',foto_url:foto,fotos:fotos.length?fotos:null};
+  save(); const persisted=await pushCommunityReport('sos',row); clearPhotos('sosFotos'); closeMapModal();
+  toast(persisted ? '🆘 Tu SOS ya es visible en el mapa. Mantén el teléfono cerca.' : '⚠️ Guardado en este dispositivo; no se pudo enviar (revisa tu conexión). Si es grave, llama al 171');
+  if(!activeLayers.has('sos')) toggleLayer('sos'); else renderHub();
+}
+
 /* ---------- Reportar persona desaparecida (registro propio) ---------- */
 let _desapCat=null;
 function openDesapReport(cat, rec){
@@ -1693,6 +1799,7 @@ let _edit=null;   // {table,id} cuando se está editando (en vez de crear)
 function editReport(kind,id){
   if(kind==='grupo'){ const g=(GRUPOS||[]).find(x=>x.id===id); if(g) openGrupoReport(g); return; }
   if(kind==='desap'){ const n=(NINOS||[]).find(x=>x.id===id); if(n) openDesapReport(n.categoria==='nino'?'nino':null, n); return; }
+  if(kind==='sos'){ const s=(DB.sos||[]).find(x=>x.id===id); if(s) openSosReport(s); return; }
   const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:kind==='luz'?DB.power:[];
   const rec=arr.find(x=>x.id===id); if(rec) openMapReport(kind, rec);
 }
@@ -1727,12 +1834,12 @@ async function deleteReport(kind,id,btn){
     }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }
     return;
   }
-  const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
+  const table = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':kind==='sos'?'sos_reports':'power_reports';
   try{
     const res=await fetch('/api/admin-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,id,key})});
     if(res.status===403){ toast('Clave de admin incorrecta','err'); if(btn)btn.textContent='🗑️'; return; }
     if(!res.ok){ toast('No se pudo borrar','err'); if(btn)btn.textContent='🗑️'; return; }
-    const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:DB.power;
+    const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:kind==='sos'?DB.sos:DB.power;
     const i=arr.findIndex(r=>r.id===id); if(i>=0) arr.splice(i,1);
     save(); toast('🗑️ Borrado para todos'); renderHub();
   }catch(e){ toast('Error de red','err'); if(btn)btn.textContent='🗑️'; }

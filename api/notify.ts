@@ -22,6 +22,7 @@ const SOURCES = [
   { key: 'notify:zonas',   table: 'zona_reports',            label: '⚠️ zonas afectadas reportadas' },
   { key: 'notify:logi',    table: 'logistica_reports',       label: '🍲 necesidades / logística' },
   { key: 'notify:desaprep',table: 'desaparecidos_reportes',  label: '🔍 personas reportadas desaparecidas' },
+  { key: 'notify:sos',     table: 'sos_reports',             label: '🆘 SOS · personas pidiendo rescate' },
 ];
 
 function sbH(extra: Record<string, string> = {}) {

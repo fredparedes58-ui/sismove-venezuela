@@ -16,6 +16,7 @@ const EDITABLE: Record<string, string[]> = {
   zona_reports:          ['ciudad', 'tipo', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
   coverage_reports:      ['ciudad', 'operador', 'estado', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
   power_reports:         ['ciudad', 'estado', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
+  sos_reports:           ['ciudad', 'direccion', 'nota', 'contacto', 'personas', 'estado', 'foto_url', 'lat', 'lng'],
   grupos_comunitarios:   ['nombre', 'tipo', 'zona', 'url', 'contacto', 'nota'],
   desaparecidos_reportes:['nombre', 'edad', 'cedula', 'zona', 'direccion', 'referencia', 'visto', 'contacto', 'encontrado_por', 'nota', 'estado', 'categoria', 'tipo_persona', 'foto_url', 'documento_url', 'lat', 'lng'],
 };
