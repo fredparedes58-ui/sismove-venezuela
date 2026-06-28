@@ -1,0 +1,12 @@
+Direccion,Tipo,Situacion,Nota,lat,lng
+"Hospital Lídice de Catia, Caracas",medicinas,falta,"Guantes, gasas, rollos para quemados, adhesivo, sulfadiazina de plata, bacitracina, cepillos quirúrgicos",,
+"Instituto Anatómico (UCV), Caracas",medicinas,falta,"Cloruro de sodio inyectable, bacitracina, sulfadiazina de plata, macrogoteros, catéter IV, jeringas #5/#10/#20, catéter Ecomed, guantes de nitrilo, pañales para adultos",,
+"Casa Bambi, Caracas",higiene,falta,"Fórmula y alimentos para bebés, alimentos no perecederos, higiene personal, pañales de bebé, toallas húmedas, cremas (antipañalitis/dermatitis), jabón neutro, champú, cobijas, sábanas, almohadas",,
+"Hospital Francisco Pimentel, Caracas",medicinas,falta,"Insumos para curas, pañales para niños, leche NAN, medicamentos pediátricos, materiales de limpieza, bolsas negras",,
+"Hospital Pérez Carreño, Caracas",medicinas,falta,"Medicamentos (losartán, metformina, amlodipina, ibuprofeno, paracetamol, etc.), soluciones (0,9% / Ringer / dextrosa), insumos para curas, guantes, gasas, suturas, catéteres",10.4803059,-66.9531284
+"Escuela de Medicina (UCV), Ciudad Universitaria, Caracas",medicinas,falta,"Acetaminofén pediátrico, cetirizina, loratadina pediátrica, sueros de hidratación oral, probióticos, solución fisiológica, pañales para niños, toallas húmedas, inhaladores, ibuprofeno/diclofenac pediátrico",,
+"Hospital Universitario de Caracas (UCV)",medicinas,falta,"Gasas, guantes, solución 0,9%, Ringer, inyectadoras #5/#10/#20, compresas, bacitracina",10.4904845,-66.8937980
+"Hospital Materno Infantil de El Valle, Caracas",medicinas,falta,"Alcohol, gasas, medicamentos, yelcos, jeringas, insumos médicos, comida para niños",10.4604225,-66.9142282
+"Hospital J. M. de los Ríos, Caracas",medicinas,falta,"Glucómetros, tiras reactivas, teteros para los niños",,
+"Hospital Domingo Luciani, El Llanito, Caracas",medicinas,falta,"Fogarty #1-4, lápices de electro, bisturís, insumos médicos generales, batas quirúrgicas",10.4713544,-66.8105578
+"Hospital de la Trinidad, Caracas",agua,falta,"Agua potable, insumos médicos, productos de higiene",10.4341510,-66.8750545
