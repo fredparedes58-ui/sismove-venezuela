@@ -12,10 +12,10 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
 const EDITABLE: Record<string, string[]> = {
-  logistica_reports:     ['ciudad', 'tipo', 'estado', 'nota', 'direccion', 'descripcion', 'foto_url', 'lat', 'lng'],
-  zona_reports:          ['ciudad', 'tipo', 'direccion', 'descripcion', 'foto_url', 'lat', 'lng'],
-  coverage_reports:      ['ciudad', 'operador', 'estado', 'direccion', 'descripcion', 'foto_url', 'lat', 'lng'],
-  power_reports:         ['ciudad', 'estado', 'direccion', 'descripcion', 'foto_url', 'lat', 'lng'],
+  logistica_reports:     ['ciudad', 'tipo', 'estado', 'nota', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
+  zona_reports:          ['ciudad', 'tipo', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
+  coverage_reports:      ['ciudad', 'operador', 'estado', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
+  power_reports:         ['ciudad', 'estado', 'direccion', 'referencia', 'descripcion', 'foto_url', 'lat', 'lng'],
   grupos_comunitarios:   ['nombre', 'tipo', 'zona', 'url', 'contacto', 'nota'],
   desaparecidos_reportes:['nombre', 'edad', 'cedula', 'zona', 'direccion', 'referencia', 'visto', 'contacto', 'encontrado_por', 'nota', 'estado', 'categoria', 'tipo_persona', 'foto_url', 'documento_url', 'lat', 'lng'],
 };
@@ -46,10 +46,13 @@ export default async function handler(req: Request): Promise<Response> {
 
   const r = await fetch(`${SB}/rest/v1/${b.table}?id=eq.${encodeURIComponent(b.id)}`, {
     method: 'PATCH',
-    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
     body: JSON.stringify(patch),
   });
-  return r.ok ? json({ ok: true }) : json({ error: 'db', detail: (await r.text()).slice(0, 160) }, 502);
+  if (!r.ok) return json({ error: 'db', detail: (await r.text()).slice(0, 160) }, 502);
+  const rows = await r.json().catch(() => []);
+  if (!Array.isArray(rows) || rows.length === 0) return json({ error: 'no_match' }, 404);   // id no existe (p.ej. fila aún no sincronizada)
+  return json({ ok: true });
 }
 
 function json(b: unknown, s = 200): Response {

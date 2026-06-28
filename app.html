@@ -1442,7 +1442,7 @@ function openMapReport(kind, rec){
     _edit = { table: tbl, id: rec.id };
     if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
-    set('rpCity', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', rec.descripcion); set('rpRef', rec.referencia);
+    set('rpCity', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', kind==='logistica'?(rec.nota||rec.descripcion):rec.descripcion); set('rpRef', rec.referencia);
     if(kind==='cobertura'){ set('rpOper', rec.operador); set('rpEstado', rec.estado); }
     else if(kind==='luz'){ set('rpEstado', rec.estado); }
     else if(kind==='logistica'){ set('rpEstado', rec.estado); String(rec.tipo||'').split(',').forEach(t=>{ const c=document.querySelector('#rpTipos input[value="'+t.trim()+'"]'); if(c) c.checked=true; }); }
@@ -1487,6 +1487,7 @@ function openDesapReport(cat, rec){
     <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y las fotos serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
   if(rec){
     _edit={table:'desaparecidos_reportes',id:rec.id};
+    if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};   // conserva su ubicación (no re-geocodificar al editar)
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
     set('dpEstado',rec.estado); set('dpTipo',rec.tipo_persona||(rec.categoria==='nino'?'nino':'adulto')); set('dpNombre',rec.nombre); set('dpEdad',rec.edad); set('dpCedula',rec.cedula); set('dpZona',rec.zona); set('dpDireccion',rec.direccion); set('dpRef',rec.referencia); set('dpVisto',rec.visto); set('dpContacto',rec.contacto); set('dpEncontradoPor',rec.encontrado_por); set('dpNota',rec.nota);
     const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar persona';
@@ -1661,7 +1662,7 @@ async function submitMapReport(kind){
   const foto=fotos[0]||null;
   // EDICIÓN admin: actualiza la fila (PATCH) en lugar de crear una nueva
   if(_edit){
-    const fields={ciudad:city,direccion:direccion||null,descripcion:descripcion||null,lat,lng};
+    const fields={ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,lat,lng};
     if(fotos.length) fields.foto_url=foto;
     if(kind==='cobertura'){ fields.operador=document.getElementById('rpOper').value; fields.estado=document.getElementById('rpEstado').value; }
     else if(kind==='luz'){ fields.estado=document.getElementById('rpEstado').value; }
@@ -1671,7 +1672,7 @@ async function submitMapReport(kind){
     if(ok){
       const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:DB.power;
       const rec=arr.find(x=>x.id===ed.id);
-      if(rec){ rec.lat=lat; rec.lng=lng; rec.city=city; rec.direccion=direccion; rec.descripcion=descripcion; if(fotos.length) rec.foto=foto; if(fields.operador!=null)rec.operador=fields.operador; if(fields.estado!=null)rec.estado=fields.estado; if(fields.tipo!=null)rec.tipo=fields.tipo; if(fields.nota!=null)rec.nota=fields.nota; }
+      if(rec){ rec.lat=lat; rec.lng=lng; rec.city=city; rec.direccion=direccion; rec.referencia=referencia; rec.descripcion=descripcion; if(fotos.length) rec.foto=foto; if(fields.operador!=null)rec.operador=fields.operador; if(fields.estado!=null)rec.estado=fields.estado; if(fields.tipo!=null)rec.tipo=fields.tipo; if(fields.nota!=null)rec.nota=fields.nota; }
       save(); clearPhotos('rpFotos'); closeMapModal(); toast('✅ Cambios guardados'); renderHub();
     }
     return;
