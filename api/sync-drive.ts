@@ -38,7 +38,7 @@ const MAX_DEPTH = 4;          // recorre subcarpetas (y sub-sub…) hasta esta p
 const MAX_FOLDERS = 80;       // tope de carpetas visitadas por corrida (evita timeouts)
 const THROTTLE_MIN = 15;
 const MAX_FILES = 8;          // tope por corrida (tiempo del Edge)
-const MAX_ROWS = 5000;        // tope defensivo de filas por archivo
+const MAX_ROWS = 9000;        // tope defensivo de filas por archivo (consolidados grandes)
 const SB_HOST = (() => { try { return new URL(SB).host; } catch { return ''; } })();
 const ENTRY_RE = /<div class="flip-entry"[^>]*id="entry-([^"]+)"[\s\S]*?<a href="([^"]+)"[\s\S]*?<div class="flip-entry-title">([^<]*)<\/div>/g;
 
@@ -329,7 +329,16 @@ function validName(name: string, header: string[]): boolean {
   if (header.some(h => norm(h) === nn)) return false;   // fila que repite el encabezado
   return true;
 }
-function gridColumn(grid: string[][], col: number): string[] { return grid.slice(1).map(r => r[col] || ''); }
+function gridColumn(grid: string[][], col: number, start = 1): string[] { return grid.slice(start).map(r => r[col] || ''); }
+// Detecta la fila de ENCABEZADO real (salta filas de título/instrucciones): la de mejor mapeo en las primeras 8.
+function findHeaderRow(grid: string[][]): number {
+  let best = 0, bestScore = -1; const lim = Math.min(grid.length, 8);
+  for (let i = 0; i < lim; i++) {
+    const score = Object.keys(mapHeaders(grid[i] || []).idx).length;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  return best;
+}
 
 // Gazeteer mínimo (Yaracuy + capitales VE) para geocodificar por ciudad cuando falta lat/lng.
 const GAZ: Record<string, [number, number]> = {
@@ -512,23 +521,28 @@ export default async function handler(req: Request): Promise<Response> {
           : f.kind === 'json' ? [{ name: '', grid: jsonToGrid(await downloadText(f)) }]
             : [{ name: '', grid: parseCSV(await downloadText(f)) }];
         const rows: any[] = []; const seen = new Set<string>(); let basura = 0, sinCoords = 0; const unmappedAll = new Set<string>();
+        // Si un archivo de hospitales trae una hoja MAESTRA (con columna HOSPITAL), úsala SOLO a ella
+        // (tiene a todos con el hospital en columna) y omite las hojas por-hospital → evita duplicados.
+        const hasMaster = adapter.table === 'hospital_admisiones' && sheets.some(s => { const h = findHeaderRow(s.grid); return s.grid.length > h && mapHeaders(s.grid[h] || []).idx.hospital !== undefined; });
         for (const sht of sheets) {                       // procesa TODAS las pestañas (p.ej. Desaparecidos + Rescatados)
           const grid = sht.grid; if (grid.length < 2) continue;
-          const header = grid[0]; const { idx, unmapped } = mapHeaders(header); unmapped.forEach(u => unmappedAll.add(u));
+          const hr = findHeaderRow(grid);                  // salta filas de título/instrucciones (encabezado real)
+          const header = grid[hr]; const { idx, unmapped } = mapHeaders(header); unmapped.forEach(u => unmappedAll.add(u));
+          if (hasMaster && idx.hospital === undefined) continue;   // omite hojas por-hospital cuando hay maestra
           // Concatena TODAS las columnas de nombre (p.ej. Apellidos + Nombres) → no pierde la mitad
           const nombreCols = header.map((_, i) => i).filter(i => nameRe.test(norm(header[i])));
           // estatus por VALOR: si la columna 'zona' tiene valores de estatus, muévela a estado
           let statusCol: number | undefined;
-          if (idx.zona !== undefined && looksLikeStatus(gridColumn(grid, idx.zona))) { statusCol = idx.zona; delete idx.zona; }
+          if (idx.zona !== undefined && looksLikeStatus(gridColumn(grid, idx.zona, hr + 1))) { statusCol = idx.zona; delete idx.zona; }
           if (statusCol === undefined && idx.estado === undefined) {
-            for (let c = 0; c < header.length; c++) if (!Object.values(idx).includes(c) && looksLikeStatus(gridColumn(grid, c))) { statusCol = c; break; }
+            for (let c = 0; c < header.length; c++) if (!Object.values(idx).includes(c) && looksLikeStatus(gridColumn(grid, c, hr + 1))) { statusCol = c; break; }
           }
           const ctx: Ctx = { idx, header, statusCol: statusCol ?? idx.estado, file: f.id, fileName: f.name, sheet: sht.name, batch };
           const cellFor = (row: string[]) => (k: string) => {
             if (k === 'nombre' && nombreCols.length) return nombreCols.map(i => (row[i] || '').trim()).filter(Boolean).join(' ');
             const i = idx[k]; return i === undefined ? '' : (row[i] || '').trim();
           };
-          for (let r = 1; r < grid.length && rows.length < MAX_ROWS; r++) {
+          for (let r = hr + 1; r < grid.length && rows.length < MAX_ROWS; r++) {
             const rec = adapter.build(grid[r], cellFor(grid[r]), ctx);
             if (rec === NOCOORDS) { sinCoords++; continue; }
             if (!rec) { basura++; continue; }
