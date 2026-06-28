@@ -9,8 +9,12 @@
  *   desaparec/niños/menores/extraviados → desaparecidos_reportes
  *   hospital/ingresos/pacientes/heridos → hospital_admisiones
  *   acopio/centros/donaciones           → centros_acopio_external
- *   zonas/afectadas/derrumbes           → zona_reports        (necesita lat,lng o ciudad conocida)
- *   logística/necesidades/insumos       → logistica_reports   (necesita lat,lng o ciudad conocida)
+ *   cobertura/señal/internet/operadora  → coverage_reports    (ubica por lat,lng, ciudad o NOMBRE del punto)
+ *   luz/apagón/eléctrico/energía        → power_reports       (ubica por lat,lng, ciudad o NOMBRE del punto)
+ *   logística/necesidades/insumos       → logistica_reports   (ubica por lat,lng, ciudad o NOMBRE del punto)
+ *   zonas/afectadas/derrumbes           → zona_reports        (ubica por lat,lng, ciudad o NOMBRE del punto)
+ * Si falta lat/lng y la ciudad no está en el gazetteer, geocodifica el NOMBRE/dirección
+ * por Nominatim/OSM (acotado por corrida). Si aun así no resuelve, descarta la fila.
  *
  * Garantías de seguridad/calidad (revisión adversarial 10/10):
  *   - REDACTA cédula/documento por VALOR en todo campo de texto (no solo por encabezado).
@@ -338,6 +342,26 @@ const GAZ: Record<string, [number, number]> = {
 function geocode(city: string): [number, number] | null { const g = GAZ[norm(city)]; return g || null; }
 function num(s: string): number | null { const v = parseFloat(String(s).replace(',', '.')); return Number.isFinite(v) ? v : null; }
 
+// Geocodificación por NOMBRE (centro médico, edificio, punto…) vía Nominatim/OSM, sesgo Venezuela.
+// Acotada por corrida (GEO_BUDGET) y con caché para respetar la política de uso de OSM.
+const GEO_CACHE: Record<string, [number, number] | null> = {};
+let GEO_BUDGET = 0;
+async function geoName(q: string): Promise<[number, number] | null> {
+  const key = norm(q); if (key.length < 4) return null;
+  if (key in GEO_CACHE) return GEO_CACHE[key];
+  if (GEO_BUDGET <= 0) return null;
+  GEO_BUDGET--;
+  try {
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${encodeURIComponent(q)}`,
+      { headers: { 'User-Agent': 'SismoVE/1.0 (ayuda humanitaria; sismove-venezuela.vercel.app)', 'Accept': 'application/json' }, signal: ctrl.signal }).finally(() => clearTimeout(to));
+    if (!r.ok) { GEO_CACHE[key] = null; return null; }
+    const j: any = await r.json();
+    const hit: [number, number] | null = (Array.isArray(j) && j[0] && j[0].lat) ? [parseFloat(j[0].lat), parseFloat(j[0].lon)] : null;
+    GEO_CACHE[key] = hit; return hit;
+  } catch { GEO_CACHE[key] = null; return null; }
+}
+
 // ════════════════════ Adaptadores por destino ════════════════════
 // `file` = ID de Drive (estable ante rename); `fileName` = nombre legible (solo reporte).
 type Ctx = { idx: Record<string, number>; header: string[]; statusCol?: number; file: string; fileName: string; sheet: string; batch: string };
@@ -395,27 +419,61 @@ const ADAPTERS: Adapter[] = [
     },
   },
   {
+    keywords: /cobertura|se[nñ]al|telefon[ií]a|internet|operadora|antena|conectividad/i, table: 'coverage_reports', conflict: 'ext_id',
+    build: (row, cell, ctx) => {
+      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
+      const ciudad = redactText(cell('zona')) || null;
+      const ov = norm(cell('operador') || cell('tipo'));
+      const operador = /movis/.test(ov) ? 'Movistar' : /digi/.test(ov) ? 'Digitel' : /movil/.test(ov) ? 'Movilnet' : 'Otra';
+      const ev = norm(cell('estado'));
+      const estado = /sin\s*se|sinsenal|no hay|caid|sin servicio/.test(ev) ? 'sinsenal' : /interm/.test(ev) ? 'intermitente' : 'senal';
+      const place = (cell('direccion') || cell('zona') || cell('nombre') || cell('visto') || '').trim();
+      const rec: any = { ext_id: `drive:${ctx.file}:${norm([place || ciudad, operador].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, operador, estado, direccion: redactText(cell('direccion')) || null, descripcion: redactText(cell('nota')) || null };
+      if (lat == null || lng == null) { if (!place) return NOCOORDS; rec._geoq = place + (ciudad ? ', ' + ciudad : '') + ', Venezuela'; }
+      return rec;
+    },
+  },
+  {
+    keywords: /\bluz\b|apag[oó]n|el[eé]ctric|electricidad|energ[ií]a|corriente|servicio el[eé]ctrico/i, table: 'power_reports', conflict: 'ext_id',
+    build: (row, cell, ctx) => {
+      let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
+      const ciudad = redactText(cell('zona')) || null;
+      const ev = norm(cell('estado'));
+      const estado = /sin\s*luz|sinluz|apag|no hay|caid|sin servicio/.test(ev) ? 'sinluz' : 'conluz';
+      const place = (cell('direccion') || cell('zona') || cell('nombre') || cell('visto') || '').trim();
+      const rec: any = { ext_id: `drive:${ctx.file}:${norm([place || ciudad].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, estado, direccion: redactText(cell('direccion')) || null, descripcion: redactText(cell('nota')) || null };
+      if (lat == null || lng == null) { if (!place) return NOCOORDS; rec._geoq = place + (ciudad ? ', ' + ciudad : '') + ', Venezuela'; }
+      return rec;
+    },
+  },
+  {
     keywords: /log[ií]stic|necesidad|insumo|comida|agua|refugio|albergue|ayuda|v[ií]vere|damnificad/i, table: 'logistica_reports', conflict: 'ext_id',
     build: (row, cell, ctx) => {
       let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
-      if (lat == null || lng == null) return NOCOORDS;
       const ciudad = redactText(cell('zona')) || null; const tipo = normTipo(cell('tipo'), ['comida', 'agua', 'medicinas', 'higiene', 'ropa', 'voluntarios', 'otro']);
       const estado = /cubiert|saturad|ok|listo/i.test(cell('estado')) ? 'cubierto' : 'falta';
-      return { ext_id: `drive:${ctx.file}:${norm([ciudad, tipo, lat, lng].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo, estado, nota: redactText(cell('nota')) || null };
+      const place = (cell('direccion') || cell('zona') || cell('nombre') || cell('visto') || '').trim();
+      const rec: any = { ext_id: `drive:${ctx.file}:${norm([place || ciudad, tipo].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo, estado, nota: redactText(cell('nota')) || null, direccion: redactText(cell('direccion')) || null };
+      if (lat == null || lng == null) { if (!place) return NOCOORDS; rec._geoq = place + (ciudad ? ', ' + ciudad : '') + ', Venezuela'; }
+      return rec;
     },
   },
   {
     keywords: /zona|afectad|da[nñ]o|derrumbe|colapso|grieta|estructura/i, table: 'zona_reports', conflict: 'ext_id',
     build: (row, cell, ctx) => {
       let lat = num(cell('lat')), lng = num(cell('lng')); if (lat == null || lng == null) { const g = geocode(cell('zona') || cell('direccion') || cell('visto')); if (g) { lat = g[0]; lng = g[1]; } }
-      if (lat == null || lng == null) return NOCOORDS;  // zona_reports exige coordenadas
       const ciudad = redactText(cell('zona')) || null; const tipo = normTipo(cell('tipo'), ['colapso', 'grietas', 'inundacion', 'via', 'incendio', 'otro']);
-      return { ext_id: `drive:${ctx.file}:${norm([ciudad, tipo, lat, lng].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo };
+      const place = (cell('direccion') || cell('zona') || cell('nombre') || cell('visto') || '').trim();
+      const rec: any = { ext_id: `drive:${ctx.file}:${norm([place || ciudad, tipo].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch, lat, lng, ciudad, tipo, direccion: redactText(cell('direccion')) || null };
+      if (lat == null || lng == null) { if (!place) return NOCOORDS; rec._geoq = place + (ciudad ? ', ' + ciudad : '') + ', Venezuela'; }
+      return rec;
     },
   },
 ];
 function normTipo(v: string, allowed: string[]): string { const n = norm(v); return allowed.find(a => n.includes(a.slice(0, 4))) || 'otro'; }
 function routeOf(name: string): Adapter | null { const n = norm(name); for (const a of ADAPTERS) if (a.keywords.test(n)) return a; return null; }
+// Tablas que EXIGEN lat/lng (se geocodifican por nombre si faltan; se descartan si no se resuelven).
+const COORD_TABLES = new Set(['coverage_reports', 'power_reports', 'zona_reports', 'logistica_reports']);
 
 // ════════════════════ Handler ════════════════════
 export default async function handler(req: Request): Promise<Response> {
@@ -431,6 +489,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (!cands.length) { await mark(0); return json({ status: 'sin_archivos', hint: 'Sube un .csv, .xlsx, .json o Google Sheet con un nombre como "desaparecidos", "hospitales", "acopio", "zonas" o "logistica".' }); }
 
     const batch = new Date().toISOString(); const reports: any[] = []; let totalRows = 0;
+    GEO_BUDGET = 6;   // máximo de geocodificaciones por nombre (Nominatim) por corrida (límite de tiempo Edge)
     const nameRe = FIELD_SYNS.find(([k]) => k === 'nombre')![1];
     for (const f of cands.slice(0, MAX_FILES)) {
       const adapter = routeOf(f.name);
@@ -464,6 +523,13 @@ export default async function handler(req: Request): Promise<Response> {
             const key = (rec as any)[adapter.conflict]; if (seen.has(key)) continue; seen.add(key);
             rows.push(rec);
           }
+        }
+        // Geocodificación por NOMBRE para filas sin coords (logística/zona/cobertura/luz)
+        if (COORD_TABLES.has(adapter.table)) {
+          for (const x of rows) if (x && x._geoq && (x.lat == null || x.lng == null)) { const g = await geoName(x._geoq); if (g) { x.lat = g[0]; x.lng = g[1]; } }
+          const kept: any[] = [];
+          for (const x of rows) { if (x._geoq !== undefined) delete x._geoq; if (x.lat == null || x.lng == null) { sinCoords++; continue; } kept.push(x); }
+          rows.length = 0; rows.push(...kept);
         }
         const unmapped = [...unmappedAll];
         if (!rows.length) { reports.push({ archivo: f.name, destino: adapter.table, estado: 'vacio', descartadas_basura: basura, descartadas_sin_coords: sinCoords }); continue; }
