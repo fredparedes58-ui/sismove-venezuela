@@ -842,10 +842,10 @@ async function loadCommunityReports(force){
       fetch(`${SB_URL}/rest/v1/logistica_reports?select=*&order=created_at.desc&limit=1000`,{headers:SB_H}).then(r=>r.ok?r.json():null),
     ]);
     const ex=r=>({direccion:r.direccion,referencia:r.referencia,descripcion:r.descripcion,fotos:r.fotos});
-    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
-    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(cov)) DB.coverage = cov.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,operador:r.operador,estado:r.estado,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(pow)) DB.power    = pow.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,estado:r.estado,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(zon)) DB.zonas    = zon.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
+    if(Array.isArray(logi))DB.logistica= logi.map(r=>({id:r.id,lat:r.lat,lng:r.lng,city:r.ciudad,tipo:r.tipo,estado:r.estado,nota:r.nota,foto:r.foto_url||(Array.isArray(r.fotos)&&r.fotos[0])||null,...ex(r),ts:Date.parse(r.created_at)||Date.now()}));
     _lastCommLoad=Date.now();
     if(curView==='refugios'){ ['cobertura','luz','afectadas','logistica'].forEach(k=>{ if(activeLayers.has(k)){ removeLayer(k); addLayer(k); } }); if(['cobertura','luz','afectadas','logistica'].some(k=>activeLayers.has(k))) renderHubPanel(); }
   }catch(e){ /* offline: se conservan los reportes locales */ }
@@ -853,14 +853,18 @@ async function loadCommunityReports(force){
 async function pushCommunityReport(kind, row){
   const table = kind==='cobertura' ? 'coverage_reports' : kind==='afectada' ? 'zona_reports' : kind==='logistica' ? 'logistica_reports' : 'power_reports';
   const post=r=>fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify(r)});
+  let r={...row};
   try{
-    let res=await post(row);
-    if(!res.ok){
+    for(let i=0;i<8;i++){
+      const res=await post(r);
+      if(res.ok) return true;
       const t=await res.text();
-      // columnas nuevas aún sin migrar → reintenta sin ellas (no pierde el reporte)
-      if(/PGRST204|schema cache|column/i.test(t)){ const r2={...row}; ['direccion','referencia','descripcion','fotos'].forEach(k=>delete r2[k]); res=await post(r2); }
+      // Si una columna no existe aún en esa tabla, Postgres la nombra: la quitamos y reintentamos
+      const m=t.match(/'([^']+)' column/i);
+      if(m && (m[1] in r)){ delete r[m[1]]; continue; }
+      return false;
     }
-    return res.ok;
+    return false;
   }catch(e){ return false; /* offline: queda guardado en localStorage */ }
 }
 
@@ -1593,24 +1597,27 @@ async function submitMapReport(kind){
   // Fotos (varias, opcional): comprime y sube a Supabase Storage
   toast('📤 Subiendo…'); const fotos=await uploadPhotos('rpFotos'); const foto=fotos[0]||null;
   const comun={lat,lng,ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,foto_url:foto,fotos:fotos.length?fotos:null};
+  let pushP;
   if(kind==='cobertura'){
     const operador=document.getElementById('rpOper').value, estado=document.getElementById('rpEstado').value;
     DB.coverage.unshift({id:rid(),lat,lng,city,operador,estado,foto,direccion,descripcion,ts:Date.now()});
-    pushCommunityReport('cobertura',{...comun,operador,estado});
+    pushP=pushCommunityReport('cobertura',{...comun,operador,estado});
   } else if(kind==='luz'){
     const estado=document.getElementById('rpEstado').value;
     DB.power.unshift({id:rid(),lat,lng,city,estado,foto,direccion,descripcion,ts:Date.now()});
-    pushCommunityReport('luz',{...comun,estado});
+    pushP=pushCommunityReport('luz',{...comun,estado});
   } else if(kind==='logistica'){
     const tipo=document.getElementById('rpTipo').value, estado=document.getElementById('rpEstado').value;
     DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota:descripcion,foto,direccion,descripcion,ts:Date.now()});
-    pushCommunityReport('logistica',{...comun,tipo,estado,nota:descripcion||null});
+    pushP=pushCommunityReport('logistica',{...comun,tipo,estado,nota:descripcion||null});
   } else {
     const tipo=document.getElementById('rpTipo').value;
     DB.zonas.unshift({id:rid(),lat,lng,city,tipo,foto,direccion,descripcion,ts:Date.now()});
-    pushCommunityReport('afectada',{...comun,tipo});
+    pushP=pushCommunityReport('afectada',{...comun,tipo});
   }
-  clearPhotos('rpFotos'); save(); closeMapModal(); toast('✅ ¡Gracias! Tu reporte ya es visible para todos'); renderHub();
+  save(); const persisted=await pushP; clearPhotos('rpFotos'); closeMapModal();
+  toast(persisted ? '✅ ¡Gracias! Tu reporte ya es visible para todos' : '⚠️ Guardado en este dispositivo; no se pudo enviar al servidor (revisa tu conexión)');
+  renderHub();
 }
 
 /* ---------- Desaparecidos (datos reales) ---------- */
