@@ -3,12 +3,15 @@
  *
  * Recorre todas las carpetas (+ subcarpetas) recursivamente, detecta imágenes/PDFs aún NO
  * procesados (tabla foto_ocr), y por cada uno Gemini CLASIFICA y EXTRAE → rutea a su tabla:
+ * Clasifica CUALQUIER imagen/PDF del Drive y la enruta sola a su destino:
  *   cartel desaparecido/rescatado → desaparecidos_reportes (foto del cartel; rescatado=encontrado;
  *                                   menores → categoria 'nino')
  *   lista de pacientes de hospital → hospital_admisiones
  *   directorio de acopio           → centros_acopio_external
  *   necesidades / insumos que faltan → logistica_reports (geocodificado para el mapa)
- *   otro                            → se ignora
+ *   daños (colapso/grietas/inundación/vía/incendio) → zona_reports (geocodificado)
+ *   grupo/canal comunitario (WhatsApp/Telegram) → grupos_comunitarios
+ *   otro (meme, foto sin datos)     → se ignora
  * SIEMPRE redacta cédula/documento. Marca cada archivo en foto_ocr para no repetir.
  * 1 archivo por llamada (tiempo/cuota Gemini). Throttle 10 min. `?file=<id>&key=` procesa uno puntual.
  *
@@ -128,7 +131,42 @@ function tipoFromNeeds(s: string): string {
   return out.length ? Array.from(new Set(out)).join(',') : 'otro';
 }
 
-type Analysis = { tipo: string; personas: any[]; centros: any[]; logistica: any[] };
+// Mapea texto libre al conjunto cerrado de valores que esperan las tablas.
+function mapZonaTipo(s: string): string {
+  const n = norm(s);
+  if (/colaps|derrumb|caid|desplom/.test(n)) return 'colapso';
+  if (/griet|fisur|estructural|raja/.test(n)) return 'grietas';
+  if (/inund|agua|deslave|desliz|lluv/.test(n)) return 'inundacion';
+  if (/via|carretera|calle|puente|bloque|paso/.test(n)) return 'via';
+  if (/incend|fuego|quema/.test(n)) return 'incendio';
+  return 'otro';
+}
+function mapGrupoTipo(s: string): string {
+  const n = norm(s);
+  if (/edificio|edif|torre|residen|conjunto/.test(n)) return 'edificio';
+  if (/zona|sector|barrio|urbaniz|comunidad|parroquia|municipio/.test(n)) return 'zona';
+  if (/accion|ayuda|rescate|volunt|donac/.test(n)) return 'accion';
+  return 'otro';
+}
+// Inserta tolerando columnas que no existan en la tabla (las quita y reintenta), como el cliente.
+async function insertResilient(table: string, rows: any[], conflict?: string): Promise<number> {
+  if (!rows.length) return 0;
+  let body = rows.map(r => ({ ...r }));
+  const q = conflict ? `?on_conflict=${conflict}` : '';
+  const pref = conflict ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal';
+  for (let i = 0; i < 6; i++) {
+    const res = await fetch(`${SB}/rest/v1/${table}${q}`, { method: 'POST', headers: sbH({ Prefer: pref }), body: JSON.stringify(body) }).catch(() => null);
+    if (!res) return 0;
+    if (res.ok) return body.length;
+    const t = await res.text();
+    const m = t.match(/'([^']+)' column/i) || t.match(/column "([^"]+)"/i);   // PostgREST nombra la columna que falta
+    if (m && body.some(r => m[1] in r)) { body = body.map(r => { const c = { ...r }; delete (c as any)[m[1]]; return c; }); continue; }
+    return 0;
+  }
+  return 0;
+}
+
+type Analysis = { tipo: string; personas: any[]; centros: any[]; logistica: any[]; zonas: any[]; grupos: any[] };
 // Clasifica la imagen/PDF y extrae datos estructurados (un solo llamado a Gemini).
 async function analyzeFile(fileId: string, mime: string): Promise<Analysis> {
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 22000);
@@ -136,16 +174,18 @@ async function analyzeFile(fileId: string, mime: string): Promise<Analysis> {
     const f = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`, { signal: ctrl.signal });
     if (!f.ok) throw new Error('file ' + f.status);
     const b64 = toBase64(await f.arrayBuffer());
-    const prompt = `Imagen/PDF de una emergencia por terremoto en Venezuela. CLASIFÍCALA y extrae datos. Responde SOLO JSON:
-{"tipo":"desaparecido|rescatado|lista_hospital|acopio|logistica|otro","personas":[{"nombre":"","edad":"","zona":"","visto":"","contacto":""}],"centros":[{"nombre":"","direccion":"","telefono":""}],"logistica":[{"lugar":"","direccion":"","zona":"","necesidades":"","contacto":""}]}
-Reglas:
+    const prompt = `Imagen/PDF de una emergencia por terremoto en Venezuela. Mírala, ENTIENDE qué información contiene y CLASIFÍCALA en el destino correcto; luego extrae los datos. Responde SOLO JSON:
+{"tipo":"desaparecido|rescatado|lista_hospital|acopio|logistica|zona|grupo|otro","personas":[{"nombre":"","edad":"","zona":"","visto":"","contacto":""}],"centros":[{"nombre":"","direccion":"","telefono":""}],"logistica":[{"lugar":"","direccion":"","zona":"","necesidades":"","contacto":""}],"zonas":[{"tipo_dano":"","direccion":"","zona":"","descripcion":""}],"grupos":[{"nombre":"","tipo":"","zona":"","url":"","contacto":"","nota":""}]}
+Reglas (elige UN solo tipo, el que mejor describa la imagen):
 - CARTEL de persona DESAPARECIDA (dice "desaparecido/a", "ayúdanos a encontrar", "búsqueda") → tipo "desaparecido"; en personas pon nombre completo, edad (si hay), zona/estado, dónde se le vio por última vez (visto) y teléfono de contacto.
 - CARTEL de persona RESCATADA/ENCONTRADA/a salvo → tipo "rescatado" (mismos campos).
 - LISTA (manuscrita o impresa) de pacientes/ingresados a un hospital → tipo "lista_hospital"; personas = nombres (y edad si aparece).
 - Directorio de CENTROS DE ACOPIO / puntos de ayuda → tipo "acopio"; centros = {nombre, direccion, telefono}.
-- NECESIDADES/INSUMOS que HACEN FALTA en un refugio, zona o comunidad (p.ej. "se necesita/falta: agua, comida, medicinas, pañales, ropa, colchonetas") → tipo "logistica"; en logistica pon, por cada lugar: lugar/nombre del sitio, direccion, zona/ciudad/estado, qué necesidades faltan (necesidades) y un contacto si aparece. Incluye la ubicación más específica posible (es para ubicarlo en un mapa).
-- Cualquier otra cosa (captura de pantalla, meme, foto sin datos) → tipo "otro", listas vacías.
-- NUNCA incluyas cédula ni números de identidad. NO inventes: omite lo ilegible.`;
+- NECESIDADES/INSUMOS que HACEN FALTA en un refugio, zona o comunidad (p.ej. "se necesita/falta: agua, comida, medicinas, pañales, ropa, colchonetas") → tipo "logistica"; por cada lugar: lugar/nombre, direccion, zona/ciudad/estado, qué falta (necesidades) y contacto. Pon la ubicación más específica posible (es para un mapa).
+- FOTO de DAÑOS por el terremoto (edificio colapsado, grietas, inundación/deslave, vía o puente bloqueado, incendio) → tipo "zona"; por cada daño: tipo_dano (colapso|grietas|inundacion|via|incendio|otro), direccion, zona/ciudad/estado y una descripcion breve de lo que se ve. Pon la ubicación más específica posible (es para un mapa).
+- Captura/cartel de un GRUPO o canal comunitario (WhatsApp/Telegram) por zona o edificio, con enlace (wa.me, chat.whatsapp.com, t.me) o nombre de grupo → tipo "grupo"; por cada grupo: nombre, tipo (edificio|zona|accion|otro), zona/sector, url del enlace, contacto y una nota de qué se comparte.
+- Cualquier otra cosa (meme, foto personal, captura sin datos útiles) → tipo "otro", todas las listas vacías.
+- NUNCA incluyas cédula ni números de identidad. NO inventes: omite lo ilegible. Devuelve solo la lista del tipo elegido; las demás vacías.`;
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: b64 } }] }], generationConfig: { response_mime_type: 'application/json', temperature: 0 } }),
@@ -153,7 +193,7 @@ Reglas:
     if (!res.ok) throw new Error('gemini ' + res.status + ' ' + (await res.text()).slice(0, 120));
     const j: any = await res.json();
     let p: any = {}; try { p = JSON.parse(j?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'); } catch {}
-    return { tipo: String(p.tipo || 'otro'), personas: Array.isArray(p.personas) ? p.personas : [], centros: Array.isArray(p.centros) ? p.centros : [], logistica: Array.isArray(p.logistica) ? p.logistica : [] };
+    return { tipo: String(p.tipo || 'otro'), personas: Array.isArray(p.personas) ? p.personas : [], centros: Array.isArray(p.centros) ? p.centros : [], logistica: Array.isArray(p.logistica) ? p.logistica : [], zonas: Array.isArray(p.zonas) ? p.zonas : [], grupos: Array.isArray(p.grupos) ? p.grupos : [] };
   } finally { clearTimeout(t); }
 }
 
@@ -188,7 +228,7 @@ export default async function handler(req: Request): Promise<Response> {
     const now = new Date().toISOString(); const report: any[] = []; let added = 0;
     for (const fl of pending) {
       const mime = fl.tipo === 'pdf' ? 'application/pdf' : 'image/jpeg';
-      let a: Analysis = { tipo: 'otro', personas: [], centros: [], logistica: [] };
+      let a: Analysis = { tipo: 'otro', personas: [], centros: [], logistica: [], zonas: [], grupos: [] };
       try { a = await analyzeFile(fl.id, mime); } catch (e: any) { const msg = e?.message || 'err'; report.push({ id: fl.id, error: msg }); if (!/\b429\b|quota/i.test(msg)) await markDone(fl); continue; } // 429 (cuota) → NO marcar, reintenta luego
       let destino = 'otro', n = 0;
       if (a.tipo === 'desaparecido' || a.tipo === 'rescatado') {
@@ -237,7 +277,33 @@ export default async function handler(req: Request): Promise<Response> {
             foto_url: thumb(fl.id), fotos: [thumb(fl.id)],
           });
         }
-        await upsert('logistica_reports', rows); destino = 'logistica'; n = rows.length;   // sin on_conflict (no hay col única); foto_ocr evita reprocesar
+        n = await insertResilient('logistica_reports', rows); destino = 'logistica';   // sin on_conflict (no hay col única); foto_ocr evita reprocesar
+      } else if (a.tipo === 'zona') {
+        const rows: any[] = []; const seen = new Set<string>(); let geocoded = 0;
+        for (const z of a.zonas.slice(0, 8)) {
+          const direccion = redact(z?.direccion) || '';
+          const zona = redact(z?.zona) || '';
+          const descripcion = redact(z?.descripcion) || '';
+          const dedup = norm(`${direccion}|${zona}|${descripcion}`).slice(0, 160); if (seen.has(dedup)) continue; seen.add(dedup);
+          if (geocoded >= 6) break;
+          const geo = await geocodeVE([direccion, zona].filter(Boolean).join(', '));
+          if (!geo) continue;                                          // sin ubicación no se puede mapear
+          geocoded++;
+          rows.push({ lat: geo.lat, lng: geo.lng, ciudad: zona || null, tipo: mapZonaTipo(`${z?.tipo_dano} ${descripcion}`), direccion: direccion || null, descripcion: descripcion || null, foto_url: thumb(fl.id), fotos: [thumb(fl.id)] });
+        }
+        n = await insertResilient('zona_reports', rows); destino = 'zona';
+      } else if (a.tipo === 'grupo') {
+        const rows: any[] = []; const seen = new Set<string>();
+        for (const g of a.grupos.slice(0, 12)) {
+          const nombre = redact(g?.nombre) || '';
+          let url = String(g?.url || '').trim().slice(0, 300);
+          if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+          const urlOk = /wa\.me|chat\.whatsapp\.com|whatsapp\.com|t\.me|telegram/i.test(url);
+          if (nombre.length < 2 && !urlOk) continue;                   // ni nombre ni enlace → inservible
+          const dedup = norm(`${nombre}|${url}`).slice(0, 160); if (seen.has(dedup)) continue; seen.add(dedup);
+          rows.push({ nombre: nombre || 'Grupo comunitario', tipo: mapGrupoTipo(`${g?.tipo} ${nombre}`), zona: redact(g?.zona) || null, url: urlOk ? url : null, contacto: cleanPhone(g?.contacto) || null, nota: (redact(g?.nota) || null) });
+        }
+        n = await insertResilient('grupos_comunitarios', rows); destino = 'grupo';
       }
       await markDone(fl, n);
       added += n; report.push({ id: fl.id, tipo: a.tipo, destino, agregados: n });
