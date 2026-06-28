@@ -1583,7 +1583,8 @@ async function submitDesapReport(btn){
   const row={ nombre, tipo_persona:tipo, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:zonaStr, direccion:dir, referencia:g('dpRef').slice(0,100), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,400), foto_url:foto, fotos:(fotos.length?fotos:null), documento_url:doc, lat, lng, estado, categoria };
   // EDICIÓN admin: actualiza la persona (PATCH) en vez de crear/promover
   if(_edit){
-    const ef={ nombre, tipo_persona:tipo, categoria, edad:row.edad, cedula:row.cedula, zona:row.zona, direccion:dir, referencia:row.referencia, visto:row.visto, contacto:row.contacto, encontrado_por:row.encontrado_por, nota:row.nota, estado };
+    const ef={ nombre, tipo_persona:tipo, categoria, edad:row.edad, cedula:row.cedula, direccion:dir, referencia:row.referencia, visto:row.visto, contacto:row.contacto, encontrado_por:row.encontrado_por, nota:row.nota, estado };
+    if(zonaStr) ef.zona=zonaStr;   // no borrar la zona existente si la cascada quedó vacía (registro viejo)
     if(fotos.length) ef.foto_url=foto;
     if(doc) ef.documento_url=doc;
     if(lat!=null&&lng!=null){ ef.lat=lat; ef.lng=lng; }
@@ -1729,7 +1730,8 @@ async function submitMapReport(kind){
   const foto=fotos[0]||null;
   // EDICIÓN admin: actualiza la fila (PATCH) en lugar de crear una nueva
   if(_edit){
-    const fields={ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,lat,lng};
+    const fields={direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,lat,lng};
+    if(city) fields.ciudad=city;   // si la cascada quedó vacía (registro viejo), NO borrar la ubicación existente
     if(fotos.length) fields.foto_url=foto;
     if(kind==='cobertura'){ fields.operador=document.getElementById('rpOper').value; fields.estado=document.getElementById('rpEstado').value; }
     else if(kind==='luz'){ fields.estado=document.getElementById('rpEstado').value; }
@@ -1739,7 +1741,7 @@ async function submitMapReport(kind){
     if(ok){
       const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:DB.power;
       const rec=arr.find(x=>x.id===ed.id);
-      if(rec){ rec.lat=lat; rec.lng=lng; rec.city=city; rec.direccion=direccion; rec.referencia=referencia; rec.descripcion=descripcion; if(fotos.length) rec.foto=foto; if(fields.operador!=null)rec.operador=fields.operador; if(fields.estado!=null)rec.estado=fields.estado; if(fields.tipo!=null)rec.tipo=fields.tipo; if(fields.nota!=null)rec.nota=fields.nota; }
+      if(rec){ rec.lat=lat; rec.lng=lng; if(city) rec.city=city; rec.direccion=direccion; rec.referencia=referencia; rec.descripcion=descripcion; if(fotos.length) rec.foto=foto; if(fields.operador!=null)rec.operador=fields.operador; if(fields.estado!=null)rec.estado=fields.estado; if(fields.tipo!=null)rec.tipo=fields.tipo; if(fields.nota!=null)rec.nota=fields.nota; }
       save(); clearPhotos('rpFotos'); closeMapModal(); toast('✅ Cambios guardados'); renderHub();
     }
     return;
