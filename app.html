@@ -278,6 +278,13 @@
         <button class="btn ghost" style="width:auto;padding:10px 16px;margin-left:auto" onclick="go('bot')">Abrir bot →</button>
       </div>
     </div>
+
+    <div class="card">
+      <b style="font-size:14px">🌍 Ayuda internacional (desde el exterior)</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Países y organismos fuera de Venezuela que están enviando ayuda (rescate, médica, logística, fondos). En vivo.</div>
+      <div id="ayudaIntl"><div class="empty" style="padding:10px">Cargando…</div></div>
+      <a class="ext" href="https://redayudavenezuela.com/" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px">Fuente: Red Ayuda Venezuela →</a>
+    </div>
   </section>
 
   <!-- ============ ESTOY A SALVO ============ -->
@@ -379,9 +386,15 @@
       </div>
     </details>
 
-    <div class="row" style="margin-top:6px">
-      <a class="btn ghost" style="text-decoration:none;text-align:center" href="https://venezuelatebusca.com/" target="_blank" rel="noopener">Venezuela Te Busca →</a>
-      <a class="btn ghost" style="text-decoration:none;text-align:center" href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">Desaparecidos Terremoto →</a>
+    <div class="card" id="portalesDesap">
+      <b style="font-size:14px">🔗 Portales para buscar / reportar desaparecidos</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Otras webs (oficiales y ciudadanas). Busca y reporta también ahí.</div>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://redayudavenezuela.com/desaparecidos" target="_blank" rel="noopener">🌐 Red Ayuda Venezuela →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔍 Desaparecidos Terremoto →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener">🆘 Afectados por el Terremoto →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://venezuelatebusca.com/" target="_blank" rel="noopener">📋 Venezuela Te Busca →</a>
+      </div>
     </div>
   </section>
 
@@ -413,6 +426,16 @@
       <b style="font-size:14px">➕ ¿Buscas a un niño/a o sabes de uno rescatado?</b>
       <div style="font-size:12px;color:var(--mut);margin:6px 0 10px">Repórtalo (con foto). Si lo marcas como rescatado y ya estaba en desaparecidos, se mueve solo (no queda en ambos).</div>
       <button class="btn primary" onclick="openDesapReport('nino')">➕ Reportar niño/a (desaparecido o rescatado)</button>
+    </div>
+    <div class="card">
+      <b style="font-size:14px">🔗 Portales para buscar / reportar</b>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Otras webs (oficiales y ciudadanas) con niños y personas. Busca y reporta también ahí.</div>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://redayudavenezuela.com/desaparecidos" target="_blank" rel="noopener">🌐 Red Ayuda Venezuela →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔍 Desaparecidos Terremoto →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener">🆘 Afectados por el Terremoto →</a>
+        <a class="btn ghost" style="text-decoration:none;text-align:center;flex:1;min-width:150px" href="https://venezuelatebusca.com/" target="_blank" rel="noopener">📋 Venezuela Te Busca →</a>
+      </div>
     </div>
     <p style="font-size:11px;color:var(--amber);background:rgba(255,176,32,.08);border:1px dashed rgba(255,176,32,.3);padding:8px 11px;border-radius:9px;margin-top:10px">⚠️ Datos de la red de emergencia y reportes ciudadanos: pueden tener errores. La cédula nunca se muestra. Confirma siempre con la <b>Cruz Roja (0422 799 4880)</b>.</p>
   </section>
@@ -803,6 +826,7 @@ function go(v, fromBack){
   if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
+  if(v==='ayuda') loadAyudaIntl();
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
   updateBackBtn();
@@ -1975,6 +1999,22 @@ function safeUrl(u){
   }
   return s;
 }
+// Ayuda internacional (países/organismos fuera de Venezuela) — en vivo desde Red Ayuda (reports kind=ayuda_int)
+let _ayudaIntlLoaded=false;
+async function loadAyudaIntl(){
+  const el=document.getElementById('ayudaIntl'); if(!el||_ayudaIntlLoaded) return;
+  try{
+    const r=await fetch(`${RED_SB}/rest/v1/reports?kind=eq.ayuda_int&select=title,category,description&order=title&limit=60`,{headers:RED_H});
+    const a=r.ok?await r.json():[];
+    if(!Array.isArray(a)||!a.length){ el.innerHTML='<div class="empty" style="padding:10px">No disponible ahora.</div>'; return; }
+    const ICON={rescate:'⛑️',medica:'🩺',logistica:'📦',fondos:'💶',otra:'🌐'};
+    el.innerHTML=a.map(x=>`<div class="person"><div class="pic">${ICON[x.category]||'🌐'}</div><div class="info">
+      <div class="nm">${esc(x.title)} ${x.category?`<span class="badge st">${esc(x.category)}</span>`:''}</div>
+      ${x.description?`<div class="dt">${esc(x.description)}</div>`:''}
+    </div></div>`).join('');
+    _ayudaIntlLoaded=true;
+  }catch(e){ el.innerHTML='<div class="empty" style="padding:10px">No se pudo cargar ahora.</div>'; }
+}
 async function loadGrupos(){
   try{
     const r=await fetch(`${SB_URL}/rest/v1/grupos_comunitarios?select=*&order=created_at.desc&limit=1000`,{headers:SB_H});
@@ -2220,7 +2260,7 @@ function toast(msg,type){
 }
 
 /* ---------- Init ---------- */
-renderNeeds(); fillCities('rCity'); fillCities('sCity');
+renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl();
 renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
 setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté abierta
