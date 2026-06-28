@@ -1340,7 +1340,8 @@ async function uploadFoto(file){
   try{
     const blob=await resizeImage(file, 1280, 0.7);
     const name=rid()+Date.now()+'.jpg';
-    const res=await fetch(`${SB_URL}/storage/v1/object/reportes/${name}`,{method:'POST',headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':'image/jpeg'},body:blob});
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),25000);   // no colgar el guardado
+    const res=await fetch(`${SB_URL}/storage/v1/object/reportes/${name}`,{method:'POST',headers:{apikey:SB_ANON,Authorization:'Bearer '+SB_ANON,'Content-Type':'image/jpeg'},body:blob,signal:ctrl.signal}).finally(()=>clearTimeout(to));
     if(!res.ok) return null;
     return `${SB_URL}/storage/v1/object/public/reportes/${name}`;
   }catch(e){ return null; }
@@ -1472,11 +1473,12 @@ async function submitDesapReport(btn){
   const tipo = g('dpTipo')==='nino' ? 'nino' : 'adulto';
   const categoria = tipo==='nino' ? 'nino' : null;
   if(btn) btn.textContent='Publicando…';
-  // Fotos (varias) + documento
-  toast('📤 Subiendo…');
-  const fotos=await uploadPhotos('dpFotos'); const foto=fotos[0]||null;
+  // Fotos/documento son OPCIONALES y best-effort: si fallan o no hay, se publica IGUAL.
+  let fotos=[];
+  if((PHOTOS['dpFotos']||[]).length){ toast('📤 Subiendo fotos…'); try{ fotos=await uploadPhotos('dpFotos'); }catch(e){ fotos=[]; } if(!fotos.length) toast('No se pudo subir la(s) foto(s); se publica igual','err'); }
+  const foto=fotos[0]||null;
   let doc=null; const dfile=document.getElementById('dpDoc')?.files?.[0];
-  if(dfile){ doc=await uploadDoc(dfile); }
+  if(dfile){ toast('📤 Subiendo documento…'); try{ doc=await uploadDoc(dfile); }catch(e){ doc=null; } }
   // Ubicación: actual o geocodificada de la dirección (opcional; queda null si no resuelve).
   // Se REDONDEA a ~1 km para ubicar el sector sin publicar el punto exacto (privacidad).
   let lat=null, lng=null; const dir=g('dpDireccion').slice(0,160);
@@ -1594,8 +1596,10 @@ async function submitMapReport(kind){
   if(reportGeo){ lat=reportGeo.lat; lng=reportGeo.lng; }
   else if(direccion){ toast('📍 Ubicando dirección…'); const gc=await geocode(direccion+', '+city+', Venezuela'); if(gc){ lat=gc.lat; lng=gc.lng; } }
   if(typeof lat!=='number'){ lat=base.lat+(Math.random()-.5)*.06; lng=base.lng+(Math.random()-.5)*.06; if(direccion) toast('No se ubicó la dirección exacta; se usó la ciudad'); }
-  // Fotos (varias, opcional): comprime y sube a Supabase Storage
-  toast('📤 Subiendo…'); const fotos=await uploadPhotos('rpFotos'); const foto=fotos[0]||null;
+  // Fotos OPCIONALES y best-effort: si fallan o no hay, se guarda IGUAL.
+  let fotos=[];
+  if((PHOTOS['rpFotos']||[]).length){ toast('📤 Subiendo fotos…'); try{ fotos=await uploadPhotos('rpFotos'); }catch(e){ fotos=[]; } if(!fotos.length) toast('No se pudo subir la(s) foto(s); se guarda el reporte igual','err'); }
+  const foto=fotos[0]||null;
   const comun={lat,lng,ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,foto_url:foto,fotos:fotos.length?fotos:null};
   let pushP;
   if(kind==='cobertura'){
