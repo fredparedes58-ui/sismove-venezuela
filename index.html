@@ -148,6 +148,12 @@
     @media (max-width: 460px) { .cifras-grid { grid-template-columns: repeat(3, 1fr); } .cifras-grid.g5 { grid-template-columns: repeat(2, 1fr); } .cifras-grid.g4 { grid-template-columns: repeat(2, 1fr); } }
     .cifras-fuente-lbl { font-size: 12.5px; color: var(--texto); font-weight: 800; margin: 0 0 8px; }
     .cifras-fuente-lbl .tag { font-weight: 600; color: var(--gris); font-size: 11px; }
+    .cifras-acc { border: 1px solid var(--borde); border-radius: 12px; background: var(--surface); margin-top: 12px; padding: 2px 14px 12px; }
+    .cifras-acc > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 11px 0 9px; margin: 0; }
+    .cifras-acc > summary::-webkit-details-marker { display: none; }
+    .cifras-acc > summary::after { content: "▾"; margin-left: auto; color: var(--gris); transition: transform .2s; }
+    .cifras-acc[open] > summary::after { transform: rotate(180deg); }
+    .cifras-acc .cifras-fuente { margin-bottom: 0; }
     .cifra { background: var(--surface); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); display: flex; flex-direction: column; justify-content: center; }
     .cifra-num { font-size: 19px; font-weight: 800; line-height: 1.05; color: var(--texto); font-variant-numeric: tabular-nums; }
     .cifra-lbl { font-size: 9px; color: var(--gris); margin-top: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: .2px; line-height: 1.15; }
@@ -389,7 +395,8 @@
   <h2 class="cifras-title">📊 Cifras de la emergencia</h2>
 
   <!-- Bloque 1 · Red Ayuda Venezuela (EN VIVO, cada 30 min) -->
-  <div class="cifras-fuente-lbl">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="redAgo">cada 30 min</span></span></div>
+  <details class="cifras-acc" open>
+  <summary class="cifras-fuente-lbl">Red Ayuda Venezuela <span class="tag">· en vivo, actualizado <span id="redAgo">cada 30 min</span></span></summary>
   <div class="cifras-grid" id="redGrid">
     <div class="cifra c-rojo"><div class="cifra-num" data-k="desaparecidos">—</div><div class="cifra-lbl">Desaparecidos</div></div>
     <div class="cifra"><div class="cifra-num" data-k="hospital">—</div><div class="cifra-lbl">En hospitales</div></div>
@@ -404,9 +411,11 @@
     <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos</div></div>
   </div>
   <p class="cifras-fuente"><a href="https://redayudavenezuela.com/" target="_blank" rel="noopener">🔗 redayudavenezuela.com →</a></p>
+  </details>
 
   <!-- Bloque 2 · Desaparecidos Terremoto Venezuela (manual) -->
-  <div class="cifras-fuente-lbl" style="margin-top:18px">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></div>
+  <details class="cifras-acc" open>
+  <summary class="cifras-fuente-lbl">Desaparecidos Terremoto Venezuela <span class="tag">· actualización manual <span id="dtvFecha"></span></span></summary>
   <div class="cifras-grid g4" id="dtvGrid">
     <div class="cifra"><div class="cifra-num" data-k="reportes">—</div><div class="cifra-lbl">Cantidad de reportes</div></div>
     <div class="cifra"><div class="cifra-num" data-k="personas_unicas">—</div><div class="cifra-lbl">Personas únicas (aprox.)</div></div>
@@ -414,9 +423,11 @@
     <div class="cifra c-verde"><div class="cifra-num" data-k="localizados">—</div><div class="cifra-lbl">Localizados</div></div>
   </div>
   <p class="cifras-fuente"><a href="https://desaparecidosterremotovenezuela.com/" target="_blank" rel="noopener">🔗 desaparecidosterremotovenezuela.com →</a></p>
+  </details>
 
   <!-- Bloque 3 · Afectados por el Terremoto · Balance oficial (manual) -->
-  <div class="cifras-fuente-lbl" style="margin-top:18px">Afectados por el Terremoto · Balance oficial <span class="tag">· actualización manual <span id="afeFecha"></span></span></div>
+  <details class="cifras-acc" open>
+  <summary class="cifras-fuente-lbl">Afectados por el Terremoto · Balance oficial <span class="tag">· actualización manual <span id="afeFecha"></span></span></summary>
   <div class="cifras-grid" id="afeGrid">
     <div class="cifra c-mor"><div class="cifra-num" data-k="fallecidos">—</div><div class="cifra-lbl">Fallecidos oficiales</div></div>
     <div class="cifra c-oro"><div class="cifra-num" data-k="heridos">—</div><div class="cifra-lbl">Heridos oficiales</div></div>
@@ -426,6 +437,7 @@
     <div class="cifra"><div class="cifra-num" data-k="edificaciones">—</div><div class="cifra-lbl">Edificaciones afectadas</div></div>
   </div>
   <p class="cifras-fuente"><a href="https://www.afectadosporelterremotovenezuela.com/" target="_blank" rel="noopener">🔗 afectadosporelterremotovenezuela.com →</a></p>
+  </details>
 </section>
 
 <div class="grid-wrapper">
