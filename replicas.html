@@ -16,7 +16,7 @@
     <div class="page-sub">Los movimientos continúan · qué hacer · cómo mantenerte seguro</div>
   </div>
 
-  <div class="replica-alert"><strong>30 réplicas registradas al 25 de junio.</strong> Pueden continuar durante días o semanas. No regreses a un edificio dañado.</div>
+  <div class="replica-alert" id="repAlert"><strong>Cargando réplicas recientes…</strong></div>
 
   <div class="steps">
     <div class="step"><div class="step-n"></div><div class="step-b"><h4>No vuelvas a un edificio con daños visibles</h4><p>Una réplica puede derribar lo que el sismo principal dejó en pie. Espera la evaluación técnica de ingeniería.</p></div></div>
@@ -33,6 +33,43 @@
     <p><a class="ext" href="https://play.google.com/store/apps/details?id=com.jrustonapps.myearthquakealerts" target="_blank" rel="noopener">→ App de alertas de sismos (Android)</a> — My Earthquake Alerts</p>
     <p><a class="ext" href="http://funvisis.gob.ve" target="_blank" rel="noopener">→ FUNVISIS</a> — Fundación Venezolana de Investigaciones Sismológicas <span style="font-size:11px;opacity:.7">(su web a veces falla por certificado)</span></p>
   </div>
+
+  <div class="card">
+    <h3>📈 Réplicas recientes <span id="repFuente" style="font-size:12px;font-weight:400;opacity:.7"></span></h3>
+    <div id="repUpdated" style="font-size:12px;color:#8a7a66;margin:2px 0 10px"></div>
+    <div id="repList"><div style="padding:10px;color:#8a7a66">Cargando datos sísmicos…</div></div>
+    <p style="font-size:11px;opacity:.7;margin-top:10px">Fuente: USGS (radio de 350 km al epicentro de Yaracuy). Se actualiza solo a diario. Hora de Venezuela (VET).</p>
+  </div>
 </div>
+<script>
+(function(){
+  var EPI_DATE='2026-06-24';
+  function vet(ms){ try{ return new Date(ms).toLocaleString('es-VE',{timeZone:'America/Caracas',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+  function magColor(m){ return m>=6?'#7f1d1d':m>=5?'#B83228':m>=4?'#A84E1A':m>=3?'#B8823A':'#2A6E45'; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  fetch('/api/replicas').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+    var alert=document.getElementById('repAlert'), list=document.getElementById('repList'),
+        upd=document.getElementById('repUpdated'), fu=document.getElementById('repFuente');
+    if(!d||!d.sismos||!d.sismos.length){
+      if(alert) alert.innerHTML='<strong>Las réplicas continúan.</strong> No regreses a un edificio dañado. (No se pudieron cargar los datos sísmicos ahora.)';
+      if(list) list.innerHTML='<div style="padding:10px;color:#8a7a66">No disponible ahora. Consulta USGS arriba.</div>';
+      return;
+    }
+    var s=d.sismos, fuertes=s.filter(function(q){return q.mag>=4;}).length;
+    if(alert) alert.innerHTML='<strong>'+s.length+' réplicas registradas</strong> desde el sismo principal (M≥'+(2.5)+', radio 350 km).'+(fuertes?' '+fuertes+' de magnitud 4 o mayor.':'')+' Pueden continuar días o semanas — no regreses a un edificio dañado.';
+    if(fu) fu.textContent='· '+(d.fuente||'USGS');
+    if(upd&&d.generado) upd.textContent='Última actualización: '+vet(new Date(d.generado).getTime())+' (VET)';
+    if(list) list.innerHTML=s.slice(0,40).map(function(q){
+      var col=magColor(q.mag);
+      return '<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eee5d6">'
+        +'<div style="flex:none;width:46px;height:38px;border-radius:9px;background:'+col+';color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:15px">'+(q.mag!=null?q.mag.toFixed(1):'?')+'</div>'
+        +'<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">'+esc(q.lugar)+'</div>'
+        +'<div style="font-size:12px;color:#8a7a66">'+(q.time?vet(q.time):'')+(q.depth!=null?' · prof. '+q.depth+' km':'')+(q.dist!=null?' · a '+q.dist+' km del epicentro':'')+'</div></div></div>';
+    }).join('');
+  }).catch(function(){
+    var list=document.getElementById('repList'); if(list) list.innerHTML='<div style="padding:10px;color:#8a7a66">No se pudo cargar ahora.</div>';
+  });
+})();
+</script>
 <div class="page-footer"><p>Creada por voluntarias · información verificada.</p></div>
 <a href="/app" style="position:fixed;left:16px;bottom:16px;z-index:2147483000;background:#4B3658;color:#fff;font:600 14px system-ui,sans-serif;padding:11px 16px;border-radius:12px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.28)">🗺️ Mapas en vivo</a></body></html>
