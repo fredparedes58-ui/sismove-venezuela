@@ -151,6 +151,9 @@
   .fotos-prev .fp{position:relative;width:72px;height:72px}
   .fotos-prev .fp img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
   .fotos-prev .fp button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid #fff;background:var(--red);color:#fff;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .chkgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:2px 0 4px}
+  .chkgrid label{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--txt);cursor:pointer}
+  .chkgrid input{width:16px;height:16px;accent-color:var(--green)}
   .step{display:flex;gap:12px;margin:12px 0}
   .step .num{width:26px;height:26px;border-radius:8px;background:var(--amber);color:#1a1205;font-weight:800;display:grid;place-items:center;flex:none;font-size:13px}
 
@@ -980,8 +983,8 @@ function buildAcopio(){
   (FEED.centros||[]).forEach(c=>{
     if(typeof c.lat!=='number'||typeof c.lng!=='number') return;
     const needs=(c.necesita||[]).slice(0,8).join(', ');
-    arr.push(L.marker([c.lat,c.lng]).addTo(mapHub)
-     .bindPopup(`<b>📦 ${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`));
+    arr.push(hov(L.marker([c.lat,c.lng]).addTo(mapHub)
+     .bindPopup(`<b>📦 ${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`)));
   });
   return arr;
 }
@@ -1036,6 +1039,8 @@ function toggleTowerOp(o){ towerOps.has(o)?towerOps.delete(o):towerOps.add(o); _
 function toggleTowerTech(t){ towerTechs.has(t)?towerTechs.delete(t):towerTechs.add(t); _redrawTowerChips(); drawTowersInView(); }
 const ZTIPO={colapso:'🏚️ Edificio colapsado',grietas:'🧱 Grietas / daño',inundacion:'🌊 Inundación',via:'🚧 Vía bloqueada',incendio:'🔥 Incendio',otro:'⚠️ Otro daño'};
 const LOGI_TIPO={comida:'🍲 Comida',agua:'💧 Agua',medicinas:'💊 Medicinas',higiene:'🧴 Higiene/pañales',ropa:'👕 Ropa/cobijas',voluntarios:'🙋 Voluntarios',otro:'📦 Otro'};
+// Etiqueta de logística admitiendo varios recursos (coma-separados)
+function logiLabel(tipo){ const s=String(tipo||'').split(',').map(t=>LOGI_TIPO[t.trim()]||(t.trim()&&t.trim())).filter(Boolean); return s.length?s.join(' · '):'📦 Recurso'; }
 
 /* ---- Torres reales: render por VIEWPORT (cualquier barrio/pueblo) ---- */
 let towerLayer=null, liveLayer=null, towersLoading=false;
@@ -1109,14 +1114,16 @@ async function fetchLiveTowers(){
 
 // Snippet de popup: dirección + descripción (reportes comunitarios)
 function dirDesc(r){ return `${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.descripcion?'<br>'+esc(r.descripcion):''}`; }
+// Abrir el popup (info + foto) al pasar el mouse por encima del punto
+function hov(m){ try{ m.on('mouseover',function(e){ e.target.openPopup(); }); }catch(e){} return m; }
 /* ---- Cobertura / Luz — constructor de capa ---- */
 function buildStatus(kind){
   const arr=[]; const data=statusData(kind);
   data.forEach(r=>{
     if(typeof r.lat!=='number') return;
     const col=statusColor(kind,r.estado);
-    arr.push(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
-     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}`));
+    arr.push(hov(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}`)));
   });
   return arr;
 }
@@ -1145,8 +1152,8 @@ function buildAfectadas(){
   // Reportes de la comunidad (daños marcados por la gente)
   (DB.zonas||[]).forEach(r=>{
     if(typeof r.lat!=='number') return;
-    arr.push(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
-     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`));
+    arr.push(hov(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
+     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`)));
   });
   return arr;
 }
@@ -1158,8 +1165,8 @@ function buildLogistica(){
     if(typeof r.lat!=='number') return;
     const falta = r.estado!=='cubierto';
     const col = falta ? '#e23a3c' : '#10a36a';
-    arr.push(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
-     .bindPopup(`<b>${esc(LOGI_TIPO[r.tipo]||'📦 Recurso')}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`));
+    arr.push(hov(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
+     .bindPopup(`<b>${esc(logiLabel(r.tipo))}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`)));
   });
   return arr;
 }
@@ -1181,7 +1188,7 @@ function renderHubPanel(){
     let html='';
     if(zonas.length){
       html+=`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">⚠️ Reportes de la comunidad · ${zonas.length}</div>`
-        + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span>${delBtn('afectada',r.id)}</div>
+        + zonas.slice(0,20).map(r=>`<div class="rep media"><div class="h"><span class="t">${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</span>${editBtn('afectada',r.id)}${delBtn('afectada',r.id)}</div>
           <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}</div>`).join('');
     }
     if(aa){
@@ -1225,7 +1232,7 @@ function renderHubPanel(){
     list.innerHTML = LG.length ? ordered.map(r=>{
       const f=r.estado!=='cubierto';
       return `<div class="rep ${f?'crit':'baja'}">
-        <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(LOGI_TIPO[r.tipo]||'Recurso')}</span><span class="badge st">${f?'FALTA':'cubierto'}</span>${delBtn('logistica',r.id)}</div>
+        <div class="h"><span class="t">${f?'🔴':'🟢'} ${esc(logiLabel(r.tipo))}</span><span class="badge st">${f?'FALTA':'cubierto'}</span>${editBtn('logistica',r.id)}${delBtn('logistica',r.id)}</div>
         ${r.nota?`<div class="d">${esc(r.nota)}</div>`:''}
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`;
@@ -1246,7 +1253,7 @@ function renderHubPanel(){
       <div class="rep ${k==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
         <div class="h"><span class="t">${k==='cobertura'?'📶':'⚡'} ${statusLabel(k,r.estado)}</span>
           ${k==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
-          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${delBtn(k,r.id)}</div>
+          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${editBtn(k,r.id)}${delBtn(k,r.id)}</div>
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
   }
@@ -1367,8 +1374,8 @@ function reportGeoCapture(btn){
     btn.textContent='📍 Ubicación actualizada';
   },()=>{ document.getElementById('rpGeo').textContent='No se pudo (se usará la ciudad).'; btn.textContent='📍 Usar mi ubicación exacta'; },{timeout:8000});
 }
-function openMapReport(kind){
-  reportGeo=null;
+function openMapReport(kind, rec){
+  reportGeo=null; _edit=null;
   const sheet=document.getElementById('mapSheet');
   if(kind==='cobertura'){
     sheet.innerHTML=`<h3>📶 Reportar cobertura</h3><p>Ayuda a otros a saber dónde hay señal.</p>
@@ -1392,16 +1399,16 @@ function openMapReport(kind){
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   } else if(kind==='logistica'){
     sheet.innerHTML=`<h3>🍲 Reportar logística</h3><p>Marca dónde <b>FALTA</b> ayuda o qué zona ya está <b>cubierta/saturada</b>, para repartir mejor y que ninguna zona quede sin nada.</p>
-      <label class="fl">¿Qué recurso?</label>
-      <select id="rpTipo">
-        <option value="comida">🍲 Comida</option>
-        <option value="agua">💧 Agua</option>
-        <option value="medicinas">💊 Medicinas</option>
-        <option value="higiene">🧴 Higiene / pañales</option>
-        <option value="ropa">👕 Ropa / cobijas</option>
-        <option value="voluntarios">🙋 Voluntarios</option>
-        <option value="otro">📦 Otro</option>
-      </select>
+      <label class="fl">¿Qué recurso(s)? (marca todos los que apliquen)</label>
+      <div id="rpTipos" class="chkgrid">
+        <label><input type="checkbox" value="comida"> 🍲 Comida</label>
+        <label><input type="checkbox" value="agua"> 💧 Agua</label>
+        <label><input type="checkbox" value="medicinas"> 💊 Medicinas</label>
+        <label><input type="checkbox" value="higiene"> 🧴 Higiene / pañales</label>
+        <label><input type="checkbox" value="ropa"> 👕 Ropa / cobijas</label>
+        <label><input type="checkbox" value="voluntarios"> 🙋 Voluntarios</label>
+        <label><input type="checkbox" value="otro"> 📦 Otro</label>
+      </div>
       <label class="fl">Estado</label>
       <select id="rpEstado">
         <option value="falta">🔴 FALTA aquí (hace falta)</option>
@@ -1429,15 +1436,29 @@ function openMapReport(kind){
       <button class="btn primary" style="margin-top:14px" onclick="submitMapReport('afectada')">Enviar reporte</button>
       <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>`;
   }
+  // Modo edición admin: pre-rellena los campos con el registro y marca _edit
+  if(rec){
+    const tbl = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
+    _edit = { table: tbl, id: rec.id };
+    if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};
+    const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
+    set('rpCity', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', rec.descripcion); set('rpRef', rec.referencia);
+    if(kind==='cobertura'){ set('rpOper', rec.operador); set('rpEstado', rec.estado); }
+    else if(kind==='luz'){ set('rpEstado', rec.estado); }
+    else if(kind==='logistica'){ set('rpEstado', rec.estado); String(rec.tipo||'').split(',').forEach(t=>{ const c=document.querySelector('#rpTipos input[value="'+t.trim()+'"]'); if(c) c.checked=true; }); }
+    else { set('rpTipo', rec.tipo); }
+    const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar reporte';
+    document.querySelectorAll('#mapSheet .btn.primary').forEach(b=>b.textContent='Guardar cambios');
+  }
   document.getElementById('mapModal').classList.add('show');
 }
-function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); }
+function closeMapModal(){ document.getElementById('mapModal').classList.remove('show'); _edit=null; }
 
 /* ---------- Reportar persona desaparecida (registro propio) ---------- */
 let _desapCat=null;
-function openDesapReport(cat){
+function openDesapReport(cat, rec){
   _desapCat = cat==='nino' ? 'nino' : null;
-  reportGeo=null;
+  reportGeo=null; _edit=null;
   const sheet=document.getElementById('mapSheet');
   const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
   sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas (o repórtalo como rescatado/encontrado) para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
@@ -1464,6 +1485,13 @@ function openDesapReport(cat){
     <button class="btn primary" style="margin-top:14px" onclick="submitDesapReport(this)">Publicar</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
     <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y las fotos serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
+  if(rec){
+    _edit={table:'desaparecidos_reportes',id:rec.id};
+    const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
+    set('dpEstado',rec.estado); set('dpTipo',rec.tipo_persona||(rec.categoria==='nino'?'nino':'adulto')); set('dpNombre',rec.nombre); set('dpEdad',rec.edad); set('dpCedula',rec.cedula); set('dpZona',rec.zona); set('dpDireccion',rec.direccion); set('dpRef',rec.referencia); set('dpVisto',rec.visto); set('dpContacto',rec.contacto); set('dpEncontradoPor',rec.encontrado_por); set('dpNota',rec.nota);
+    const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar persona';
+    document.querySelectorAll('#mapSheet .btn.primary').forEach(b=>b.textContent='Guardar cambios');
+  }
   document.getElementById('mapModal').classList.add('show');
 }
 async function submitDesapReport(btn){
@@ -1487,6 +1515,16 @@ async function submitDesapReport(btn){
   else if(dir){ const gc=await geocode(dir+', '+g('dpZona')+', Venezuela'); if(gc){ lat=rnd(gc.lat); lng=rnd(gc.lng); } }
   const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
   const row={ nombre, tipo_persona:tipo, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:dir, referencia:g('dpRef').slice(0,100), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,400), foto_url:foto, fotos:(fotos.length?fotos:null), documento_url:doc, lat, lng, estado, categoria };
+  // EDICIÓN admin: actualiza la persona (PATCH) en vez de crear/promover
+  if(_edit){
+    const ef={ nombre, tipo_persona:tipo, categoria, edad:row.edad, cedula:row.cedula, zona:row.zona, direccion:dir, referencia:row.referencia, visto:row.visto, contacto:row.contacto, encontrado_por:row.encontrado_por, nota:row.nota, estado };
+    if(fotos.length) ef.foto_url=foto;
+    if(doc) ef.documento_url=doc;
+    if(lat!=null&&lng!=null){ ef.lat=lat; ef.lng=lng; }
+    const ed=_edit; const ok=await adminUpdate(ed.table, ed.id, ef);
+    if(ok){ clearPhotos('dpFotos'); closeMapModal(); toast('✅ Cambios guardados'); loadNinos(); loadDesapCounts&&loadDesapCounts(); } else if(btn){ btn.textContent='Guardar cambios'; }
+    return;
+  }
   try{
     const res=await fetch('/api/reportar-persona',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(row)});
     const j=await res.json().catch(()=>({}));
@@ -1555,6 +1593,27 @@ function delBtn(kind,id){
   if(!isAdmin()||!id) return '';
   return `<button class="delrep" title="Borrar (admin)" onclick="event.stopPropagation();deleteReport('${kind}','${id}',this)">🗑️</button>`;
 }
+function editBtn(kind,id){
+  if(!isAdmin()||!id) return '';
+  return `<button class="delrep" title="Editar (admin)" style="background:var(--bg2);color:var(--blue)" onclick="event.stopPropagation();editReport('${kind}','${id}')">✏️</button>`;
+}
+// Edición admin: abre el formulario correspondiente PRE-RELLENADO; al guardar hace PATCH (admin-update).
+let _edit=null;   // {table,id} cuando se está editando (en vez de crear)
+function editReport(kind,id){
+  if(kind==='grupo'){ const g=(GRUPOS||[]).find(x=>x.id===id); if(g) openGrupoReport(g); return; }
+  if(kind==='desap'){ const n=(NINOS||[]).find(x=>x.id===id); if(n) openDesapReport(n.categoria==='nino'?'nino':null, n); return; }
+  const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:kind==='luz'?DB.power:[];
+  const rec=arr.find(x=>x.id===id); if(rec) openMapReport(kind, rec);
+}
+async function adminUpdate(table,id,fields){
+  const key=localStorage.getItem('sismove_admin_key')||'';
+  try{
+    const r=await fetch('/api/admin-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table,id,key,fields})});
+    if(r.status===403){ toast('Clave de admin incorrecta','err'); return false; }
+    if(!r.ok){ toast('No se pudo guardar el cambio','err'); return false; }
+    return true;
+  }catch(e){ toast('Error de red','err'); return false; }
+}
 async function deleteReport(kind,id,btn){
   if(!confirm('¿Borrar este reporte para todos?')) return;
   const key=localStorage.getItem('sismove_admin_key')||'';
@@ -1600,6 +1659,23 @@ async function submitMapReport(kind){
   let fotos=[];
   if((PHOTOS['rpFotos']||[]).length){ toast('📤 Subiendo fotos…'); try{ fotos=await uploadPhotos('rpFotos'); }catch(e){ fotos=[]; } if(!fotos.length) toast('No se pudo subir la(s) foto(s); se guarda el reporte igual','err'); }
   const foto=fotos[0]||null;
+  // EDICIÓN admin: actualiza la fila (PATCH) en lugar de crear una nueva
+  if(_edit){
+    const fields={ciudad:city,direccion:direccion||null,descripcion:descripcion||null,lat,lng};
+    if(fotos.length) fields.foto_url=foto;
+    if(kind==='cobertura'){ fields.operador=document.getElementById('rpOper').value; fields.estado=document.getElementById('rpEstado').value; }
+    else if(kind==='luz'){ fields.estado=document.getElementById('rpEstado').value; }
+    else if(kind==='logistica'){ fields.tipo=[...document.querySelectorAll('#rpTipos input:checked')].map(c=>c.value).join(',')||'otro'; fields.estado=document.getElementById('rpEstado').value; fields.nota=descripcion||null; }
+    else { fields.tipo=document.getElementById('rpTipo').value; }
+    const ed=_edit; const ok=await adminUpdate(ed.table, ed.id, fields);
+    if(ok){
+      const arr = kind==='logistica'?DB.logistica:kind==='afectada'?DB.zonas:kind==='cobertura'?DB.coverage:DB.power;
+      const rec=arr.find(x=>x.id===ed.id);
+      if(rec){ rec.lat=lat; rec.lng=lng; rec.city=city; rec.direccion=direccion; rec.descripcion=descripcion; if(fotos.length) rec.foto=foto; if(fields.operador!=null)rec.operador=fields.operador; if(fields.estado!=null)rec.estado=fields.estado; if(fields.tipo!=null)rec.tipo=fields.tipo; if(fields.nota!=null)rec.nota=fields.nota; }
+      save(); clearPhotos('rpFotos'); closeMapModal(); toast('✅ Cambios guardados'); renderHub();
+    }
+    return;
+  }
   const comun={lat,lng,ciudad:city,direccion:direccion||null,referencia:referencia||null,descripcion:descripcion||null,foto_url:foto,fotos:fotos.length?fotos:null};
   let pushP;
   if(kind==='cobertura'){
@@ -1611,7 +1687,8 @@ async function submitMapReport(kind){
     DB.power.unshift({id:rid(),lat,lng,city,estado,foto,direccion,descripcion,ts:Date.now()});
     pushP=pushCommunityReport('luz',{...comun,estado});
   } else if(kind==='logistica'){
-    const tipo=document.getElementById('rpTipo').value, estado=document.getElementById('rpEstado').value;
+    const tipo=[...document.querySelectorAll('#rpTipos input:checked')].map(c=>c.value).join(',')||'otro';
+    const estado=document.getElementById('rpEstado').value;
     DB.logistica.unshift({id:rid(),lat,lng,city,tipo,estado,nota:descripcion,foto,direccion,descripcion,ts:Date.now()});
     pushP=pushCommunityReport('logistica',{...comun,tipo,estado,nota:descripcion||null});
   } else {
@@ -1790,7 +1867,7 @@ function ninoCard(n){
   const pic = n.foto_url
     ? `<img src="${esc(n.foto_url)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.outerHTML='<div class=&quot;pic&quot;>👶</div>'">`
     : '👶';
-  return `<div class="person" style="position:relative">${delBtn('desap',n.id)}<div class="pic">${pic}</div><div class="info">
+  return `<div class="person" style="position:relative">${editBtn('desap',n.id)}${delBtn('desap',n.id)}<div class="pic">${pic}</div><div class="info">
     <div class="nm">${esc(n.nombre)}${n.edad?' · '+esc(n.edad):''} ${badge}</div>
     <div class="dt">${n.zona?'📍 '+esc(n.zona):''}${n.visto?' · '+esc(n.visto):''}</div>
     ${n.cedula?`<div class="dt">🪪 ${esc(n.cedula)}</div>`:''}
@@ -1844,7 +1921,7 @@ function gruposChips(){
 function grupoCard(g){
   const t=GTIPOS[g.tipo]||GTIPOS.otro;
   const url=safeUrl(g.url);
-  return `<div class="person" style="position:relative">${delBtn('grupo',g.id)}<div class="pic">${t.e}</div><div class="info">
+  return `<div class="person" style="position:relative">${editBtn('grupo',g.id)}${delBtn('grupo',g.id)}<div class="pic">${t.e}</div><div class="info">
     <div class="nm">${esc(g.nombre)} <span class="badge st">${t.l}</span></div>
     ${g.nota?`<div class="dt">${esc(g.nota)}</div>`:''}
     ${g.contacto?`<div class="dt">📞 <a href="tel:${esc(g.contacto)}">${esc(g.contacto)}</a></div>`:''}
@@ -1867,7 +1944,8 @@ function renderGrupos(){
     <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">📍 ${esc(z)} · ${groups[z].length}</div>
     ${groups[z].map(grupoCard).join('')}`).join('');
 }
-function openGrupoReport(){
+function openGrupoReport(rec){
+  _edit=null;
   const sheet=document.getElementById('mapSheet');
   sheet.innerHTML=`<h3>➕ Agregar grupo / situación</h3><p>Comparte un grupo de WhatsApp/Telegram de tu edificio o zona para que vecinos y familiares encuentren información.</p>
     <label class="fl">Tipo *</label>
@@ -1885,6 +1963,13 @@ function openGrupoReport(){
     <button class="btn primary" style="margin-top:14px" onclick="submitGrupo(this)">Agregar</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
     <p style="font-size:11px;color:var(--mut2);margin-top:8px">Agrega solo grupos reales y públicos. El enlace será visible para todos.</p>`;
+  if(rec){
+    _edit={table:'grupos_comunitarios',id:rec.id};
+    const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
+    set('gpTipo',rec.tipo); set('gpNombre',rec.nombre); set('gpZona',rec.zona); set('gpUrl',rec.url); set('gpContacto',rec.contacto); set('gpNota',rec.nota);
+    const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar grupo';
+    document.querySelectorAll('#mapSheet .btn.primary').forEach(b=>b.textContent='Guardar cambios');
+  }
   document.getElementById('mapModal').classList.add('show');
 }
 async function submitGrupo(btn){
@@ -1894,9 +1979,14 @@ async function submitGrupo(btn){
   const url=g('gpUrl'), contacto=g('gpContacto');
   if(!url && !contacto){ toast('Agrega al menos un enlace o un teléfono','err'); return; }
   if(url && !safeUrl(url)){ toast('El enlace no es válido (usa https://…)','err'); return; }
-  if(btn) btn.textContent='Agregando…';
+  if(btn) btn.textContent='Guardando…';
   const tipo=g('gpTipo')||'edificio';
   const row={ nombre, tipo:['edificio','zona','accion','otro'].includes(tipo)?tipo:'otro', zona:g('gpZona').slice(0,80)||null, url:url?safeUrl(url):null, contacto:contacto.slice(0,40)||null, nota:g('gpNota').slice(0,200)||null };
+  if(_edit){
+    const ed=_edit; const ok=await adminUpdate(ed.table, ed.id, row);
+    if(ok){ closeMapModal(); toast('✅ Cambios guardados'); loadGrupos(); } else if(btn){ btn.textContent='Guardar cambios'; }
+    return;
+  }
   try{
     const res=await fetch(`${SB_URL}/rest/v1/grupos_comunitarios`,{method:'POST',headers:{...SB_H,Prefer:'return=minimal'},body:JSON.stringify([row])});
     if(!res.ok){ toast('No se pudo agregar (¿se corrió el SQL?)','err'); if(btn)btn.textContent='Agregar'; return; }
