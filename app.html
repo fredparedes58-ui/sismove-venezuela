@@ -638,6 +638,67 @@ const CITIES = [
 ];
 const cityByName = n => CITIES.find(c=>c.n===n) || CITIES[0];
 
+/* ---------- Estado → Municipio (cascada). Fuente única: estados-municipios.json embebido ---------- */
+const EM = {
+  "Amazonas":["Alto Orinoco","Atabapo","Atures","Autana","Manapiare","Maroa","Río Negro"],
+  "Anzoátegui":["Anaco","Aragua","Simón Bolívar","Manuel Ezequiel Bruzual","Juan Manuel Cajigal","Francisco del Carmen Carvajal","Pedro María Freites","Guanipa","Guanta","Independencia","Libertad","Sir Arthur McGregor","Francisco de Miranda","José Gregorio Monagas","Fernando de Peñalver","Píritu","San Juan de Capistrano","Santa Ana","Simón Rodríguez","Sotillo","Diego Bautista Urbaneja"],
+  "Apure":["Achaguas","Biruaca","Pedro Camejo","Muñoz","Páez","Rómulo Gallegos","San Fernando"],
+  "Aragua":["Francisco Linares Alcántara","Bolívar","Camatagua","Girardot","Mario Briceño Iragorry","José Ángel Lamas","Libertador","Santiago Mariño","Santos Michelena","Ocumare de la Costa de Oro","José Rafael Revenga","José Félix Ribas","San Casimiro","San Sebastián","Sucre","Tovar","Urdaneta","Zamora"],
+  "Barinas":["Alberto Arvelo Torrealba","Andrés Eloy Blanco","Antonio José de Sucre","Arismendi","Barinas","Bolívar","Cruz Paredes","Ezequiel Zamora","Obispos","Pedraza","Rojas","Sosa"],
+  "Bolívar":["Angostura","Angostura del Orinoco","Caroní","Cedeño","Padre Pedro Chien","El Callao","Gran Sabana","Piar","Roscio","Sifontes","Sucre"],
+  "Carabobo":["Bejuma","Carlos Arvelo","Diego Ibarra","Guacara","Juan José Mora","Libertador","Los Guayos","Miranda","Montalbán","Naguanagua","Puerto Cabello","San Diego","San Joaquín","Valencia"],
+  "Cojedes":["Anzoátegui","San Carlos","Girardot","Lima Blanco","Pao de San Juan Bautista","Ricaurte","Rómulo Gallegos","Tinaco","Tinaquillo"],
+  "Delta Amacuro":["Antonio Díaz","Casacoima","Pedernales","Tucupita"],
+  "Distrito Capital":["Libertador"],
+  "Falcón":["Acosta","Bolívar","Buchivacoa","Carirubana","Colina","Dabajuro","Democracia","Falcón","Federación","Monseñor Iturriza","Jacura","Los Taques","Manaure","Mauroa","Miranda","Palmasola","Petit","Píritu","San Francisco","Sucre","Silva","Tocópero","Unión","Urumaco","Zamora"],
+  "Guárico":["Camaguán","Chaguaramas","El Socorro","Francisco de Miranda","José Félix Ribas","José Tadeo Monagas","Juan Germán Roscio","Juan José Rondón","Julián Mellado","Leonardo Infante","Ortiz","San Gerónimo de Guayabal","San José de Guaribe","Santa María de Ipire","Zaraza"],
+  "Lara":["Andrés Eloy Blanco","Crespo","Iribarren","Jiménez","Morán","Palavecino","Simón Planas","Torres","Urdaneta"],
+  "La Guaira":["Vargas"],
+  "Mérida":["Alberto Adriani","Andrés Bello","Antonio Pinto Salinas","Aricagua","Arzobispo Chacón","Campo Elías","Caracciolo Parra Olmedo","Cardenal Quintero","Guaraque","Julio César Salas","Justo Briceño","Libertador","Miranda","Obispo Ramos de Lora","Padre Noguera","Pueblo Llano","Rangel","Rivas Dávila","Santos Marquina","Sucre","Tovar","Tulio Febres Cordero","Zea"],
+  "Miranda":["Acevedo","Andrés Bello","Baruta","Bolívar","Brión","Buroz","Carrizal","Chacao","Cristóbal Rojas","El Hatillo","Guaicaipuro","Pedro Gual","Independencia","Lander","Los Salias","Páez","Paz Castillo","Plaza","Sucre","Urdaneta","Zamora"],
+  "Monagas":["Acosta","Aguasay","Bolívar","Caripe","Cedeño","Libertador","Maturín","Piar","Punceres","Santa Bárbara","Sotillo","Uracoa","Zamora"],
+  "Nueva Esparta":["Antolín del Campo","Antonio Díaz","Arismendi","García","Gómez","Península de Macanao","Maneiro","Marcano","Mariño","Tubores","Villalba"],
+  "Portuguesa":["Agua Blanca","Araure","Esteller","Guanare","Guanarito","Monseñor José Vicente de Unda","Ospino","Páez","Papelón","San Genaro de Boconoíto","San Rafael de Onoto","Santa Rosalía","Sucre","Turén"],
+  "Sucre":["Andrés Eloy Blanco","Andrés Mata","Arismendi","Benítez","Bermúdez","Bolívar","Cajigal","Cruz Salmerón Acosta","Libertador","Mariño","Mejía","Montes","Ribero","Sucre","Valdez"],
+  "Táchira":["Andrés Bello","Antonio Rómulo Costa","Ayacucho","Bolívar","Cárdenas","Córdoba","Fernández Feo","Francisco de Miranda","García de Hevia","Guásimos","Independencia","Jáuregui","José María Vargas","Junín","Libertad","Libertador","Lobatera","Michelena","Panamericano","Pedro María Ureña","Rafael Urdaneta","Samuel Darío Maldonado","San Cristóbal","San Judas Tadeo","Seboruco","Simón Rodríguez","Sucre","Torbes","Uribante"],
+  "Trujillo":["Andrés Bello","Boconó","Bolívar","Candelaria","Carache","San Rafael de Carvajal","Escuque","Juan Vicente Campo Elías","La Ceiba","José Felipe Márquez Cañizales","Miranda","Monte Carmelo","Motatán","Pampán","Pampanito","Rafael Rangel","Sucre","Trujillo","Urdaneta","Valera"],
+  "Yaracuy":["Arístides Bastidas","Bolívar","Bruzual","Cocorote","Independencia","José Antonio Páez","La Trinidad","Manuel Monge","Nirgua","Peña","San Felipe","Sucre","Urachiche","Veroes"],
+  "Zulia":["Almirante Padilla","Baralt","Cabimas","Catatumbo","Colón","Francisco Javier Pulgar","Guajira","Jesús Enrique Lossada","Jesús María Semprún","La Cañada de Urdaneta","Lagunillas","Machiques de Perijá","Mara","Maracaibo","Miranda","Rosario de Perijá","San Francisco","Santa Rita","Simón Bolívar","Sucre","Valmore Rodríguez"]
+};
+// Centroide aproximado por estado (fallback de coords cuando no hay GPS ni geocoding)
+const ESTADO_COORDS = {
+  "Amazonas":[4.8,-65.8],"Anzoátegui":[9.3,-64.4],"Apure":[7.2,-68.5],"Aragua":[10.2,-67.4],"Barinas":[8.3,-70.0],
+  "Bolívar":[6.2,-63.2],"Carabobo":[10.2,-68.0],"Cojedes":[9.4,-68.4],"Delta Amacuro":[8.8,-61.4],"Distrito Capital":[10.50,-66.92],
+  "Falcón":[11.2,-69.8],"Guárico":[8.9,-66.9],"Lara":[10.0,-69.6],"La Guaira":[10.60,-66.93],"Mérida":[8.5,-71.1],
+  "Miranda":[10.2,-66.6],"Monagas":[9.7,-63.2],"Nueva Esparta":[11.0,-63.9],"Portuguesa":[9.0,-69.8],"Sucre":[10.5,-63.5],
+  "Táchira":[7.8,-72.2],"Trujillo":[9.3,-70.4],"Yaracuy":[10.34,-68.74],"Zulia":[9.9,-71.9]
+};
+const VZLA_CENTER=[8.0,-66.0];
+const _estadoOpts = Object.keys(EM).sort((a,b)=>a.localeCompare(b,'es'));
+function estadoMuniFields(pfx){
+  return `<label class="fl">Estado</label>
+    <select id="${pfx}Estado" onchange="fillMuni('${pfx}')"><option value="">— Selecciona estado —</option>${_estadoOpts.map(e=>`<option>${e}</option>`).join('')}</select>
+    <label class="fl">Municipio</label>
+    <select id="${pfx}Muni" disabled><option value="">— Elige el estado primero —</option></select>`;
+}
+function fillMuni(pfx, selMuni){
+  const e=document.getElementById(pfx+'Estado'), m=document.getElementById(pfx+'Muni'); if(!e||!m) return;
+  const list=EM[e.value]||[];
+  m.innerHTML='<option value="">'+(list.length?'— Selecciona municipio —':'— Elige el estado primero —')+'</option>'+list.map(x=>`<option${selMuni===x?' selected':''}>${x}</option>`).join('');
+  m.disabled=!list.length;
+}
+// Edición: parsea "Municipio, Estado" (o "Estado") guardado y precarga ambos selects
+function setEstadoMuni(pfx, val){
+  val=(val||'').trim(); const e=document.getElementById(pfx+'Estado'); if(!e||!val) return;
+  let estado='', muni='';
+  if(EM[val]) estado=val;
+  else { const parts=val.split(',').map(s=>s.trim()).filter(Boolean); const ei=parts.findIndex(p=>EM[p]); if(ei>=0){ estado=parts[ei]; muni=parts.filter((_,i)=>i!==ei)[0]||''; } }
+  if(estado){ e.value=estado; fillMuni(pfx, muni); }
+}
+// Helpers de lectura: string ciudad ("Muni, Estado") y base de coords por estado
+function emCiudad(pfx){ const est=(document.getElementById(pfx+'Estado')?.value||'').trim(), mun=(document.getElementById(pfx+'Muni')?.value||'').trim(); return [mun,est].filter(Boolean).join(', '); }
+function emBase(pfx){ const est=(document.getElementById(pfx+'Estado')?.value||'').trim(); const c=ESTADO_COORDS[est]||VZLA_CENTER; return {lat:c[0],lng:c[1]}; }
+
 /* ---------- Estado / persistencia ---------- */
 const LS = 'sismove_v2';
 function load(){
@@ -1265,8 +1326,7 @@ function renderHubPanel(){
 /* ---- Reportar en el mapa (modal) ---- */
 let reportGeo=null, reportGeoFresh=false, _editOrigDir='';   // fresh=GPS capturado a mano; origDir=dirección al abrir edición
 function ubicFields(){
-  return `<label class="fl">Ciudad / zona</label>
-    <select id="rpCity">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
+  return `${estadoMuniFields('loc')}
     <button class="btn ghost" style="margin-top:8px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación exacta</button>
     <div id="rpGeo" style="font-size:12px;color:var(--mut);margin-top:6px"></div>`;
 }
@@ -1445,7 +1505,7 @@ function openMapReport(kind, rec){
     _edit = { table: tbl, id: rec.id }; _editOrigDir = rec.direccion||'';
     if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
-    set('rpCity', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', kind==='logistica'?(rec.nota||rec.descripcion):rec.descripcion); set('rpRef', rec.referencia);
+    setEstadoMuni('loc', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', kind==='logistica'?(rec.nota||rec.descripcion):rec.descripcion); set('rpRef', rec.referencia);
     if(kind==='cobertura'){ set('rpOper', rec.operador); set('rpEstado', rec.estado); }
     else if(kind==='luz'){ set('rpEstado', rec.estado); }
     else if(kind==='logistica'){ set('rpEstado', rec.estado); String(rec.tipo||'').split(',').forEach(t=>{ const c=document.querySelector('#rpTipos input[value="'+t.trim()+'"]'); if(c) c.checked=true; }); }
@@ -1472,8 +1532,8 @@ function openDesapReport(cat, rec){
     <label class="fl">Nombre y apellido *</label><input id="dpNombre" placeholder="Ej: María Pérez" maxlength="80">
     <div class="row"><div><label class="fl">Edad (años)</label><input id="dpEdad" type="number" min="0" max="120" placeholder="Ej: 8" maxlength="20"></div>
       <div><label class="fl">Cédula (opcional)</label><input id="dpCedula" placeholder="V-00000000" maxlength="20"></div></div>
-    <label class="fl">Ciudad / zona</label><select id="dpZona">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
-    <label class="fl">Dirección (calle, sector, municipio, estado)</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda, La Guaira" maxlength="160">
+    ${estadoMuniFields('loc')}
+    <label class="fl">Dirección (calle, sector…) opcional</label><input id="dpDireccion" placeholder="Ej: Edificio Golf Mar, Caraballeda" maxlength="160">
     <button class="btn ghost" style="margin-top:8px" onclick="reportGeoCapture(this)">📍 Usar mi ubicación actual</button>
     <div id="rpGeo" style="font-size:12px;color:var(--mut);margin-top:6px"></div>
     <div style="font-size:11px;color:var(--mut2);margin-top:2px">La dirección se consulta en OpenStreetMap para ubicarla (se guarda aproximada, a nivel de sector).</div>
@@ -1492,7 +1552,7 @@ function openDesapReport(cat, rec){
     _edit={table:'desaparecidos_reportes',id:rec.id}; _editOrigDir=rec.direccion||'';
     if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};   // conserva su ubicación (no re-geocodificar al editar salvo que cambie la dirección)
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
-    set('dpEstado',rec.estado); set('dpTipo',rec.tipo_persona||(rec.categoria==='nino'?'nino':'adulto')); set('dpNombre',rec.nombre); set('dpEdad',rec.edad); set('dpCedula',rec.cedula); set('dpZona',rec.zona); set('dpDireccion',rec.direccion); set('dpRef',rec.referencia); set('dpVisto',rec.visto); set('dpContacto',rec.contacto); set('dpEncontradoPor',rec.encontrado_por); set('dpNota',rec.nota);
+    set('dpEstado',rec.estado); set('dpTipo',rec.tipo_persona||(rec.categoria==='nino'?'nino':'adulto')); set('dpNombre',rec.nombre); set('dpEdad',rec.edad); set('dpCedula',rec.cedula); setEstadoMuni('loc', rec.zona); set('dpDireccion',rec.direccion); set('dpRef',rec.referencia); set('dpVisto',rec.visto); set('dpContacto',rec.contacto); set('dpEncontradoPor',rec.encontrado_por); set('dpNota',rec.nota);
     const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar persona';
     document.querySelectorAll('#mapSheet .btn.primary').forEach(b=>b.textContent='Guardar cambios');
   }
@@ -1513,13 +1573,14 @@ async function submitDesapReport(btn){
   if(dfile){ toast('📤 Subiendo documento…'); try{ doc=await uploadDoc(dfile); }catch(e){ doc=null; } }
   // Ubicación: actual o geocodificada de la dirección (opcional; queda null si no resuelve).
   // Se REDONDEA a ~1 km para ubicar el sector sin publicar el punto exacto (privacidad).
+  const locEstado=g('locEstado'), locMuni=g('locMuni'); const zonaStr=emCiudad('loc')||locEstado;
   let lat=null, lng=null; const dir=g('dpDireccion').slice(0,160);
   const rnd=v=>Math.round(v*100)/100;
   if(_edit && !reportGeoFresh && dir && dir!==_editOrigDir) reportGeo=null;   // editando: re-geocodificar si cambió la dirección
   if(reportGeo){ lat=rnd(reportGeo.lat); lng=rnd(reportGeo.lng); }
-  else if(dir){ const gc=await geocode(dir+', '+g('dpZona')+', Venezuela'); if(gc){ lat=rnd(gc.lat); lng=rnd(gc.lng); } }
+  else if(dir||locMuni||locEstado){ const gc=await geocode([dir,locMuni,locEstado,'Venezuela'].filter(Boolean).join(', ')); if(gc){ lat=rnd(gc.lat); lng=rnd(gc.lng); } }
   const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
-  const row={ nombre, tipo_persona:tipo, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:g('dpZona'), direccion:dir, referencia:g('dpRef').slice(0,100), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,400), foto_url:foto, fotos:(fotos.length?fotos:null), documento_url:doc, lat, lng, estado, categoria };
+  const row={ nombre, tipo_persona:tipo, edad:g('dpEdad').slice(0,20), cedula:g('dpCedula').slice(0,20), zona:zonaStr, direccion:dir, referencia:g('dpRef').slice(0,100), visto:g('dpVisto').slice(0,160), contacto:g('dpContacto').slice(0,40), encontrado_por:g('dpEncontradoPor').slice(0,80), nota:g('dpNota').slice(0,400), foto_url:foto, fotos:(fotos.length?fotos:null), documento_url:doc, lat, lng, estado, categoria };
   // EDICIÓN admin: actualiza la persona (PATCH) en vez de crear/promover
   if(_edit){
     const ef={ nombre, tipo_persona:tipo, categoria, edad:row.edad, cedula:row.cedula, zona:row.zona, direccion:dir, referencia:row.referencia, visto:row.visto, contacto:row.contacto, encontrado_por:row.encontrado_por, nota:row.nota, estado };
@@ -1653,15 +1714,15 @@ async function deleteReport(kind,id,btn){
 }
 async function submitMapReport(kind){
   const g=id=>(document.getElementById(id)?.value||'').trim();
-  const city=document.getElementById('rpCity').value, base=cityByName(city);
+  const estado=g('locEstado'), municipio=g('locMuni'); const city=emCiudad('loc')||estado, base=emBase('loc');
   const direccion=g('rpDir').slice(0,160), referencia=g('rpRef').slice(0,100), descripcion=g('rpDescr').slice(0,400);
   // Editando: si cambió la dirección y no se capturó GPS nuevo, re-geocodificar (reubicar el marcador)
   if(_edit && !reportGeoFresh && direccion && direccion!==_editOrigDir) reportGeo=null;
-  // Ubicación: 1) ubicación actual capturada  2) geocodificar dirección  3) ciudad + jitter
+  // Ubicación: 1) GPS  2) geocodificar dirección/municipio/estado  3) centroide del estado
   let lat, lng;
   if(reportGeo){ lat=reportGeo.lat; lng=reportGeo.lng; }
-  else if(direccion){ toast('📍 Ubicando dirección…'); const gc=await geocode(direccion+', '+city+', Venezuela'); if(gc){ lat=gc.lat; lng=gc.lng; } }
-  if(typeof lat!=='number'){ lat=base.lat+(Math.random()-.5)*.06; lng=base.lng+(Math.random()-.5)*.06; if(direccion) toast('No se ubicó la dirección exacta; se usó la ciudad'); }
+  else if(direccion || municipio || estado){ toast('📍 Ubicando…'); const gc=await geocode([direccion,municipio,estado,'Venezuela'].filter(Boolean).join(', ')); if(gc){ lat=gc.lat; lng=gc.lng; } }
+  if(typeof lat!=='number'){ lat=base.lat+(Math.random()-.5)*.06; lng=base.lng+(Math.random()-.5)*.06; if(direccion||municipio) toast('No se ubicó exacto; se usó el estado'); }
   // Fotos OPCIONALES y best-effort: si fallan o no hay, se guarda IGUAL.
   let fotos=[];
   if((PHOTOS['rpFotos']||[]).length){ toast('📤 Subiendo fotos…'); try{ fotos=await uploadPhotos('rpFotos'); }catch(e){ fotos=[]; } if(!fotos.length) toast('No se pudo subir la(s) foto(s); se guarda el reporte igual','err'); }
