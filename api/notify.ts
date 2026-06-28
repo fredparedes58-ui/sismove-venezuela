@@ -28,12 +28,16 @@ const SOURCES = [
 function sbH(extra: Record<string, string> = {}) {
   return { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json', ...extra };
 }
-async function count(table: string): Promise<number> {
-  // HEAD + count=exact: cuenta sin depender de una columna concreta (las tablas _external
-  // usan external_id, no id; pedir ?select=id daba error y devolvía 0).
-  const r = await fetch(`${SB}/rest/v1/${table}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) });
-  const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
-  return Number.isFinite(n) ? n : 0;
+async function count(table: string): Promise<number | null> {
+  // HEAD + count=exact: cuenta sin depender de una columna concreta. Devuelve null si la
+  // consulta falla (red/HTTP): así NO confundimos un fallo transitorio con "0 filas" (eso
+  // corrompería la línea base y dispararía falsos deltas / falsos reseteos a 0).
+  try {
+    const r = await fetch(`${SB}/rest/v1/${table}`, { method: 'HEAD', headers: sbH({ Prefer: 'count=exact', Range: '0-0' }) });
+    if (!r.ok) return null;
+    const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
+    return Number.isFinite(n) ? n : null;
+  } catch { return null; }
 }
 async function lastCount(key: string): Promise<number | null> {
   const r = await fetch(`${SB}/rest/v1/sync_runs?source=eq.${encodeURIComponent(key)}&order=ran_at.desc&limit=1`, { headers: sbH() })
@@ -60,16 +64,24 @@ export default async function handler(req: Request): Promise<Response> {
 
   const deltas: { label: string; add: number; total: number }[] = [];
   const totals: { label: string; total: number }[] = [];
+  const pending: { key: string; count: number }[] = [];   // bases a confirmar SOLO si el aviso se entrega
   for (const s of SOURCES) {
     const cur = await count(s.table);
+    if (cur === null) continue;                     // fallo transitorio: no tocar base ni inventar delta
     const prev = await lastCount(s.key);
-    if (cur >= 0) totals.push({ label: s.label, total: cur });
-    if (prev !== null && cur > prev) deltas.push({ label: s.label, add: cur - prev, total: cur });
-    await record(s.key, cur);                       // siempre actualiza la línea base
+    totals.push({ label: s.label, total: cur });
+    if (prev !== null && cur > prev) {
+      deltas.push({ label: s.label, add: cur - prev, total: cur });
+      pending.push({ key: s.key, count: cur });     // NO fijar la base hasta confirmar que el aviso llegó
+    } else {
+      await record(s.key, cur);                      // sin novedad (o 1ª vez / bajó): fija la base ya
+    }
   }
 
   const subs = TOKEN ? await activeSubscribers() : [];
-  if (!TOKEN || !subs.length) return json({ status: deltas.length ? 'deltas_sin_envio' : 'sin_cambios', deltas });
+  // Si hay novedades pero no se pueden entregar (sin bot o sin suscriptores), NO fijamos su base:
+  // el delta se reintenta en la próxima corrida en lugar de perderse para siempre.
+  if (!TOKEN || !subs.length) return json({ status: deltas.length ? 'deltas_sin_envio' : 'sin_cambios', deltas, pendientes: pending.length });
 
   let text: string | null = null, kind = 'sin_cambios';
   if (deltas.length) {
@@ -93,8 +105,11 @@ export default async function handler(req: Request): Promise<Response> {
     });
     if (r.ok) sent++; else if (r.status === 403) await fetch(`${SB}/rest/v1/bot_subscribers?chat_id=eq.${chat}`, { method: 'PATCH', headers: sbH({ Prefer: 'return=minimal' }), body: JSON.stringify({ unsubscribed_at: new Date().toISOString() }) }).catch(() => {});
   }
+  // Confirma la base de las fuentes con novedad SOLO si el aviso llegó a alguien; si no se
+  // entregó a nadie (sent=0), se conservan las bases viejas y el delta se reintenta luego.
+  if (deltas.length && sent > 0) for (const p of pending) await record(p.key, p.count);
   if (kind === 'heartbeat') await record('notify:heartbeat', 1);   // marca el tiempo del último latido
-  return json({ status: kind, deltas, subscribers: subs.length, sent });
+  return json({ status: kind, deltas, subscribers: subs.length, sent, pendientes: sent > 0 ? 0 : pending.length });
 }
 function json(b: unknown, s = 200): Response {
   return new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });

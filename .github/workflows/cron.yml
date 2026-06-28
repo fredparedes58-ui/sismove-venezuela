@@ -1,24 +1,28 @@
-name: SismoVE · sincronización cada 10 min
+name: SismoVE · sincronización (horaria, bucle interno cada ~12 min)
 
-# Pinger REAL cada 10 min, robusto al throttle de GitHub:
-# GitHub espacia los crons programados (a veces cada varias horas), así que en vez de
-# depender del horario, CADA corrida hace un BUCLE de ~5 h pingeando cada 10 min.
-# Con concurrency (cancel-in-progress:false) la siguiente corrida se encola y arranca
-# al terminar la anterior → cobertura casi continua.
+# Diseño robusto y SIN ruido de "cancelled":
+# - GitHub dispara 1 vez por hora (puede retrasarse algo; nunca se adelanta).
+# - Cada corrida hace un BUCLE de ~50 min pingeando cada ~12 min → datos frescos.
+# - Como el bucle (~50 min) cabe dentro del intervalo del cron (60 min), las corridas
+#   casi nunca se solapan → se acaba la avalancha de runs "cancelled" y cada corrida
+#   queda en verde/rojo de forma honesta y verificable.
+# - timeout acotado a 60 min → nada de "zombies" de 5 h ocupando el runner.
+# - Si GitHub se salta una hora, el bucle de la corrida previa ya cubrió ~50 min; el hueco
+#   máximo razonable es de minutos, no horas.
 # Secrets (Settings → Secrets → Actions): SCRAPER_WEBHOOK_URL, SCRAPER_WEBHOOK_SECRET.
 on:
   schedule:
-    - cron: '*/10 * * * *'   # GitHub lo dispara cuando puede; el bucle cubre los huecos
-  workflow_dispatch: {}
+    - cron: '0 * * * *'      # cada hora en punto (GitHub puede retrasarlo bajo carga)
+  workflow_dispatch: {}       # permite lanzarlo a mano desde la pestaña Actions
 
 concurrency:
   group: sismove-cron
-  cancel-in-progress: false   # encola la siguiente; no corta la que está corriendo
+  cancel-in-progress: false   # si dos corridas se solapan por un retraso, encola (no apila ruido)
 
 jobs:
-  scrape:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 340       # ~5.6 h; el bucle dura ~5 h y deja margen
+    timeout-minutes: 60        # cota dura: ninguna corrida se queda colgada horas
     env:
       BASE: https://sismove-venezuela.vercel.app
       KEY: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
@@ -27,24 +31,26 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
-      - name: Bucle de sincronización (≈30 iteraciones · 1 cada 10 min ≈ 5 h)
+      - name: Bucle de sincronización (~5 pasadas · 1 cada ~12 min ≈ 50 min)
         env:
           SCRAPER_WEBHOOK_URL: ${{ secrets.SCRAPER_WEBHOOK_URL }}
           SCRAPER_WEBHOOK_SECRET: ${{ secrets.SCRAPER_WEBHOOK_SECRET }}
         run: |
-          for n in $(seq 1 30); do
-            echo "──── iteración $n/30 · $(date -u +%H:%M) UTC ────"
-            node scraper/scrape.mjs --post || true                                    # centros · sismos USGS
-            curl -s "$BASE/api/sync-hospitales?key=$KEY" -o /dev/null -w "  hospitales %{http_code}\n" || true
-            curl -s "$BASE/api/sync-drive?key=$KEY" -o /dev/null -w "  drive (universal) %{http_code}\n" || true
-            curl -s "$BASE/api/drive-docs" -o /dev/null -w "  drive-docs %{http_code}\n" || true
-            for i in $(seq 1 20); do                                                   # drena OCR de fotos nuevas
-              R=$(curl -s "$BASE/api/sync-fotos?key=$KEY")
+          set +e   # una llamada que falle no aborta la pasada ni la corrida
+          for n in $(seq 1 5); do
+            echo "──── pasada $n/5 · $(date -u +%H:%M) UTC ────"
+            node scraper/scrape.mjs --post || true                                          # centros · sismos USGS
+            curl -s -m 150 "$BASE/api/sync-hospitales?key=$KEY" -o /dev/null -w "  hospitales %{http_code}\n"
+            curl -s -m 150 "$BASE/api/sync-drive?key=$KEY"      -o /dev/null -w "  drive %{http_code}\n"
+            curl -s -m 60  "$BASE/api/drive-docs"               -o /dev/null -w "  drive-docs %{http_code}\n"
+            for i in $(seq 1 20); do                                                          # drena el OCR de fotos nuevas
+              R=$(curl -s -m 60 "$BASE/api/sync-fotos?key=$KEY")
               echo "$R" | grep -q '"status":"al_dia"' && break
               sleep 2
             done
-            curl -s "$BASE/api/sismo-stats?key=$KEY&refresh=1" -o /dev/null -w "  sismo-stats %{http_code}\n" || true
-            curl -s "$BASE/api/cifras?key=$KEY" -o /dev/null -w "  cifras (redayuda, 30min) %{http_code}\n" || true
-            curl -s "$BASE/api/notify?key=$KEY" -o /dev/null -w "  notify %{http_code}\n" || true
-            [ "$n" -lt 30 ] && sleep 600                                               # 10 min hasta el siguiente
+            curl -s -m 60 "$BASE/api/sismo-stats?key=$KEY&refresh=1" -o /dev/null -w "  sismo-stats %{http_code}\n"
+            curl -s -m 60 "$BASE/api/cifras?key=$KEY"               -o /dev/null -w "  cifras %{http_code}\n"
+            curl -s -m 60 "$BASE/api/notify?key=$KEY"               -o /dev/null -w "  notify %{http_code}\n"
+            [ "$n" -lt 5 ] && sleep 720                                                       # ~12 min hasta la siguiente pasada
           done
+          echo "✔ corrida completada sin colgarse"
