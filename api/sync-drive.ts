@@ -62,11 +62,12 @@ function kindOf(name: string, url: string): Kind | null {
   return null;
 }
 // Recorre TODAS las carpetas (FOLDERS) de forma recursiva (raíz + subcarpetas anidadas).
-async function allCandidates() {
+async function allCandidates(roots: string[] = FOLDERS) {
   const out: { id: string; name: string; kind: Kind }[] = [];
   const seenFolders = new Set<string>(); let visited = 0;
-  const queue: { id: string; depth: number }[] = FOLDERS.map(id => ({ id, depth: 0 }));
-  while (queue.length && visited < MAX_FOLDERS) {
+  const walkDeadline = Date.now() + 15000;   // tope de tiempo del recorrido (evita 504 del Edge)
+  const queue: { id: string; depth: number }[] = roots.map(id => ({ id, depth: 0 }));
+  while (queue.length && visited < MAX_FOLDERS && Date.now() < walkDeadline) {
     const { id, depth } = queue.shift()!;
     if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
     let entries: { id: string; name: string; url: string }[] = [];
@@ -486,14 +487,17 @@ const COORD_TABLES = new Set(['coverage_reports', 'power_reports', 'zona_reports
 // ════════════════════ Handler ════════════════════
 export default async function handler(req: Request): Promise<Response> {
   if (!SB || !SERVICE) return json({ error: 'no_supabase' }, 503);
-  const force = (() => { try { const k = new URL(req.url).searchParams.get('key'); return !!k && k === process.env.SCRAPER_WEBHOOK_SECRET; } catch { return false; } })();
+  let only = '';
+  const force = (() => { try { const u = new URL(req.url); only = u.searchParams.get('only') || ''; const k = u.searchParams.get('key'); return !!k && k === process.env.SCRAPER_WEBHOOK_SECRET; } catch { return false; } })();
   try {
     const last = await fetch(`${SB}/rest/v1/sync_runs?source=eq.drive&ok=eq.true&order=ran_at.desc&limit=1`, { headers: sbH() }).then(r => r.json()).catch(() => []);
     if (!force && Array.isArray(last) && last[0]?.ran_at && Date.now() - new Date(last[0].ran_at).getTime() < THROTTLE_MIN * 60000) {
       return json({ status: 'cached', last_sync: last[0].ran_at });
     }
 
-    const cands = await allCandidates();
+    // ?only=<carpetaId> (con key) → sincroniza SOLO esa carpeta (rápido, sin el recorrido completo)
+    const roots = (force && only) ? only.split(',').map(s => s.trim()).filter(Boolean) : FOLDERS;
+    const cands = await allCandidates(roots);
     if (!cands.length) { await mark(0); return json({ status: 'sin_archivos', hint: 'Sube un .csv, .xlsx, .json o Google Sheet con un nombre como "desaparecidos", "hospitales", "acopio", "zonas" o "logistica".' }); }
 
     const batch = new Date().toISOString(); const reports: any[] = []; let totalRows = 0;
