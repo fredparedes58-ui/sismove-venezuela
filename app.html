@@ -1116,6 +1116,9 @@ async function fetchLiveTowers(){
 function dirDesc(r){ return `${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.descripcion?'<br>'+esc(r.descripcion):''}`; }
 // Abrir el popup (info + foto) al pasar el mouse por encima del punto
 function hov(m){ try{ m.on('mouseover',function(e){ e.target.openPopup(); }); }catch(e){} return m; }
+// Enlace "Editar" dentro del popup del marcador (solo admin)
+function popupEdit(kind,id){ return (isAdmin()&&id) ? `<br><a href="#" onclick="event.preventDefault();closeMapPopups();editReport('${kind}','${id}')" style="color:var(--blue);font-weight:700">✏️ Editar</a>` : ''; }
+function closeMapPopups(){ try{ mapHub&&mapHub.closePopup(); }catch(e){} }
 /* ---- Cobertura / Luz — constructor de capa ---- */
 function buildStatus(kind){
   const arr=[]; const data=statusData(kind);
@@ -1123,7 +1126,7 @@ function buildStatus(kind){
     if(typeof r.lat!=='number') return;
     const col=statusColor(kind,r.estado);
     arr.push(hov(L.circleMarker([r.lat,r.lng],{radius:9,color:'#0b1220',fillColor:col,fillOpacity:.9,weight:2}).addTo(mapHub)
-     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}`)));
+     .bindPopup(`<b>${statusLabel(kind,r.estado)}</b>${kind==='cobertura'&&r.operador?' · '+esc(r.operador):''}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}${popupEdit(kind,r.id)}`)));
   });
   return arr;
 }
@@ -1153,7 +1156,7 @@ function buildAfectadas(){
   (DB.zonas||[]).forEach(r=>{
     if(typeof r.lat!=='number') return;
     arr.push(hov(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px #000)">⚠️</div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(mapHub)
-     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>`)));
+     .bindPopup(`<b>${esc(ZTIPO[r.tipo]||'⚠️ Zona afectada')}</b><br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${dirDesc(r)}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de la comunidad</span>${popupEdit('afectada',r.id)}`)));
   });
   return arr;
 }
@@ -1166,7 +1169,7 @@ function buildLogistica(){
     const falta = r.estado!=='cubierto';
     const col = falta ? '#e23a3c' : '#10a36a';
     arr.push(hov(L.circleMarker([r.lat,r.lng],{radius:10,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(mapHub)
-     .bindPopup(`<b>${esc(logiLabel(r.tipo))}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>`)));
+     .bindPopup(`<b>${esc(logiLabel(r.tipo))}</b> — ${falta?'<b style="color:#e23a3c">FALTA aquí</b>':'<b style="color:#10a36a">ya cubierto/saturado</b>'}<br>${esc(r.city||nearestCity(r.lat,r.lng))} · ${ago(r.ts)}${r.direccion?'<br>🏠 '+esc(r.direccion):''}${r.nota?'<br>'+esc(r.nota):''}${fotoPop(r.foto)}<br><span style="color:var(--mut2)">reporte de logística</span>${popupEdit('logistica',r.id)}`)));
   });
   return arr;
 }
@@ -1260,7 +1263,7 @@ function renderHubPanel(){
 }
 
 /* ---- Reportar en el mapa (modal) ---- */
-let reportGeo=null;
+let reportGeo=null, reportGeoFresh=false, _editOrigDir='';   // fresh=GPS capturado a mano; origDir=dirección al abrir edición
 function ubicFields(){
   return `<label class="fl">Ciudad / zona</label>
     <select id="rpCity">${CITIES.map(c=>`<option>${c.n}</option>`).join('')}</select>
@@ -1369,13 +1372,13 @@ function reportGeoCapture(btn){
   if(!navigator.geolocation){ document.getElementById('rpGeo').textContent='Geolocalización no disponible.'; return; }
   btn.textContent='📍 Obteniendo...';
   navigator.geolocation.getCurrentPosition(p=>{
-    reportGeo={lat:p.coords.latitude,lng:p.coords.longitude};
+    reportGeo={lat:p.coords.latitude,lng:p.coords.longitude}; reportGeoFresh=true;
     document.getElementById('rpGeo').innerHTML='✅ Ubicación capturada';
     btn.textContent='📍 Ubicación actualizada';
   },()=>{ document.getElementById('rpGeo').textContent='No se pudo (se usará la ciudad).'; btn.textContent='📍 Usar mi ubicación exacta'; },{timeout:8000});
 }
 function openMapReport(kind, rec){
-  reportGeo=null; _edit=null;
+  reportGeo=null; _edit=null; reportGeoFresh=false; _editOrigDir='';
   const sheet=document.getElementById('mapSheet');
   if(kind==='cobertura'){
     sheet.innerHTML=`<h3>📶 Reportar cobertura</h3><p>Ayuda a otros a saber dónde hay señal.</p>
@@ -1439,7 +1442,7 @@ function openMapReport(kind, rec){
   // Modo edición admin: pre-rellena los campos con el registro y marca _edit
   if(rec){
     const tbl = kind==='logistica'?'logistica_reports':kind==='afectada'?'zona_reports':kind==='cobertura'?'coverage_reports':'power_reports';
-    _edit = { table: tbl, id: rec.id };
+    _edit = { table: tbl, id: rec.id }; _editOrigDir = rec.direccion||'';
     if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
     set('rpCity', rec.city||rec.ciudad); set('rpDir', rec.direccion); set('rpDescr', kind==='logistica'?(rec.nota||rec.descripcion):rec.descripcion); set('rpRef', rec.referencia);
@@ -1458,7 +1461,7 @@ function closeMapModal(){ document.getElementById('mapModal').classList.remove('
 let _desapCat=null;
 function openDesapReport(cat, rec){
   _desapCat = cat==='nino' ? 'nino' : null;
-  reportGeo=null; _edit=null;
+  reportGeo=null; _edit=null; reportGeoFresh=false; _editOrigDir='';
   const sheet=document.getElementById('mapSheet');
   const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
   sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas (o repórtalo como rescatado/encontrado) para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
@@ -1486,8 +1489,8 @@ function openDesapReport(cat, rec){
     <button class="btn ghost" style="margin-top:8px" onclick="closeMapModal()">Cancelar</button>
     <p style="font-size:11px;color:var(--mut2);margin-top:8px">Al publicar, los datos y las fotos serán visibles para ayudar a localizar a la persona. Solo publica datos de personas que estés ayudando a buscar/ubicar. Búsqueda formal: Cruz Roja 0422 799 4880.</p>`;
   if(rec){
-    _edit={table:'desaparecidos_reportes',id:rec.id};
-    if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};   // conserva su ubicación (no re-geocodificar al editar)
+    _edit={table:'desaparecidos_reportes',id:rec.id}; _editOrigDir=rec.direccion||'';
+    if(typeof rec.lat==='number' && typeof rec.lng==='number') reportGeo={lat:rec.lat,lng:rec.lng};   // conserva su ubicación (no re-geocodificar al editar salvo que cambie la dirección)
     const set=(id,v)=>{const e=document.getElementById(id); if(e&&v!=null) e.value=v;};
     set('dpEstado',rec.estado); set('dpTipo',rec.tipo_persona||(rec.categoria==='nino'?'nino':'adulto')); set('dpNombre',rec.nombre); set('dpEdad',rec.edad); set('dpCedula',rec.cedula); set('dpZona',rec.zona); set('dpDireccion',rec.direccion); set('dpRef',rec.referencia); set('dpVisto',rec.visto); set('dpContacto',rec.contacto); set('dpEncontradoPor',rec.encontrado_por); set('dpNota',rec.nota);
     const h=document.querySelector('#mapSheet h3'); if(h) h.textContent='✏️ Editar persona';
@@ -1512,6 +1515,7 @@ async function submitDesapReport(btn){
   // Se REDONDEA a ~1 km para ubicar el sector sin publicar el punto exacto (privacidad).
   let lat=null, lng=null; const dir=g('dpDireccion').slice(0,160);
   const rnd=v=>Math.round(v*100)/100;
+  if(_edit && !reportGeoFresh && dir && dir!==_editOrigDir) reportGeo=null;   // editando: re-geocodificar si cambió la dirección
   if(reportGeo){ lat=rnd(reportGeo.lat); lng=rnd(reportGeo.lng); }
   else if(dir){ const gc=await geocode(dir+', '+g('dpZona')+', Venezuela'); if(gc){ lat=rnd(gc.lat); lng=rnd(gc.lng); } }
   const estado = g('dpEstado')==='encontrado' ? 'encontrado' : 'buscando';
@@ -1651,6 +1655,8 @@ async function submitMapReport(kind){
   const g=id=>(document.getElementById(id)?.value||'').trim();
   const city=document.getElementById('rpCity').value, base=cityByName(city);
   const direccion=g('rpDir').slice(0,160), referencia=g('rpRef').slice(0,100), descripcion=g('rpDescr').slice(0,400);
+  // Editando: si cambió la dirección y no se capturó GPS nuevo, re-geocodificar (reubicar el marcador)
+  if(_edit && !reportGeoFresh && direccion && direccion!==_editOrigDir) reportGeo=null;
   // Ubicación: 1) ubicación actual capturada  2) geocodificar dirección  3) ciudad + jitter
   let lat, lng;
   if(reportGeo){ lat=reportGeo.lat; lng=reportGeo.lng; }
