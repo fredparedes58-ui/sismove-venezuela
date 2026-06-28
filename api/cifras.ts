@@ -33,21 +33,27 @@ async function redCount(query: string): Promise<number | null> {
   } catch { return null; }
 }
 async function scrape() {
-  // Red Ayuda Venezuela: dashboard COMPLETO en vivo vía /api/stats (1 llamada).
-  let red: any = null, desap: number | null = null, fallecidos: number | null = null, heridos: number | null = null;
+  // FUENTE DE VERDAD (siempre disponible): la BD pública de redayuda (missing_persons por status).
+  //   status=active → desaparecidos (coincide con el "Desaparecidos" del sitio); status=found → localizados.
+  // (Su /api/stats antiguo dejó de devolver JSON —responde HTML— y daba un total inflado/obsoleto.)
+  let desap: number | null = null, local: number | null = null;
+  try { [desap, local] = await Promise.all([redCount('status=eq.active&select=id'), redCount('status=eq.found&select=id')]); } catch {}
+  // EXTRA (best-effort): dashboard secundario (hospital/niños/voluntarios/…) vía /api/stats si aún responde JSON.
+  let red: any = null, fallecidos: number | null = null, heridos: number | null = null;
   try {
-    const j: any = await fetch('https://redayudavenezuela.com/api/stats', { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)' } }).then(r => r.json());
-    const st = j?.stats || {}, off = j?.official || {};
-    red = {
-      desaparecidos: st.desaparecidos ?? null, hospital: st.hospital ?? null, salvo: st.salvo ?? null,
-      ninos: j?.ninos ?? null, denuncias: j?.denuncias ?? null, voluntarios: st.voluntarios ?? null,
-      necesidades: st.necesidades ?? null, atrapados: st.atrapados ?? null, danos: st.danos ?? null,
-      heridos: off.heridos ?? null, fallecidos: off.fallecidos ?? null, puntos: st.puntos ?? null,
-    };
-    desap = st.desaparecidos ?? null; fallecidos = off.fallecidos ?? null; heridos = off.heridos ?? null;
+    const txt = await fetch('https://redayudavenezuela.com/api/stats', { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)', 'Accept': 'application/json' } }).then(r => r.text());
+    const j: any = txt.trim().startsWith('{') ? JSON.parse(txt) : null;   // guarda: ignora HTML (429/redirect)
+    if (j) {
+      const st = j.stats || {}, off = j.official || {};
+      red = {
+        desaparecidos: desap ?? st.desaparecidos ?? null, localizados: local ?? null, hospital: st.hospital ?? null,
+        salvo: st.salvo ?? null, ninos: j.ninos ?? null, denuncias: j.denuncias ?? null, voluntarios: st.voluntarios ?? null,
+        necesidades: st.necesidades ?? null, atrapados: st.atrapados ?? null, danos: st.danos ?? null,
+        heridos: off.heridos ?? null, fallecidos: off.fallecidos ?? null, puntos: st.puntos ?? null,
+      };
+      fallecidos = off.fallecidos ?? null; heridos = off.heridos ?? null;
+    }
   } catch {}
-  let local: number | null = null;
-  try { local = await redCount('status=eq.found&select=id'); } catch {}
   const total = (desap != null && local != null) ? desap + local : null;
   return { desaparecidos: desap, localizados: local, total, fallecidos, heridos, red };
 }
@@ -77,13 +83,15 @@ export default async function handler(req: Request): Promise<Response> {
     total: s.total ?? cur?.total ?? null,
     fallecidos: s.fallecidos ?? cur?.fallecidos ?? null,
     heridos: s.heridos ?? cur?.heridos ?? null,
-    red: s.red ?? cur?.red ?? null,                 // dashboard live de Red Ayuda (jsonb)
+    // dashboard live: usa /api/stats si respondió; si no, conserva el anterior PERO refresca
+    // siempre desaparecidos/localizados desde la BD (para que NO queden obsoletos).
+    red: (() => { const base = s.red || cur?.red || {}; return { ...base, desaparecidos: s.desaparecidos ?? base.desaparecidos ?? null, localizados: s.localizados ?? base.localizados ?? null }; })(),
     updated_at: new Date().toISOString(),
   };
   // NO incluir dtv/afe en el upsert (son manuales) → no se pisan en cada scrape.
   let r = await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) });
   if (!r.ok) { delete merged.red; await fetch(`${SB}/rest/v1/cifras?on_conflict=id`, { method: 'POST', headers: sbH({ Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify([merged]) }).catch(() => {}); }  // si falta la col 'red', guarda al menos lo demás
-  return json(out({ ...merged, red: s.red ?? cur?.red ?? null, dtv: cur?.dtv ?? null, afe: cur?.afe ?? null }));
+  return json(out({ ...merged, dtv: cur?.dtv ?? null, afe: cur?.afe ?? null }));
 }
 function out(c: any) {
   return {
