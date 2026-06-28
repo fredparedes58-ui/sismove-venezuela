@@ -25,35 +25,36 @@ const RED_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 function sbH(extra: Record<string, string> = {}) {
   return { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json', ...extra };
 }
-async function redCount(query: string): Promise<number | null> {
+// Cuenta filas de cualquier tabla pública de redayuda (path = "tabla?filtros&select=id").
+async function redCount(path: string): Promise<number | null> {
   try {
-    const r = await fetch(`${RED_SB}/rest/v1/missing_persons?${query}`, { headers: { apikey: RED_ANON, Authorization: `Bearer ${RED_ANON}`, Prefer: 'count=exact', Range: '0-0' }, method: 'HEAD' });
+    const r = await fetch(`${RED_SB}/rest/v1/${path}`, { headers: { apikey: RED_ANON, Authorization: `Bearer ${RED_ANON}`, Prefer: 'count=exact', Range: '0-0' }, method: 'HEAD' });
     const n = parseInt((r.headers.get('content-range') || '').split('/')[1] || '', 10);
     return Number.isFinite(n) ? n : null;
   } catch { return null; }
 }
 async function scrape() {
-  // FUENTE DE VERDAD (siempre disponible): la BD pública de redayuda (missing_persons por status).
-  //   status=active → desaparecidos (coincide con el "Desaparecidos" del sitio); status=found → localizados.
-  // (Su /api/stats antiguo dejó de devolver JSON —responde HTML— y daba un total inflado/obsoleto.)
-  let desap: number | null = null, local: number | null = null;
-  try { [desap, local] = await Promise.all([redCount('status=eq.active&select=id'), redCount('status=eq.found&select=id')]); } catch {}
-  // EXTRA (best-effort): dashboard secundario (hospital/niños/voluntarios/…) vía /api/stats si aún responde JSON.
-  let red: any = null, fallecidos: number | null = null, heridos: number | null = null;
+  // TODO desde la BD pública de redayuda (su /api/stats murió: responde HTML). Coincide con el widget del sitio:
+  //   desaparecidos = missing_persons status=active · localizados = status=found
+  //   hospital/niños/denuncias/voluntarios/necesidades/daños/atrapados = tabla `reports` por `kind`
+  //   fallecidos/heridos = tabla `official_stats`
+  const [desap, local, hospital, ninos, denuncias, voluntarios, necesidades, danos, atrapados] = await Promise.all([
+    redCount('missing_persons?status=eq.active&select=id'),
+    redCount('missing_persons?status=eq.found&select=id'),
+    redCount('reports?kind=eq.hospital&select=id'),
+    redCount('reports?kind=eq.nino&select=id'),
+    redCount('reports?kind=eq.denuncia&select=id'),
+    redCount('reports?kind=eq.voluntario&select=id'),
+    redCount('reports?kind=eq.necesidad&select=id'),
+    redCount('reports?kind=eq.dano&select=id'),
+    redCount('reports?kind=eq.atrapados&select=id'),
+  ]);
+  let fallecidos: number | null = null, heridos: number | null = null;
   try {
-    const txt = await fetch('https://redayudavenezuela.com/api/stats', { headers: { 'User-Agent': 'Mozilla/5.0 (SismoVE)', 'Accept': 'application/json' } }).then(r => r.text());
-    const j: any = txt.trim().startsWith('{') ? JSON.parse(txt) : null;   // guarda: ignora HTML (429/redirect)
-    if (j) {
-      const st = j.stats || {}, off = j.official || {};
-      red = {
-        desaparecidos: desap ?? st.desaparecidos ?? null, localizados: local ?? null, hospital: st.hospital ?? null,
-        salvo: st.salvo ?? null, ninos: j.ninos ?? null, denuncias: j.denuncias ?? null, voluntarios: st.voluntarios ?? null,
-        necesidades: st.necesidades ?? null, atrapados: st.atrapados ?? null, danos: st.danos ?? null,
-        heridos: off.heridos ?? null, fallecidos: off.fallecidos ?? null, puntos: st.puntos ?? null,
-      };
-      fallecidos = off.fallecidos ?? null; heridos = off.heridos ?? null;
-    }
+    const o: any = await fetch(`${RED_SB}/rest/v1/official_stats?id=eq.1&select=fallecidos,heridos`, { headers: { apikey: RED_ANON, Authorization: `Bearer ${RED_ANON}` } }).then(r => r.json());
+    if (Array.isArray(o) && o[0]) { fallecidos = o[0].fallecidos ?? null; heridos = o[0].heridos ?? null; }
   } catch {}
+  const red: any = { desaparecidos: desap, localizados: local, hospital, ninos, denuncias, voluntarios, necesidades, danos, atrapados, heridos, fallecidos };
   const total = (desap != null && local != null) ? desap + local : null;
   return { desaparecidos: desap, localizados: local, total, fallecidos, heridos, red };
 }
@@ -83,9 +84,9 @@ export default async function handler(req: Request): Promise<Response> {
     total: s.total ?? cur?.total ?? null,
     fallecidos: s.fallecidos ?? cur?.fallecidos ?? null,
     heridos: s.heridos ?? cur?.heridos ?? null,
-    // dashboard live: usa /api/stats si respondió; si no, conserva el anterior PERO refresca
-    // siempre desaparecidos/localizados desde la BD (para que NO queden obsoletos).
-    red: (() => { const base = s.red || cur?.red || {}; return { ...base, desaparecidos: s.desaparecidos ?? base.desaparecidos ?? null, localizados: s.localizados ?? base.localizados ?? null }; })(),
+    // dashboard live: todas las métricas vienen de la BD; se sobrescribe lo fresco (no-nulo)
+    // sobre lo último bueno (si una consulta falla puntualmente, conserva su valor previo).
+    red: (() => { const fresh: any = {}; for (const [k, v] of Object.entries(s.red || {})) if (v != null) fresh[k] = v; return { ...(cur?.red || {}), ...fresh }; })(),
     updated_at: new Date().toISOString(),
   };
   // NO incluir dtv/afe en el upsert (son manuales) → no se pisan en cada scrape.
