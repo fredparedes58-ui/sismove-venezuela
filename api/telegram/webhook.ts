@@ -37,6 +37,53 @@ const STAT_PAGES: [string, string][] = [
   ['info', 'Info'], ['salvo', 'Estoy a salvo'],
 ];
 
+// ── Geo legible para la analítica ───────────────────────────────────────────
+// Vercel da país (ISO-2), región (código ISO-3166-2, en VE = letra del estado) y ciudad.
+// El municipio NO viene en las cabeceras: lo resolvemos con esta tabla de ciudades VE.
+const COUNTRY: Record<string, string> = {
+  VE: '🇻🇪 Venezuela', US: '🇺🇸 Estados Unidos', ES: '🇪🇸 España', CL: '🇨🇱 Chile', CO: '🇨🇴 Colombia',
+  DE: '🇩🇪 Alemania', AR: '🇦🇷 Argentina', MX: '🇲🇽 México', PE: '🇵🇪 Perú', BR: '🇧🇷 Brasil', PA: '🇵🇦 Panamá',
+  EC: '🇪🇨 Ecuador', IT: '🇮🇹 Italia', FR: '🇫🇷 Francia', PT: '🇵🇹 Portugal', CA: '🇨🇦 Canadá', GB: '🇬🇧 Reino Unido',
+  NL: '🇳🇱 Países Bajos', CH: '🇨🇭 Suiza', UY: '🇺🇾 Uruguay', DO: '🇩🇴 Rep. Dominicana', CR: '🇨🇷 Costa Rica',
+};
+const VE_ESTADO: Record<string, string> = {
+  A: 'Distrito Capital', B: 'Anzoátegui', C: 'Apure', D: 'Aragua', E: 'Barinas', F: 'Bolívar', G: 'Carabobo',
+  H: 'Cojedes', I: 'Falcón', J: 'Guárico', K: 'Lara', L: 'Mérida', M: 'Miranda', N: 'Monagas', O: 'Nueva Esparta',
+  P: 'Portuguesa', R: 'Sucre', S: 'Táchira', T: 'Trujillo', U: 'Yaracuy', V: 'Zulia', W: 'Dependencias Federales',
+  X: 'La Guaira', Y: 'Delta Amacuro', Z: 'Amazonas',
+};
+// ciudad (normalizada, sin tildes) → [municipio, estado]
+const CITY_MUNI: Record<string, [string, string]> = {
+  caracas: ['Libertador', 'Distrito Capital'], petare: ['Sucre', 'Miranda'], 'los teques': ['Guaicaipuro', 'Miranda'],
+  guarenas: ['Plaza', 'Miranda'], guatire: ['Zamora', 'Miranda'], charallave: ['Cristóbal Rojas', 'Miranda'],
+  'ocumare del tuy': ['Tomás Lander', 'Miranda'], 'santa teresa del tuy': ['Independencia', 'Miranda'],
+  'la guaira': ['Vargas', 'La Guaira'], maiquetia: ['Vargas', 'La Guaira'], 'catia la mar': ['Vargas', 'La Guaira'],
+  maracaibo: ['Maracaibo', 'Zulia'], cabimas: ['Cabimas', 'Zulia'], 'ciudad ojeda': ['Lagunillas', 'Zulia'],
+  valencia: ['Valencia', 'Carabobo'], 'puerto cabello': ['Puerto Cabello', 'Carabobo'], guacara: ['Guacara', 'Carabobo'],
+  naguanagua: ['Naguanagua', 'Carabobo'], 'los guayos': ['Los Guayos', 'Carabobo'],
+  maracay: ['Girardot', 'Aragua'], turmero: ['Santiago Mariño', 'Aragua'], cagua: ['Sucre', 'Aragua'], 'la victoria': ['José Félix Ribas', 'Aragua'],
+  barquisimeto: ['Iribarren', 'Lara'], cabudare: ['Palavecino', 'Lara'], carora: ['Torres', 'Lara'],
+  'san felipe': ['San Felipe', 'Yaracuy'], yaritagua: ['Peña', 'Yaracuy'], chivacoa: ['Bruzual', 'Yaracuy'], nirgua: ['Nirgua', 'Yaracuy'],
+  'ciudad guayana': ['Caroní', 'Bolívar'], 'puerto ordaz': ['Caroní', 'Bolívar'], 'ciudad bolivar': ['Heres', 'Bolívar'],
+  'san cristobal': ['San Cristóbal', 'Táchira'], maturin: ['Maturín', 'Monagas'], cumana: ['Sucre', 'Sucre'], carupano: ['Bermúdez', 'Sucre'],
+  barcelona: ['Simón Bolívar', 'Anzoátegui'], 'puerto la cruz': ['Sotillo', 'Anzoátegui'], 'el tigre': ['Simón Rodríguez', 'Anzoátegui'],
+  merida: ['Libertador', 'Mérida'], 'el vigia': ['Alberto Adriani', 'Mérida'],
+  'punto fijo': ['Carirubana', 'Falcón'], coro: ['Miranda', 'Falcón'],
+  acarigua: ['Páez', 'Portuguesa'], araure: ['Araure', 'Portuguesa'], guanare: ['Guanare', 'Portuguesa'],
+  valera: ['Valera', 'Trujillo'], trujillo: ['Trujillo', 'Trujillo'], barinas: ['Barinas', 'Barinas'],
+  porlamar: ['Mariño', 'Nueva Esparta'], 'la asuncion': ['Arismendi', 'Nueva Esparta'],
+  'san juan de los morros': ['Juan Germán Roscio', 'Guárico'], calabozo: ['Francisco de Miranda', 'Guárico'], 'valle de la pascua': ['Leonardo Infante', 'Guárico'],
+};
+const normCity = (s: string) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+// Texto de ubicación de una ciudad: municipio+estado (VE) o país (extranjero).
+function placeOf(city: string, pais: string | null, region: string | null): string {
+  if (pais && pais !== 'VE') return (COUNTRY[pais] || `País ${pais}`).replace(/^[^\s]+\s/, '');   // país, sin emoji
+  const m = CITY_MUNI[normCity(city)];
+  if (m) return `Mun. ${m[0]}, ${m[1]}`;
+  const est = region ? VE_ESTADO[region] : null;
+  return est ? `Edo. ${est}` : 'Venezuela';
+}
+
 // Reglas estrictas para la conversación con IA (Gemini). Las rutas críticas
 // (emergencias, familia, búsqueda de personas) NO usan IA: son deterministas.
 const SYSTEM_PROMPT =
@@ -262,24 +309,47 @@ async function analiticaText(): Promise<string> {
   ]);
   const pares = await Promise.all(STAT_PAGES.map(async ([k, l]) => [l, await countEvents(`ev=eq.view&page=eq.${k}&select=id`)] as [string, number]));
   const f = (n: number) => n.toLocaleString('es');
+  const pct = (a: number, b: number) => b > 0 ? Math.round((a * 100) / b) + '%' : '—';
+  const per = (a: number, b: number) => b > 0 ? (a / b).toFixed(1) : '—';
   const visibles = pares.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const ahora = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
-  let out = `📈 Analítica de SismoVE (anónima, sin datos personales)\n\n`;
-  out += `👥 Visitantes únicos: ${f(visit)}  (hoy: ${f(visitHoy)})\n`;
-  out += `👁️ Vistas totales: ${f(vistas)}  (hoy: ${f(vistasHoy)})\n\n`;
-  out += `Interacciones:\n🔎 Búsquedas: ${f(busq)}\n📝 Reportes: ${f(rep)}\n🤖 Bot abierto: ${f(botEv)}\n\n`;
-  out += `Vistas por sección:\n` + (visibles.length ? visibles.map(([l, v]) => `• ${l}: ${f(v)}`).join('\n') : 'Aún sin datos.');
-  // Origen de las visitas: fuente + país + ciudad (agregado sobre ev=visit)
+
+  let out = `📈 ANALÍTICA DE SISMOVE\n(anónima · sin datos personales · solo conteos agregados)\n`;
+  out += `🗓️ Periodo: todo el histórico · "hoy" = desde medianoche (Caracas)\n`;
+  out += `\n──────────\n👥 AUDIENCIA\n`;
+  out += `• Visitantes únicos: ${f(visit)}  (hoy: ${f(visitHoy)})\n   ↳ personas distintas por sesión, no recargas\n`;
+  out += `• Vistas de página: ${f(vistas)}  (hoy: ${f(vistasHoy)})\n   ↳ pantallas abiertas en total\n`;
+  out += `• Profundidad: ${per(vistas, visit)} vistas por visitante\n   ↳ cuánto exploran de media (más alto = más interés)\n`;
+
+  out += `\n──────────\n🔧 INTERACCIONES\n`;
+  out += `• 🔎 Búsquedas de personas: ${f(busq)}  (${per(busq, visit)} por visitante)\n`;
+  out += `• 📝 Reportes creados (mapa/desaparecidos): ${f(rep)}\n`;
+  out += `• 🤖 Bot abierto: ${f(botEv)}  (${pct(botEv, visit)} de los visitantes)\n`;
+
+  out += `\n──────────\n📊 SECCIONES MÁS VISTAS\n(% sobre el total de vistas)\n`;
+  out += visibles.length ? visibles.map(([l, v]) => `• ${l}: ${f(v)} · ${pct(v, vistas)}`).join('\n') : 'Aún sin datos.';
+
+  // Origen + geografía (agregado sobre ev=visit; ubicación aproximada por IP)
   try {
-    const rows = await fetch(`${SB}/rest/v1/analytics_events?ev=eq.visit&select=ref,pais,ciudad&order=ts.desc&limit=20000`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then(r => r.ok ? r.json() : []);
+    const rows = await fetch(`${SB}/rest/v1/analytics_events?ev=eq.visit&select=ref,pais,region,ciudad&order=ts.desc&limit=20000`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then(r => r.ok ? r.json() : []);
     const list = Array.isArray(rows) ? rows : [];
+    const sample = list.length || 1;
     const tally = (key: string, def?: string) => { const m: Record<string, number> = {}; for (const r of list) { const v = r[key] || def; if (v) m[v] = (m[v] || 0) + 1; } return Object.entries(m).sort((a, b) => b[1] - a[1]); };
-    const fu = tally('ref', 'directo').slice(0, 8), pa = tally('pais').slice(0, 6), ci = tally('ciudad').slice(0, 6);
-    if (fu.length) out += `\n\nFuentes (cómo llegan):\n` + fu.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
-    if (pa.length) out += `\n\nPaíses:\n` + pa.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
-    if (ci.length) out += `\n\nCiudades:\n` + ci.map(([k, v]) => `• ${k}: ${f(v)}`).join('\n');
+    const refTip: Record<string, string> = { directo: 'escriben la URL o la tienen guardada', interno: 'navegando dentro del sitio', whatsapp: 'compartido por WhatsApp', instagram: 'desde Instagram', telegram: 'desde Telegram', twitter: 'desde X/Twitter', facebook: 'desde Facebook', google: 'desde búsqueda en Google' };
+    const fu = tally('ref', 'directo').slice(0, 8), pa = tally('pais').slice(0, 8);
+    // Ciudades: agrupar por ciudad, resolviendo país/estado dominante para el municipio
+    const cityAgg: Record<string, { count: number; pais: Record<string, number>; region: Record<string, number> }> = {};
+    for (const r of list) { const c = r.ciudad; if (!c) continue; const a = cityAgg[c] || (cityAgg[c] = { count: 0, pais: {}, region: {} }); a.count++; if (r.pais) a.pais[r.pais] = (a.pais[r.pais] || 0) + 1; if (r.region) a.region[r.region] = (a.region[r.region] || 0) + 1; }
+    const topKey = (m: Record<string, number>) => Object.entries(m).sort((x, y) => y[1] - x[1])[0]?.[0] || null;
+    const ci = Object.entries(cityAgg).map(([c, a]) => ({ ciudad: c, count: a.count, pais: topKey(a.pais), region: topKey(a.region) })).sort((a, b) => b.count - a.count).slice(0, 8);
+
+    if (fu.length) out += `\n\n──────────\n🔗 CÓMO LLEGAN (fuente del tráfico)\n` + fu.map(([k, v]) => `• ${k}: ${f(v)} · ${pct(v, sample)}${refTip[k] ? `\n   ↳ ${refTip[k]}` : ''}`).join('\n');
+    if (pa.length) out += `\n\n──────────\n🌎 PAÍSES\n` + pa.map(([k, v]) => `• ${COUNTRY[k] || k} (${k}): ${f(v)} · ${pct(v, sample)}`).join('\n');
+    if (ci.length) out += `\n\n──────────\n🏙️ CIUDADES (con municipio)\n` + ci.map(c => `• ${c.ciudad} — ${placeOf(c.ciudad, c.pais, c.region)}: ${f(c.count)}`).join('\n');
   } catch { /* sin datos de origen */ }
-  out += `\n\nActualizado: ${ahora} (Caracas)\nEscribe /estadisticas cuando quieras revisar.`;
+
+  out += `\n\n──────────\nℹ️ La ubicación es aproximada (por IP, a nivel de ciudad): no es GPS ni identifica a nadie. El municipio se deduce de la ciudad para las principales urbes de Venezuela.\n`;
+  out += `\n🕒 Actualizado: ${ahora} (Caracas)\nEscribe /estadisticas cuando quieras revisar.`;
   return out;
 }
 

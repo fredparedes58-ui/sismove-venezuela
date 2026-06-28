@@ -7,6 +7,7 @@
  *                                   menores → categoria 'nino')
  *   lista de pacientes de hospital → hospital_admisiones
  *   directorio de acopio           → centros_acopio_external
+ *   necesidades / insumos que faltan → logistica_reports (geocodificado para el mapa)
  *   otro                            → se ignora
  * SIEMPRE redacta cédula/documento. Marca cada archivo en foto_ocr para no repetir.
  * 1 archivo por llamada (tiempo/cuota Gemini). Throttle 10 min. `?file=<id>&key=` procesa uno puntual.
@@ -72,7 +73,62 @@ const norm = (s: any) => String(s || '').toLowerCase().normalize('NFD').replace(
 const thumb = (id: string) => `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
 const isMinor = (edad: any) => { if (/mes|meses|d[ií]a/i.test(String(edad || ''))) return true; const m = String(edad || '').match(/\d{1,3}/); return m ? parseInt(m[0], 10) <= 14 : false; };
 
-type Analysis = { tipo: string; personas: any[]; centros: any[] };
+// ── Geocodificación para logística (ubicar el punto en el mapa) ──
+// Gazetteer VE (ciudad/estado → [lat,lng]) primero (instantáneo); si no, Nominatim (best-effort).
+const GAZ: Record<string, [number, number]> = {
+  caracas: [10.4806, -66.9036], 'distrito capital': [10.4806, -66.9036], libertador: [10.4806, -66.9036],
+  petare: [10.4769, -66.8131], 'los teques': [10.3439, -67.0419], guarenas: [10.4719, -66.6111], guatire: [10.4719, -66.5419],
+  'la guaira': [10.6000, -66.9337], vargas: [10.6000, -66.9337], maiquetia: [10.5990, -66.9810], 'catia la mar': [10.6010, -67.0290],
+  maracaibo: [10.6545, -71.6406], zulia: [10.6545, -71.6406], cabimas: [10.3937, -71.4476],
+  valencia: [10.1620, -68.0077], carabobo: [10.1620, -68.0077], 'puerto cabello': [10.4731, -68.0125], guacara: [10.2306, -67.8772], naguanagua: [10.2400, -68.0150],
+  maracay: [10.2469, -67.5958], aragua: [10.2469, -67.5958], turmero: [10.2289, -67.4742], cagua: [10.1864, -67.4608], 'la victoria': [10.2272, -67.3320],
+  barquisimeto: [10.0647, -69.3470], lara: [10.0647, -69.3470], cabudare: [10.0339, -69.2625], carora: [10.1736, -70.0814],
+  'san felipe': [10.3399, -68.7407], yaracuy: [10.3120, -68.7400], yaritagua: [10.0814, -69.1278], chivacoa: [10.1614, -68.9006], nirgua: [10.1497, -68.5681],
+  'ciudad guayana': [8.3533, -62.6528], 'puerto ordaz': [8.2964, -62.7186], 'ciudad bolivar': [8.1222, -63.5497], bolivar: [8.1222, -63.5497],
+  'san cristobal': [7.7669, -72.2250], tachira: [7.7669, -72.2250],
+  maturin: [9.7457, -63.1832], monagas: [9.7457, -63.1832],
+  cumana: [10.4541, -64.1668], sucre: [10.4541, -64.1668], carupano: [10.6678, -63.2581],
+  barcelona: [10.1357, -64.6857], 'puerto la cruz': [10.2147, -64.6328], anzoategui: [10.1357, -64.6857], 'el tigre': [8.8892, -64.2530], anaco: [9.4307, -64.4633],
+  merida: [8.5972, -71.1448], 'el vigia': [8.6131, -71.6539],
+  'punto fijo': [11.6986, -70.1997], coro: [11.4045, -69.6734], falcon: [11.4045, -69.6734],
+  acarigua: [9.5597, -69.2019], araure: [9.5667, -69.2278], guanare: [9.0419, -69.7421], portuguesa: [9.0419, -69.7421],
+  valera: [9.3185, -70.6036], trujillo: [9.3700, -70.4339], barinas: [8.6226, -70.2075],
+  porlamar: [10.9577, -63.8486], 'nueva esparta': [10.9577, -63.8486], 'la asuncion': [11.0333, -63.8628],
+  'san juan de los morros': [9.9088, -67.3547], calabozo: [8.9242, -67.4279], guarico: [9.9088, -67.3547],
+  miranda: [10.2500, -66.6000], cojedes: [9.6612, -68.5862], 'san carlos': [9.6612, -68.5862],
+  apure: [7.8979, -67.4729], 'san fernando': [7.8979, -67.4729], amazonas: [5.6639, -67.6236], 'puerto ayacucho': [5.6639, -67.6236],
+  'delta amacuro': [9.0606, -62.0489], tucupita: [9.0606, -62.0489],
+};
+async function geocodeVE(q: string): Promise<{ lat: number; lng: number } | null> {
+  const text = (q || '').trim(); if (!text) return null;
+  const n = norm(text);
+  // 1) gazetteer: la ciudad/estado de mayor longitud que aparezca en el texto (evita falsos "coro" dentro de palabras)
+  let best: [number, number] | null = null, bestLen = 0;
+  for (const key of Object.keys(GAZ)) { if (key.length > bestLen && new RegExp(`\\b${key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`).test(n)) { best = GAZ[key]; bestLen = key.length; } }
+  if (best) return { lat: best[0], lng: best[1] };
+  // 2) Nominatim (VE), best-effort con timeout corto
+  try {
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${encodeURIComponent(text)}`, { headers: { 'User-Agent': 'SismoVE/1.0 (humanitarian earthquake response)' }, signal: ctrl.signal });
+    clearTimeout(t);
+    const j: any = await r.json();
+    if (Array.isArray(j) && j[0]) { const lat = parseFloat(j[0].lat), lng = parseFloat(j[0].lon); if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }; }
+  } catch {}
+  return null;
+}
+// Deduce las categorías de recurso (comida/agua/…) del texto de necesidades, para el ícono del mapa.
+function tipoFromNeeds(s: string): string {
+  const n = norm(s); const out: string[] = [];
+  if (/comida|aliment|viver|comestible|merienda|enlatad/.test(n)) out.push('comida');
+  if (/agua|hidrat/.test(n)) out.push('agua');
+  if (/medicin|medicament|f[aá]rmac|insulina|antibi|suero|gasa|curita/.test(n)) out.push('medicinas');
+  if (/pa[nñ]al|higien|jab[oó]n|toalla|aseo|cloro|cepillo|champ/.test(n)) out.push('higiene');
+  if (/ropa|cobij|manta|colch|zapato|calzado|abrigo/.test(n)) out.push('ropa');
+  if (/volunt|manos|personal|rescatist/.test(n)) out.push('voluntarios');
+  return out.length ? Array.from(new Set(out)).join(',') : 'otro';
+}
+
+type Analysis = { tipo: string; personas: any[]; centros: any[]; logistica: any[] };
 // Clasifica la imagen/PDF y extrae datos estructurados (un solo llamado a Gemini).
 async function analyzeFile(fileId: string, mime: string): Promise<Analysis> {
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 22000);
@@ -81,12 +137,13 @@ async function analyzeFile(fileId: string, mime: string): Promise<Analysis> {
     if (!f.ok) throw new Error('file ' + f.status);
     const b64 = toBase64(await f.arrayBuffer());
     const prompt = `Imagen/PDF de una emergencia por terremoto en Venezuela. CLASIFÍCALA y extrae datos. Responde SOLO JSON:
-{"tipo":"desaparecido|rescatado|lista_hospital|acopio|otro","personas":[{"nombre":"","edad":"","zona":"","visto":"","contacto":""}],"centros":[{"nombre":"","direccion":"","telefono":""}]}
+{"tipo":"desaparecido|rescatado|lista_hospital|acopio|logistica|otro","personas":[{"nombre":"","edad":"","zona":"","visto":"","contacto":""}],"centros":[{"nombre":"","direccion":"","telefono":""}],"logistica":[{"lugar":"","direccion":"","zona":"","necesidades":"","contacto":""}]}
 Reglas:
 - CARTEL de persona DESAPARECIDA (dice "desaparecido/a", "ayúdanos a encontrar", "búsqueda") → tipo "desaparecido"; en personas pon nombre completo, edad (si hay), zona/estado, dónde se le vio por última vez (visto) y teléfono de contacto.
 - CARTEL de persona RESCATADA/ENCONTRADA/a salvo → tipo "rescatado" (mismos campos).
 - LISTA (manuscrita o impresa) de pacientes/ingresados a un hospital → tipo "lista_hospital"; personas = nombres (y edad si aparece).
 - Directorio de CENTROS DE ACOPIO / puntos de ayuda → tipo "acopio"; centros = {nombre, direccion, telefono}.
+- NECESIDADES/INSUMOS que HACEN FALTA en un refugio, zona o comunidad (p.ej. "se necesita/falta: agua, comida, medicinas, pañales, ropa, colchonetas") → tipo "logistica"; en logistica pon, por cada lugar: lugar/nombre del sitio, direccion, zona/ciudad/estado, qué necesidades faltan (necesidades) y un contacto si aparece. Incluye la ubicación más específica posible (es para ubicarlo en un mapa).
 - Cualquier otra cosa (captura de pantalla, meme, foto sin datos) → tipo "otro", listas vacías.
 - NUNCA incluyas cédula ni números de identidad. NO inventes: omite lo ilegible.`;
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI}`, {
@@ -96,7 +153,7 @@ Reglas:
     if (!res.ok) throw new Error('gemini ' + res.status + ' ' + (await res.text()).slice(0, 120));
     const j: any = await res.json();
     let p: any = {}; try { p = JSON.parse(j?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'); } catch {}
-    return { tipo: String(p.tipo || 'otro'), personas: Array.isArray(p.personas) ? p.personas : [], centros: Array.isArray(p.centros) ? p.centros : [] };
+    return { tipo: String(p.tipo || 'otro'), personas: Array.isArray(p.personas) ? p.personas : [], centros: Array.isArray(p.centros) ? p.centros : [], logistica: Array.isArray(p.logistica) ? p.logistica : [] };
   } finally { clearTimeout(t); }
 }
 
@@ -131,7 +188,7 @@ export default async function handler(req: Request): Promise<Response> {
     const now = new Date().toISOString(); const report: any[] = []; let added = 0;
     for (const fl of pending) {
       const mime = fl.tipo === 'pdf' ? 'application/pdf' : 'image/jpeg';
-      let a: Analysis = { tipo: 'otro', personas: [], centros: [] };
+      let a: Analysis = { tipo: 'otro', personas: [], centros: [], logistica: [] };
       try { a = await analyzeFile(fl.id, mime); } catch (e: any) { const msg = e?.message || 'err'; report.push({ id: fl.id, error: msg }); if (!/\b429\b|quota/i.test(msg)) await markDone(fl); continue; } // 429 (cuota) → NO marcar, reintenta luego
       let destino = 'otro', n = 0;
       if (a.tipo === 'desaparecido' || a.tipo === 'rescatado') {
@@ -159,6 +216,28 @@ export default async function handler(req: Request): Promise<Response> {
           rows.push({ id, nombre: disp, hospital: (fl.hospital === 'Drive' || fl.hospital === 'PDF') ? null : fl.hospital, fecha: null, source: `foto:${fl.id}`, updated_at: now });
         }
         await upsert('hospital_admisiones', rows); destino = 'hospital'; n = rows.length;
+      } else if (a.tipo === 'logistica') {
+        const rows: any[] = []; const seen = new Set<string>(); let geocoded = 0;
+        for (const L of a.logistica.slice(0, 8)) {
+          const lugar = redact(L?.lugar) || '';
+          const direccion = redact(L?.direccion) || '';
+          const zona = redact(L?.zona) || '';
+          const needs = redact(L?.necesidades) || '';
+          if (!needs && !lugar) continue;
+          const dedup = norm(`${lugar}|${zona}|${needs}`).slice(0, 160); if (seen.has(dedup)) continue; seen.add(dedup);
+          if (geocoded >= 6) break;                                  // cota de geocodificación por archivo
+          const geo = await geocodeVE([direccion, zona, lugar].filter(Boolean).join(', '));
+          if (!geo) continue;                                         // sin ubicación no se puede mapear
+          geocoded++;
+          const contacto = cleanPhone(L?.contacto);
+          rows.push({
+            lat: geo.lat, lng: geo.lng, ciudad: zona || null, tipo: tipoFromNeeds(needs),
+            estado: 'falta', direccion: direccion || null, descripcion: needs || null,
+            nota: [lugar, needs ? 'Falta: ' + needs : '', contacto ? '📞 ' + contacto : ''].filter(Boolean).join(' · ').slice(0, 300) || null,
+            foto_url: thumb(fl.id), fotos: [thumb(fl.id)],
+          });
+        }
+        await upsert('logistica_reports', rows); destino = 'logistica'; n = rows.length;   // sin on_conflict (no hay col única); foto_ocr evita reprocesar
       }
       await markDone(fl, n);
       added += n; report.push({ id: fl.id, tipo: a.tipo, destino, agregados: n });
