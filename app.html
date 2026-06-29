@@ -179,14 +179,42 @@
   .step{display:flex;gap:12px;margin:12px 0}
   .step .num{width:26px;height:26px;border-radius:8px;background:var(--amber);color:#1a1205;font-weight:800;display:grid;place-items:center;flex:none;font-size:13px}
 
-  /* ---------- Bottom nav ---------- */
-  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);
-    border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
-  .tabs-in{display:flex;width:100%;max-width:760px;justify-content:space-around}
+  /* ---------- Bottom nav (5 + FAB SOS central) ---------- */
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -2px 16px rgba(20,30,50,.07)}
+  .tabs-in{display:flex;width:100%;max-width:520px;justify-content:space-around;align-items:flex-end}
   .tab{flex:1;background:none;border:0;color:var(--mut2);font-size:10.5px;font-weight:700;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-family:inherit}
-  .tab .i{font-size:21px;line-height:1}
-  .tab.on{color:var(--amber)}
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-family:inherit;min-height:48px;justify-content:flex-end}
+  .tab .i{font-size:22px;line-height:1}
+  .tab.on{color:var(--red)}
+  .tab-sos{flex:0 0 auto;align-self:center;width:64px;display:flex;justify-content:center}
+  .fab-sos{width:60px;height:60px;border-radius:50%;background:var(--red);border:4px solid var(--card);color:#fff;
+    font-family:var(--font-display,inherit);font-weight:800;font-size:15px;cursor:pointer;transform:translateY(-20px);
+    box-shadow:0 8px 18px rgba(225,41,35,.42);display:grid;place-items:center;line-height:1;letter-spacing:.5px}
+  .fab-sos:active{transform:translateY(-20px) scale(.94)}
+  /* Vista "Más" */
+  .mas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+  .mas-item{display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);padding:16px;cursor:pointer;text-align:left;font-family:inherit;color:var(--txt);min-height:48px;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.06))}
+  .mas-item:active{transform:scale(.98)}
+  .mas-item .i{font-size:24px;line-height:1}
+  .mas-item b{font-size:13.5px;font-weight:700;line-height:1.25}
+  .theme-row{display:flex;gap:8px;margin-top:8px}
+  .theme-row button{flex:1;min-height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--txt);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px}
+  .theme-row button.on{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+  /* ---------- Modo Oscuro ---------- */
+  body.theme-dark{
+    --bg:#0e1320; --bg2:#161d2e; --card:#161d2e; --card2:#1c2740;
+    --line:#26304a; --txt:#eaeef6; --mut:#aab4c6; --mut2:#8492a8;
+    --red:#ff6a60; --red-bg:#2a1a1e; --green:#28c08a; --green-bg:#10241c; --blue:#6ea2ff; --amber:#ffba5a;
+  }
+  body.theme-dark{ background:var(--bg); }
+  /* ---------- Modo Estrés (alto contraste · texto grande · una acción clara) ---------- */
+  body.theme-stress{ font-size:18px; --line:#16243f; }
+  body.theme-stress h2.title{font-size:26px}
+  body.theme-stress .tab{font-size:12px}
+  body.theme-stress .card,body.theme-stress .mas-item{border-width:2px;border-color:var(--txt)}
+  body.theme-stress .btn,body.theme-stress .sos-cta,body.theme-stress .fab-sos{font-size:17px}
 
   /* ---------- Toast / modal ---------- */
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--green);
@@ -614,6 +642,27 @@
     </div>
   </section>
 
+  <!-- ============ MÁS (secciones extra + apariencia) ============ -->
+  <section class="view pad" id="v-mas">
+    <h2 class="title" data-i18n="mas.title">Más</h2>
+    <p class="sub" data-i18n="mas.sub">Más secciones y opciones de SismoVE.</p>
+    <div class="mas-grid">
+      <button class="mas-item" onclick="go('ninos')"><span class="i">👶</span><b data-i18n="nav.ninos">Niños rescatados y desaparecidos</b></button>
+      <button class="mas-item" onclick="go('grupos')"><span class="i">📋</span><b data-i18n="nav.grupos">Grupos por zona</b></button>
+      <button class="mas-item" onclick="go('panel')"><span class="i">📊</span><b data-i18n="nav.panel">Panel de coordinación</b></button>
+      <button class="mas-item" onclick="go('bot')"><span class="i">🤖</span><b data-i18n="nav.bot">Asistentes (bot)</b></button>
+      <button class="mas-item" onclick="go('info')"><span class="i">📘</span><b data-i18n="nav.info">Qué hacer ante un sismo</b></button>
+      <button class="mas-item" onclick="go('salvo')"><span class="i">✅</span><b data-i18n="nav.salvo">Estoy a salvo</b></button>
+    </div>
+    <label class="fl" style="margin-top:18px" data-i18n="mas.apariencia">Apariencia</label>
+    <div class="theme-row" id="themeRow">
+      <button data-th="light" onclick="setTheme('light')"><span style="font-size:18px">☀️</span><span data-i18n="theme.light">Claro</span></button>
+      <button data-th="dark" onclick="setTheme('dark')"><span style="font-size:18px">🌙</span><span data-i18n="theme.dark">Oscuro</span></button>
+      <button data-th="stress" onclick="setTheme('stress')"><span style="font-size:18px">🔆</span><span data-i18n="theme.stress">Estrés</span></button>
+    </div>
+    <p class="sub" style="margin-top:8px;font-size:12px" data-i18n="theme.hint">Modo Estrés: texto grande y alto contraste para emergencias.</p>
+  </section>
+
 </main>
 
 <!-- ===== Bottom nav ===== -->
@@ -621,12 +670,9 @@
   <div class="tabs-in">
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span><span data-i18n="nav.ayuda">Ayuda</span></button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span><span data-i18n="nav.desap">Buscar</span></button>
-    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span><span data-i18n="nav.ninos">Niños rescatados y desaparecidos</span></button>
-    <button class="tab" data-v="grupos" onclick="go('grupos')"><span class="i">📋</span><span data-i18n="nav.grupos">Grupos por zona</span></button>
-    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span><span data-i18n="nav.mapas">Mapas</span></button>
-    <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span><span data-i18n="nav.panel">Panel</span></button>
-    <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span><span data-i18n="nav.bot">Bot</span></button>
-    <button class="tab" data-v="info" onclick="go('info')"><span class="i">📘</span><span data-i18n="nav.info">Info</span></button>
+    <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button></div>
+    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span><span data-i18n="nav.mapas">Mapa</span></button>
+    <button class="tab" data-v="mas" onclick="go('mas')"><span class="i">☰</span><span data-i18n="nav.mas">Más</span></button>
   </div>
 </nav>
 
@@ -683,6 +729,9 @@ const I18N = {
     'nav.grupos':'Grupos por zona','nav.mapas':'Mapas','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Pedir ayuda',
     'ayuda.sub':'Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.',
+    'nav.mas':'Más','nav.salvo':'Estoy a salvo',
+    'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
+    'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
   },
   en:{
     'hdr.sub':'Seismic Response Network · Venezuela',
@@ -691,6 +740,9 @@ const I18N = {
     'nav.grupos':'Groups by area','nav.mapas':'Maps','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Ask for help',
     'ayuda.sub':'Report your emergency. AI prioritizes it and routes it to the nearest coordination team.',
+    'nav.mas':'More','nav.salvo':"I'm safe",
+    'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
+    'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
   },
 };
 let LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
@@ -714,6 +766,18 @@ function ensureLangChosen(){
   else { const m=document.getElementById('langModal'); if(m) m.style.display='flex'; }
   applyI18n();
 }
+/* ---- Temas: Claro / Oscuro / Estrés ---- */
+let THEME = (function(){ try{ return localStorage.getItem('sismove_theme')||'light'; }catch(e){ return 'light'; } })();
+function setTheme(th){
+  THEME=th; try{ localStorage.setItem('sismove_theme',th); }catch(e){}
+  document.body.classList.remove('theme-dark','theme-stress');
+  if(th==='dark') document.body.classList.add('theme-dark');
+  else if(th==='stress') document.body.classList.add('theme-stress');
+  const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.setAttribute('content', th==='dark'?'#0e1320':'#ffffff');
+  updateThemeUI();
+}
+function updateThemeUI(){ document.querySelectorAll('#themeRow button').forEach(b=>b.classList.toggle('on', b.dataset.th===THEME)); }
+function applyTheme(){ setTheme(THEME); }
 
 /* ---------- Catálogos ---------- */
 const NEEDS = [
@@ -900,7 +964,8 @@ function go(v, fromBack){
   track('view', v);   // analítica anónima
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
+  const NAV_OVERFLOW=new Set(['ninos','grupos','panel','bot','info','salvo','mas']);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v || (t.dataset.v==='mas' && NAV_OVERFLOW.has(v))));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros();},80);
@@ -2465,6 +2530,7 @@ function toast(msg,type){
 
 /* ---------- Init ---------- */
 ensureLangChosen();                     // idioma: aplica el guardado o muestra el aviso ES/EN al abrir
+applyTheme();                           // tema: Claro / Oscuro / Estrés (guardado)
 renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl(); loadAcopioCentros();
 renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
