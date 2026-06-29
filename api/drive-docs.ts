@@ -7,7 +7,9 @@
  */
 export const config = { runtime: 'edge' };
 
-const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
+// Carpetas PROHIBIDAS: nunca se listan ni se recorren (ni como subcarpeta).
+const EXCLUDE = new Set((process.env.DRIVE_EXCLUDE_IDS || '1dZ1jSXwwzkqPa7F4N-9xFWxuELfiqXlH').split(',').map(s => s.trim()).filter(Boolean));
+const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean).filter(id => !EXCLUDE.has(id));
 const ENTRY_RE = /<div class="flip-entry"[^>]*id="entry-([^"]+)"[\s\S]*?<a href="([^"]+)"[\s\S]*?<div class="flip-entry-title">([^<]*)<\/div>/g;
 
 function tipoOf(url: string, name: string): string {
@@ -36,8 +38,8 @@ export default async function handler(): Promise<Response> {
     for (const FOLDER of FOLDERS) {
       let items: any[] = [];
       try { items = await listFolder(FOLDER); } catch { continue; }
-      // Recursión 1 nivel: contenido de cada subcarpeta
-      await Promise.all(items.filter(i => i.tipo === 'carpeta').map(async it => {
+      // Recursión 1 nivel: contenido de cada subcarpeta (saltando carpetas prohibidas)
+      await Promise.all(items.filter(i => i.tipo === 'carpeta' && !EXCLUDE.has(i.id)).map(async it => {
         try { it.children = await listFolder(it.id); } catch { it.children = []; }
       }));
       carpetas.push({ folder_url: `https://drive.google.com/drive/folders/${FOLDER}`, items });

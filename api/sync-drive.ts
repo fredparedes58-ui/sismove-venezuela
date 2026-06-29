@@ -36,6 +36,8 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
 const MAX_DEPTH = 4;          // recorre subcarpetas (y sub-sub…) hasta esta profundidad
 const MAX_FOLDERS = 80;       // tope de carpetas visitadas por corrida (evita timeouts)
+// Carpetas PROHIBIDAS: nunca se listan, ni se leen sus archivos, ni se entra a ellas (ni como subcarpeta).
+const EXCLUDE = new Set((process.env.DRIVE_EXCLUDE_IDS || '1dZ1jSXwwzkqPa7F4N-9xFWxuELfiqXlH').split(',').map(s => s.trim()).filter(Boolean));
 const THROTTLE_MIN = 15;
 const MAX_FILES = 8;          // tope por corrida (tiempo del Edge)
 const MAX_ROWS = 9000;        // tope defensivo de filas por archivo (consolidados grandes)
@@ -66,14 +68,14 @@ async function allCandidates(roots: string[] = FOLDERS) {
   const out: { id: string; name: string; kind: Kind }[] = [];
   const seenFolders = new Set<string>(); let visited = 0;
   const walkDeadline = Date.now() + 15000;   // tope de tiempo del recorrido (evita 504 del Edge)
-  const queue: { id: string; depth: number }[] = roots.map(id => ({ id, depth: 0 }));
+  const queue: { id: string; depth: number }[] = roots.map(id => ({ id, depth: 0 })).filter(f => !EXCLUDE.has(f.id));
   while (queue.length && visited < MAX_FOLDERS && Date.now() < walkDeadline) {
     const { id, depth } = queue.shift()!;
-    if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
+    if (EXCLUDE.has(id) || seenFolders.has(id)) continue; seenFolders.add(id); visited++;
     let entries: { id: string; name: string; url: string }[] = [];
     try { entries = await listFolder(id); } catch { continue; }
     for (const e of entries) {
-      if (e.url.includes('/drive/folders/')) { if (depth < MAX_DEPTH && !seenFolders.has(e.id)) queue.push({ id: e.id, depth: depth + 1 }); }
+      if (e.url.includes('/drive/folders/')) { if (depth < MAX_DEPTH && !seenFolders.has(e.id) && !EXCLUDE.has(e.id)) queue.push({ id: e.id, depth: depth + 1 }); }
       else { const k = kindOf(e.name, e.url); if (k) out.push({ id: e.id, name: e.name, kind: k }); }
     }
   }

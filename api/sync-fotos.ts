@@ -23,6 +23,8 @@ const SB = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const GEMINI = process.env.GEMINI_API_KEY;
 const FOLDERS = (process.env.DRIVE_FOLDER_IDS || process.env.DRIVE_FOLDER_ID || '1o36ifaRz45kAs5rKzci49aD0mP5JB_YI,1OIUMzrZzRpcTTE8olKT0lk6-jRFO3ztM').split(',').map(s => s.trim()).filter(Boolean);
+// Carpetas PROHIBIDAS: nunca se listan, ni se leen sus archivos, ni se entra a ellas (ni como subcarpeta).
+const EXCLUDE = new Set((process.env.DRIVE_EXCLUDE_IDS || '1dZ1jSXwwzkqPa7F4N-9xFWxuELfiqXlH').split(',').map(s => s.trim()).filter(Boolean));
 const MAX_DEPTH = 4, MAX_FOLDERS = 80;
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_PER_RUN = 1;        // 1 por invocación (PDFs lentos → evitar timeout del Edge)
@@ -49,14 +51,14 @@ async function listFolder(id: string) {
 async function allFiles() {
   const files: { id: string; hospital: string; tipo: string }[] = [];
   const seenFolders = new Set<string>(); let visited = 0;
-  const queue: { id: string; name: string; depth: number }[] = FOLDERS.map(id => ({ id, name: 'Drive', depth: 0 }));
+  const queue: { id: string; name: string; depth: number }[] = FOLDERS.map(id => ({ id, name: 'Drive', depth: 0 })).filter(f => !EXCLUDE.has(f.id));
   while (queue.length && visited < MAX_FOLDERS) {
     const { id, name, depth } = queue.shift()!;
-    if (seenFolders.has(id)) continue; seenFolders.add(id); visited++;
+    if (EXCLUDE.has(id) || seenFolders.has(id)) continue; seenFolders.add(id); visited++;
     let entries: any[] = [];
     try { entries = await listFolder(id); } catch { continue; }
     for (const it of entries) {
-      if (it.tipo === 'carpeta') { if (depth < MAX_DEPTH && !seenFolders.has(it.id)) queue.push({ id: it.id, name: it.name, depth: depth + 1 }); }
+      if (it.tipo === 'carpeta') { if (depth < MAX_DEPTH && !seenFolders.has(it.id) && !EXCLUDE.has(it.id)) queue.push({ id: it.id, name: it.name, depth: depth + 1 }); }
       else if (it.tipo === 'imagen' || it.tipo === 'pdf') files.push({ id: it.id, hospital: it.tipo === 'pdf' ? 'PDF' : (name === 'Drive' ? 'Drive' : name), tipo: it.tipo });
     }
   }
