@@ -607,8 +607,7 @@
       <button data-l="sos" onclick="toggleLayer('sos')">🆘 SOS</button>
       <button data-l="torres" onclick="toggleLayer('torres')">📡 Celdas</button>
       <button data-l="acopio" onclick="toggleLayer('acopio')">📦 Acopio</button>
-      <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura</button>
-      <button data-l="wifi" onclick="toggleLayer('wifi')">📡 Internet gratis</button>
+      <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura · Internet</button>
       <button data-l="luz" onclick="toggleLayer('luz')">⚡ Luz</button>
       <button data-l="logistica" onclick="toggleLayer('logistica')">🍲 Logística</button>
     </div>
@@ -1492,9 +1491,9 @@ function addLayer(key){
   else if(key==='acopio')    hubLayers[key]=buildAcopio();
   else if(key==='logistica') hubLayers[key]=buildLogistica();
   else if(key==='sos')       hubLayers[key]=buildSos();
-  else if(key==='wifi')      hubLayers[key]=buildWifi();
+  else if(key==='cobertura'){ hubLayers[key]=buildStatus('cobertura').concat(buildWifi()); loadWifi(); }   // señal comunitaria + Internet gratis (Reconecta)
   else if(key==='torres'){   hubLayers[key]=[]; ensureFullTowers(drawTowersInView); drawTowersInView(); }
-  else                       hubLayers[key]=buildStatus(key);   // cobertura | luz
+  else                       hubLayers[key]=buildStatus(key);   // luz
 }
 // Compat con el deep-link antiguo (#cobertura/#luz/#afectadas): enfoca esa capa
 function setMapMode(m){
@@ -1528,7 +1527,7 @@ function fitActive(){
   if(activeLayers.has('luz')) DB.power.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('logistica')) (DB.logistica||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('sos')) (DB.sos||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
-  if(activeLayers.has('wifi')) (DB.wifi||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(activeLayers.has('cobertura')) (DB.wifi||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(pts.length>1) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:9});
 }
 
@@ -1781,7 +1780,7 @@ async function loadWifi(){
     const r=await fetch('/api/reconecta'); if(!r.ok) return;
     const d=await r.json();
     if(Array.isArray(d.sites)){ DB.wifi=d.sites; _wifiUpdated=d.updatedAt||null; _wifiTs=Date.now();
-      if(curView==='refugios' && activeLayers.has('wifi')){ removeLayer('wifi'); addLayer('wifi'); renderHubPanel(); } }
+      if(curView==='refugios' && activeLayers.has('cobertura')){ removeLayer('cobertura'); addLayer('cobertura'); renderHubPanel(); } }
   }catch(e){ /* offline */ }
 }
 
@@ -1871,40 +1870,31 @@ function renderHubPanel(){
       </div>`;
     }).join('') : '<div class="empty">Por ahora nadie ha pedido SOS por aquí.<br>Si estás atrapado/a o necesitas rescate, pulsa “Pedir ayuda (SOS)”.</div>';
   }
-  else if(k==='wifi'){
-    const W=(DB.wifi||[]);
+  else if(k==='cobertura'){   // Cobertura = Internet gratis (Reconecta) + señal comunitaria
+    const W=(DB.wifi||[]); const data=statusData('cobertura');
     const online=W.filter(r=>r.online||r.status==='ok'||r.status==='busy').length;
-    sync.innerHTML=`<span class="dot ok"></span><span><b>${W.length}</b> ${LANG==='en'?'free internet points':'puntos de internet gratis'} · <b>${online}</b> ${LANG==='en'?'online':'en servicio'}</span>`;
+    sync.innerHTML=`<span class="dot ok"></span><span><b>${W.length}</b> ${LANG==='en'?'free internet points':'puntos de internet gratis'} · <b>${online}</b> ${LANG==='en'?'online':'en servicio'}${data.length?` · <b>${data.length}</b> ${LANG==='en'?'signal reports':'reportes de señal'}`:''}</span>`;
     leg.innerHTML=`<span><i style="background:#10a36a"></i>${wifiLabel('ok')}</span><span><i style="background:#ff9d00"></i>${wifiLabel('busy')}</span><span><i style="background:#ee6a1f"></i>${wifiLabel('full')}</span><span><i style="background:#94a6c4"></i>${wifiLabel('offline')}</span>`;
     act.innerHTML=`<div class="card" style="background:var(--bg2);margin-bottom:10px;font-size:12.5px">📶 WiFi <b>STARLINK</b> ${LANG==='en'?'— open and free, no password. Priority: hospitals, clinics and shelters.':'— abierta y gratis, sin clave. Prioridad: hospitales, ambulatorios y refugios.'}</div>
-      <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://www.reconectavenezuela.com/request/" target="_blank" rel="noopener">➕ ${LANG==='en'?'Request an internet point →':'Solicitar un punto de internet →'}</a>`;
+      <a class="btn ghost" style="text-decoration:none;display:block;text-align:center;margin-bottom:8px" href="https://www.reconectavenezuela.com/request/" target="_blank" rel="noopener">➕ ${LANG==='en'?'Request an internet point →':'Solicitar un punto de internet →'}</a>
+      <button class="btn primary" onclick="openMapReport('cobertura')">📶 ${LANG==='en'?'Report signal here':'Reportar mi cobertura aquí'}</button>`;
     list.innerHTML = (W.length ? W.slice(0,60).map(r=>{
-      const col=WIFI_COL[r.status]||'#2f6fed';
-      return `<div class="rep" style="border-left:3px solid ${col}">
-        <div class="h"><span class="t">📡 ${esc(r.name||'Punto de internet')}</span><span class="badge st" style="color:${col}">${esc(wifiLabel(r.status))}</span></div>
-        <div class="meta"><span>📍 ${esc(r.region||r.address||'')}</span>${r.users!=null?`<span>👥 ${esc(String(r.users))}</span>`:''}</div>
-      </div>`;
-    }).join('') : `<div class="empty">${LANG==='en'?'No points available right now.':'Sin puntos disponibles ahora.'}</div>`)
-      + `<p style="font-size:11px;color:var(--mut2);margin-top:10px">${LANG==='en'?'Live data — Source:':'Datos en vivo — Fuente:'} <a class="ext" href="https://www.reconectavenezuela.com/" target="_blank" rel="noopener">Reconecta Venezuela</a>${_wifiUpdated?' · '+ago(Date.parse(_wifiUpdated)):''}</p>`;
+        const col=WIFI_COL[r.status]||'#2f6fed';
+        return `<div class="rep" style="border-left:3px solid ${col}"><div class="h"><span class="t">📡 ${esc(r.name||'Punto de internet')}</span><span class="badge st" style="color:${col}">${esc(wifiLabel(r.status))}</span></div><div class="meta"><span>📍 ${esc(r.region||r.address||'')}</span>${r.users!=null?`<span>👥 ${esc(String(r.users))}</span>`:''}</div></div>`;
+      }).join('') : `<div class="empty">${LANG==='en'?'Loading internet points…':'Cargando puntos de internet…'}</div>`)
+      + (data.length ? data.slice(0,40).map(r=>`<div class="rep ${r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'}"><div class="h"><span class="t">📶 ${statusLabel('cobertura',r.estado)}</span>${r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}${editBtn('cobertura',r.id)}${delBtn('cobertura',r.id)}</div><div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div></div>`).join('') : '')
+      + `<p style="font-size:11px;color:var(--mut2);margin-top:10px">${LANG==='en'?'Internet points — live, source:':'Puntos de internet — en vivo, fuente:'} <a class="ext" href="https://www.reconectavenezuela.com/" target="_blank" rel="noopener">Reconecta Venezuela</a>${_wifiUpdated?' · '+ago(Date.parse(_wifiUpdated)):''}</p>`;
   }
-  else { // cobertura | luz
-    const data=statusData(k);
-    if(k==='cobertura'){
-      sync.innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes comunitarios de señal</span>`;
-      leg.innerHTML=`<span><i style="background:#22c98a"></i>Con señal</span><span><i style="background:#ffb020"></i>Intermitente</span><span><i style="background:#ff4d4f"></i>Sin señal</span>`;
-      act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('cobertura')">📶 Reportar cobertura aquí</button>`;
-    } else {
-      sync.innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes de luz/apagones</span>`;
-      leg.innerHTML=`<span><i style="background:#22c98a"></i>Con luz</span><span><i style="background:#ff4d4f"></i>Sin luz / apagón</span>`;
-      act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('luz')">⚡ Reportar estado de luz</button>`;
-    }
+  else { // luz
+    const data=statusData('luz');
+    sync.innerHTML=`<span class="dot warn"></span><span><b>${data.length}</b> reportes de luz/apagones</span>`;
+    leg.innerHTML=`<span><i style="background:#22c98a"></i>Con luz</span><span><i style="background:#ff4d4f"></i>Sin luz / apagón</span>`;
+    act.innerHTML=cross+`<button class="btn primary" onclick="openMapReport('luz')">⚡ Reportar estado de luz</button>`;
     list.innerHTML = data.length ? data.slice(0,40).map(r=>`
-      <div class="rep ${k==='cobertura'?(r.estado==='senal'?'baja':r.estado==='intermitente'?'media':'crit'):(r.estado==='conluz'?'baja':'crit')}">
-        <div class="h"><span class="t">${k==='cobertura'?'📶':'⚡'} ${statusLabel(k,r.estado)}</span>
-          ${k==='cobertura'&&r.operador?`<span class="badge st">${esc(r.operador)}</span>`:''}
-          ${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${editBtn(k,r.id)}${delBtn(k,r.id)}</div>
+      <div class="rep ${r.estado==='conluz'?'baja':'crit'}">
+        <div class="h"><span class="t">⚡ ${statusLabel('luz',r.estado)}</span>${r.demo?'<span class="badge st" style="opacity:.6">demo</span>':''}${editBtn('luz',r.id)}${delBtn('luz',r.id)}</div>
         <div class="meta"><span>📍 ${esc(r.city||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
-      </div>`).join('') : '<div class="empty">Aún no hay reportes en esta capa.<br>¡Sé el primero en reportar tu zona!</div>';
+      </div>`).join('') : '<div class="empty">Aún no hay reportes de luz.<br>¡Sé el primero en reportar tu zona!</div>';
   }
 }
 
