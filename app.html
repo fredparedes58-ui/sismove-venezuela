@@ -608,6 +608,7 @@
       <button data-l="torres" onclick="toggleLayer('torres')">📡 Celdas</button>
       <button data-l="acopio" onclick="toggleLayer('acopio')">📦 Acopio</button>
       <button data-l="cobertura" onclick="toggleLayer('cobertura')">📶 Cobertura</button>
+      <button data-l="wifi" onclick="toggleLayer('wifi')">📡 Internet gratis</button>
       <button data-l="luz" onclick="toggleLayer('luz')">⚡ Luz</button>
       <button data-l="logistica" onclick="toggleLayer('logistica')">🍲 Logística</button>
     </div>
@@ -1243,6 +1244,8 @@ DB.power    = DB.power    || [];   // reportes comunitarios de estado eléctrico
 DB.zonas    = DB.zonas    || [];   // reportes comunitarios de zonas afectadas (daños)
 DB.logistica= DB.logistica|| [];   // logística: dónde falta / qué zona está cubierta
 DB.sos      = DB.sos      || [];   // SOS en sitio: personas atrapadas / piden rescate
+DB.wifi     = DB.wifi     || [];   // Internet/WiFi gratis (Reconecta Venezuela)
+let _wifiUpdated=null;
 // Retrocompat: reportes guardados antes sin coords → derívalas de la ciudad (para que el mapa del Panel los muestre)
 (function backfillCoords(){ let ch=false; (DB.reports||[]).forEach(r=>{ if(typeof r.lat!=='number'||typeof r.lng!=='number'){ const c=cityByName(r.city); r.lat=c.lat+(Math.random()-.5)*.06; r.lng=c.lng+(Math.random()-.5)*.06; ch=true; } }); if(ch) save(); })();
 
@@ -1257,7 +1260,7 @@ function go(v, fromBack){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
-  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros();},80);
+  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros(); loadWifi();},80);
   if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
@@ -1489,6 +1492,7 @@ function addLayer(key){
   else if(key==='acopio')    hubLayers[key]=buildAcopio();
   else if(key==='logistica') hubLayers[key]=buildLogistica();
   else if(key==='sos')       hubLayers[key]=buildSos();
+  else if(key==='wifi')      hubLayers[key]=buildWifi();
   else if(key==='torres'){   hubLayers[key]=[]; ensureFullTowers(drawTowersInView); drawTowersInView(); }
   else                       hubLayers[key]=buildStatus(key);   // cobertura | luz
 }
@@ -1524,6 +1528,7 @@ function fitActive(){
   if(activeLayers.has('luz')) DB.power.forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('logistica')) (DB.logistica||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(activeLayers.has('sos')) (DB.sos||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
+  if(activeLayers.has('wifi')) (DB.wifi||[]).forEach(r=>{if(typeof r.lat==='number')pts.push([r.lat,r.lng]);});
   if(pts.length>1) mapHub.fitBounds(pts,{padding:[30,30],maxZoom:9});
 }
 
@@ -1756,6 +1761,30 @@ function buildSos(){
   return arr;
 }
 
+/* ---- Internet/WiFi gratis (Reconecta Venezuela) ---- */
+const WIFI_COL={ok:'#10a36a',busy:'#ff9d00',full:'#ee6a1f',offline:'#94a6c4'};
+function wifiLabel(s){ return s==='ok'?(LANG==='en'?'Online':'En línea'):s==='busy'?(LANG==='en'?'Busy':'Concurrido'):s==='full'?(LANG==='en'?'Full':'Lleno'):(LANG==='en'?'Offline':'Sin servicio'); }
+function buildWifi(){
+  const arr=[];
+  (DB.wifi||[]).forEach(r=>{
+    if(typeof r.lat!=='number') return;
+    const col=WIFI_COL[r.status]||'#2f6fed';
+    arr.push(hov(L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:`<div style="width:24px;height:24px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:grid;place-items:center;font-size:12px">📶</div>`,iconSize:[24,24],iconAnchor:[12,12]})}).addTo(mapHub)
+     .bindPopup(`<b>📡 ${esc(r.name||'Punto de internet')}</b> — <b style="color:${col}">${esc(wifiLabel(r.status))}</b><br>${esc(r.region||'')}${r.address?'<br>🏠 '+esc(r.address):''}${r.users!=null?'<br>👥 '+esc(String(r.users))+(LANG==='en'?' connected':' conectados'):''}<br>📶 WiFi <b>STARLINK</b> · ${LANG==='en'?'open, no password':'abierta, sin clave'}<br><a href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" rel="noopener">📍 ${LANG==='en'?'Get directions':'Cómo llegar'}</a><br><span style="color:var(--mut2);font-size:11px">${LANG==='en'?'Source: Reconecta Venezuela':'Fuente: Reconecta Venezuela'}</span>`)));
+  });
+  return arr;
+}
+let _wifiTs=0;
+async function loadWifi(){
+  if(Date.now()-_wifiTs<60000 && DB.wifi.length) return;
+  try{
+    const r=await fetch('/api/reconecta'); if(!r.ok) return;
+    const d=await r.json();
+    if(Array.isArray(d.sites)){ DB.wifi=d.sites; _wifiUpdated=d.updatedAt||null; _wifiTs=Date.now();
+      if(curView==='refugios' && activeLayers.has('wifi')){ removeLayer('wifi'); addLayer('wifi'); renderHubPanel(); } }
+  }catch(e){ /* offline */ }
+}
+
 /* ---- Panel inferior: depende de la capa enfocada (focusLayer) + capas activas ---- */
 function renderHubPanel(){
   const k=focusLayer;
@@ -1841,6 +1870,22 @@ function renderHubPanel(){
         <div class="meta"><span>📍 ${esc(r.city||r.direccion||nearestCity(r.lat,r.lng))}</span><span>⏱ ${ago(r.ts)}</span></div>${fotoThumb(r.foto)}
       </div>`;
     }).join('') : '<div class="empty">Por ahora nadie ha pedido SOS por aquí.<br>Si estás atrapado/a o necesitas rescate, pulsa “Pedir ayuda (SOS)”.</div>';
+  }
+  else if(k==='wifi'){
+    const W=(DB.wifi||[]);
+    const online=W.filter(r=>r.online||r.status==='ok'||r.status==='busy').length;
+    sync.innerHTML=`<span class="dot ok"></span><span><b>${W.length}</b> ${LANG==='en'?'free internet points':'puntos de internet gratis'} · <b>${online}</b> ${LANG==='en'?'online':'en servicio'}</span>`;
+    leg.innerHTML=`<span><i style="background:#10a36a"></i>${wifiLabel('ok')}</span><span><i style="background:#ff9d00"></i>${wifiLabel('busy')}</span><span><i style="background:#ee6a1f"></i>${wifiLabel('full')}</span><span><i style="background:#94a6c4"></i>${wifiLabel('offline')}</span>`;
+    act.innerHTML=`<div class="card" style="background:var(--bg2);margin-bottom:10px;font-size:12.5px">📶 WiFi <b>STARLINK</b> ${LANG==='en'?'— open and free, no password. Priority: hospitals, clinics and shelters.':'— abierta y gratis, sin clave. Prioridad: hospitales, ambulatorios y refugios.'}</div>
+      <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://www.reconectavenezuela.com/request/" target="_blank" rel="noopener">➕ ${LANG==='en'?'Request an internet point →':'Solicitar un punto de internet →'}</a>`;
+    list.innerHTML = (W.length ? W.slice(0,60).map(r=>{
+      const col=WIFI_COL[r.status]||'#2f6fed';
+      return `<div class="rep" style="border-left:3px solid ${col}">
+        <div class="h"><span class="t">📡 ${esc(r.name||'Punto de internet')}</span><span class="badge st" style="color:${col}">${esc(wifiLabel(r.status))}</span></div>
+        <div class="meta"><span>📍 ${esc(r.region||r.address||'')}</span>${r.users!=null?`<span>👥 ${esc(String(r.users))}</span>`:''}</div>
+      </div>`;
+    }).join('') : `<div class="empty">${LANG==='en'?'No points available right now.':'Sin puntos disponibles ahora.'}</div>`)
+      + `<p style="font-size:11px;color:var(--mut2);margin-top:10px">${LANG==='en'?'Live data — Source:':'Datos en vivo — Fuente:'} <a class="ext" href="https://www.reconectavenezuela.com/" target="_blank" rel="noopener">Reconecta Venezuela</a>${_wifiUpdated?' · '+ago(Date.parse(_wifiUpdated)):''}</p>`;
   }
   else { // cobertura | luz
     const data=statusData(k);
