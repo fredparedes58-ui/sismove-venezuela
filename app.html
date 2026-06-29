@@ -7,18 +7,20 @@
 <title>SismoVE · Red de Respuesta Sísmica</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="/design-tokens.css" />
 <style>
   :root{
-    --bg:#f5f8fd; --bg2:#eef3fa; --card:#ffffff; --card2:#f2f6fc;
-    --line:#dce4f0; --txt:#16233a; --mut:#5a6b86; --mut2:#8492a8;
-    --amber:#ff9d00; --amber-d:#c97b09;
-    --red:#e23a3c; --red-bg:#fdeced;
+    /* Paleta del sistema de diseño nuevo (mismos nombres → reskin global) */
+    --bg:#f5f6f8; --bg2:#eef2f8; --card:#ffffff; --card2:#f0f2f5;
+    --line:#e9ecf1; --txt:#16243f; --mut:#5a6678; --mut2:#8a93a3;
+    --amber:#f2a53a; --amber-d:#c97b09;
+    --red:#e12923; --red-bg:#fdecea;
     --orange:#ff7a2d;
-    --green:#10a36a; --green-bg:#e6f7ef;
-    --blue:#2f7fe0;
-    --crit:#e23a3c; --alta:#ee6a1f; --media:#c98a12; --baja:#2f7fe0;
-    --radius:16px; --shadow:0 8px 24px rgba(30,50,90,.10);
-    --ff:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    --green:#10916b; --green-bg:#e7f6f0;
+    --blue:#2f6fed;
+    --crit:#e12923; --alta:#ee6a1f; --media:#c98a12; --baja:#2f6fed;
+    --radius:16px; --shadow:0 8px 24px rgba(20,30,50,.10);
+    --ff:var(--font-body,'Manrope',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
@@ -36,22 +38,39 @@
   header.top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--line)}
   .top-in{display:flex;align-items:center;gap:12px;padding:12px 16px;max-width:760px;margin:0 auto}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.3px}
-  .logo .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
-    background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205;font-size:18px;box-shadow:0 4px 14px rgba(255,138,61,.35)}
+  .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .logo .mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+    background:var(--red);color:#fff;font-size:18px;box-shadow:0 6px 16px rgba(225,41,35,.32)}
   .logo small{display:block;font-size:10.5px;font-weight:600;color:var(--mut);letter-spacing:.2px;margin-top:-2px}
   .backbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:800;cursor:pointer;display:grid;place-items:center;flex:none;line-height:1}
   .backbtn:active{transform:scale(.94)}
-  .sos{margin-left:auto;background:var(--red);color:#fff;border:0;border-radius:12px;font-weight:800;
-    padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(255,77,79,.35);display:flex;gap:6px;align-items:center}
+  .sos{margin-left:8px;background:var(--red);color:#fff;border:0;border-radius:12px;font-weight:800;
+    padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(225,41,35,.32);display:flex;gap:6px;align-items:center}
   .sos:active{transform:scale(.96)}
+  /* Selector de idioma (header) */
+  .langbtn{margin-left:auto;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:11px;font-weight:800;padding:9px 11px;font-size:13px;cursor:pointer;display:flex;gap:5px;align-items:center}
+  .langbtn:active{transform:scale(.96)}
+  /* Aviso/selector de idioma al abrir */
+  .lang-modal{position:fixed;inset:0;z-index:200;background:rgba(22,36,63,.55);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;padding:24px}
+  .lang-card{background:var(--card);border-radius:22px;box-shadow:var(--shadow-modal,0 12px 30px rgba(20,30,50,.16));
+    padding:28px 24px;max-width:360px;width:100%;text-align:center}
+  .lang-card .flag{font-size:40px;line-height:1}
+  .lang-card h3{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--txt);margin:12px 0 4px}
+  .lang-card h3 span{color:var(--mut);font-weight:700;font-size:15px}
+  .lang-card p{font-size:13px;color:var(--mut);margin-bottom:18px}
+  .lang-opt{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:52px;margin-top:10px;
+    border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--txt);font-weight:800;font-size:16px;cursor:pointer}
+  .lang-opt:active{transform:scale(.98)}
+  .lang-opt.primary{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 8px 18px rgba(225,41,35,.28)}
 
   /* ---------- Views ---------- */
   .view{display:none;animation:fade .25s ease}
   .view.active{display:block}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .pad{padding-top:18px}
-  h2.title{font-size:21px;margin:4px 0 2px;letter-spacing:-.3px}
+  h2.title{font-family:var(--font-display);font-weight:800;font-size:21px;margin:4px 0 2px;letter-spacing:-.3px}
   p.sub{color:var(--mut);margin:0 0 16px;font-size:14px}
   .sos-cta{display:block;width:100%;margin:10px 0 4px;padding:14px;border:none;border-radius:14px;background:linear-gradient(135deg,#e23a3c,#b71c1c);color:#fff;font-size:15px;font-weight:800;letter-spacing:.2px;cursor:pointer;box-shadow:0 6px 18px rgba(226,58,60,.35);animation:sospulse 2s ease-in-out infinite}
   .sos-cta:hover{filter:brightness(1.07)}
@@ -229,19 +248,31 @@
     <div class="logo">
       <span class="mark">⛰️</span>
       <div>SismoVE
-        <small>Red de Respuesta Sísmica · Venezuela</small>
+        <small data-i18n="hdr.sub">Red de Respuesta Sísmica · Venezuela</small>
       </div>
     </div>
-    <button class="sos" onclick="openSOS()">☎ SOS</button>
+    <button class="langbtn" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐 <span id="langLabel">ES</span></button>
+    <button class="sos" onclick="openSOS()" data-i18n="sos.btn">☎ SOS</button>
   </div>
 </header>
+
+<!-- Aviso/selector de idioma al abrir (1ª vez) -->
+<div id="langModal" class="lang-modal" role="dialog" aria-modal="true">
+  <div class="lang-card">
+    <div class="flag">🌐</div>
+    <h3>Elige tu idioma<br><span>Choose your language</span></h3>
+    <p>Puedes cambiarlo cuando quieras con el botón 🌐 · You can change it anytime with the 🌐 button</p>
+    <button class="lang-opt primary" onclick="setLang('es')">🇻🇪 Español</button>
+    <button class="lang-opt" onclick="setLang('en')">🇬🇧 English</button>
+  </div>
+</div>
 
 <main class="wrap">
 
   <!-- ============ PEDIR AYUDA ============ -->
   <section class="view active pad" id="v-ayuda">
-    <h2 class="title">Pedir ayuda</h2>
-    <p class="sub">Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.</p>
+    <h2 class="title" data-i18n="ayuda.title">Pedir ayuda</h2>
+    <p class="sub" data-i18n="ayuda.sub">Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.</p>
 
     <div class="card">
       <label class="fl">¿Qué necesitas? Toca una opción</label>
@@ -588,14 +619,14 @@
 <!-- ===== Bottom nav ===== -->
 <nav class="tabs">
   <div class="tabs-in">
-    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span>Ayuda</button>
-    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span>Buscar</button>
-    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span>Niños rescatados y desaparecidos</button>
-    <button class="tab" data-v="grupos" onclick="go('grupos')"><span class="i">📋</span>Grupos por zona</button>
-    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span>Mapas</button>
-    <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span>Panel</button>
-    <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span>Bot</button>
-    <button class="tab" data-v="info" onclick="go('info')"><span class="i">📘</span>Info</button>
+    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span><span data-i18n="nav.ayuda">Ayuda</span></button>
+    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span><span data-i18n="nav.desap">Buscar</span></button>
+    <button class="tab" data-v="ninos" onclick="go('ninos')"><span class="i">👶</span><span data-i18n="nav.ninos">Niños rescatados y desaparecidos</span></button>
+    <button class="tab" data-v="grupos" onclick="go('grupos')"><span class="i">📋</span><span data-i18n="nav.grupos">Grupos por zona</span></button>
+    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span><span data-i18n="nav.mapas">Mapas</span></button>
+    <button class="tab" data-v="panel" onclick="go('panel')"><span class="i">📊</span><span data-i18n="nav.panel">Panel</span></button>
+    <button class="tab" data-v="bot" onclick="go('bot')"><span class="i">🤖</span><span data-i18n="nav.bot">Bot</span></button>
+    <button class="tab" data-v="info" onclick="go('info')"><span class="i">📘</span><span data-i18n="nav.info">Info</span></button>
   </div>
 </nav>
 
@@ -639,6 +670,50 @@
    Pilares: App ciudadana · Dashboard · Bot · Agente IA (triaje)
    Persistencia: localStorage. Datos DEMO claramente marcados.
 ====================================================================== */
+
+/* ====================== i18n (Español / English) ======================
+   Marca textos con data-i18n="clave" (texto), data-i18n-ph="clave" (placeholder)
+   o data-i18n-html="clave" (HTML). applyI18n() los traduce; el idioma se guarda
+   en localStorage. La cobertura crece a medida que se re-visten las vistas. */
+const I18N = {
+  es:{
+    'hdr.sub':'Red de Respuesta Sísmica · Venezuela',
+    'sos.btn':'☎ SOS',
+    'nav.ayuda':'Ayuda','nav.desap':'Buscar','nav.ninos':'Niños rescatados y desaparecidos',
+    'nav.grupos':'Grupos por zona','nav.mapas':'Mapas','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
+    'ayuda.title':'Pedir ayuda',
+    'ayuda.sub':'Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.',
+  },
+  en:{
+    'hdr.sub':'Seismic Response Network · Venezuela',
+    'sos.btn':'☎ SOS',
+    'nav.ayuda':'Help','nav.desap':'Search','nav.ninos':'Missing & rescued children',
+    'nav.grupos':'Groups by area','nav.mapas':'Maps','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
+    'ayuda.title':'Ask for help',
+    'ayuda.sub':'Report your emergency. AI prioritizes it and routes it to the nearest coordination team.',
+  },
+};
+let LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
+function t(k){ const d=I18N[LANG]||I18N.es; return (k in d)?d[k]:(k in I18N.es?I18N.es[k]:k); }
+function applyI18n(root){
+  const r = root||document;
+  r.querySelectorAll('[data-i18n]').forEach(e=>{ const v=t(e.getAttribute('data-i18n')); if(v!=null) e.textContent=v; });
+  r.querySelectorAll('[data-i18n-html]').forEach(e=>{ const v=t(e.getAttribute('data-i18n-html')); if(v!=null) e.innerHTML=v; });
+  r.querySelectorAll('[data-i18n-ph]').forEach(e=>{ const v=t(e.getAttribute('data-i18n-ph')); if(v!=null) e.setAttribute('placeholder',v); });
+  const ll=document.getElementById('langLabel'); if(ll) ll.textContent=(LANG||'es').toUpperCase();
+}
+function setLang(l){
+  LANG=l; try{ localStorage.setItem('sismove_lang',l); }catch(e){}
+  document.documentElement.lang=l;
+  const m=document.getElementById('langModal'); if(m) m.style.display='none';
+  applyI18n();
+}
+function toggleLang(){ setLang((LANG||'es')==='es'?'en':'es'); }
+function ensureLangChosen(){
+  if(LANG){ document.documentElement.lang=LANG; }
+  else { const m=document.getElementById('langModal'); if(m) m.style.display='flex'; }
+  applyI18n();
+}
 
 /* ---------- Catálogos ---------- */
 const NEEDS = [
@@ -836,6 +911,7 @@ function go(v, fromBack){
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
   updateBackBtn();
+  applyI18n();   // traduce textos anotados (incl. los recién renderizados)
 }
 // Botón atrás: vuelve a la pantalla anterior; si no hay historial, a Inicio (Ayuda).
 function goBack(){ if(viewHistory.length) go(viewHistory.pop(), true); else location.href='/'; }   // sin historial → a la portada
@@ -2388,6 +2464,7 @@ function toast(msg,type){
 }
 
 /* ---------- Init ---------- */
+ensureLangChosen();                     // idioma: aplica el guardado o muestra el aviso ES/EN al abrir
 renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl(); loadAcopioCentros();
 renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)

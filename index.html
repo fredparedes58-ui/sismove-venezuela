@@ -51,6 +51,17 @@
     }
     .dot { animation: blink 1.4s step-start infinite; display: inline-block; }
     @keyframes blink { 50% { opacity: 0; } }
+    /* Selector de idioma */
+    .lang-mini { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #fff; font-weight: 800; font-size: 12px; border-radius: 999px; padding: 4px 10px; cursor: pointer; display: flex; gap: 4px; align-items: center; }
+    .lang-mini:active { transform: translateY(-50%) scale(.95); }
+    .lang-modal { position: fixed; inset: 0; z-index: 300; background: rgba(22,36,63,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 24px; }
+    .lang-card { background: var(--surf,#fff); border-radius: 22px; box-shadow: var(--shadow-modal,0 12px 30px rgba(20,30,50,.16)); padding: 28px 24px; max-width: 360px; width: 100%; text-align: center; }
+    .lang-card .flag { font-size: 40px; line-height: 1; }
+    .lang-card h3 { font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink,#16243f); margin: 12px 0 4px; }
+    .lang-card h3 span { color: var(--muted,#8a93a3); font-weight: 700; font-size: 15px; }
+    .lang-card p { font-size: 13px; color: var(--muted,#8a93a3); margin-bottom: 18px; }
+    .lang-opt { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 52px; margin-top: 10px; border-radius: 14px; border: 1.5px solid var(--bd,#e9ecf1); background: var(--surf,#fff); color: var(--ink,#16243f); font-weight: 800; font-size: 16px; cursor: pointer; }
+    .lang-opt.primary { background: var(--red,#e12923); border-color: var(--red,#e12923); color: #fff; }
 
     .hero {
       padding: 44px 20px 32px;
@@ -332,7 +343,19 @@
 
 <div class="alert-bar">
   <span class="dot">🔴</span>&nbsp;
-  EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · <span class="balance-bar">920 fallecidos · +50.000 desaparecidos</span>
+  <span data-i18n="alert">EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · </span><span class="balance-bar">920 fallecidos · +50.000 desaparecidos</span>
+  <button class="lang-mini" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐 <span id="langLabel">ES</span></button>
+</div>
+
+<!-- Aviso/selector de idioma al abrir (1ª vez) -->
+<div id="langModal" class="lang-modal" role="dialog" aria-modal="true">
+  <div class="lang-card">
+    <div class="flag">🌐</div>
+    <h3>Elige tu idioma<br><span>Choose your language</span></h3>
+    <p>Puedes cambiarlo cuando quieras con el botón 🌐 · You can change it anytime with the 🌐 button</p>
+    <button class="lang-opt primary" onclick="setLang('es')">🇻🇪 Español</button>
+    <button class="lang-opt" onclick="setLang('en')">🇬🇧 English</button>
+  </div>
 </div>
 
 <!-- TICKER INFORMATIVO -->
@@ -381,19 +404,19 @@
 </div>
 
 <div class="hero">
-  <div class="hero-badge">🆘 Información de emergencia</div>
-  <h1>¿Qué hago <em>ahora</em>?</h1>
-  <p class="hero-sub">Toca el bloque que describe tu situación. Cada uno abre su información completa.</p>
+  <div class="hero-badge" data-i18n="badge">🆘 Información de emergencia</div>
+  <h1 data-i18n-html="h1">¿Qué hago <em>ahora</em>?</h1>
+  <p class="hero-sub" data-i18n="herosub">Toca el bloque que describe tu situación. Cada uno abre su información completa.</p>
   <br />
   <a class="cta-wa" href="http://wa.me/584129352677" target="_blank" rel="noopener">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-    Consulta a nuestro agente en WhatsApp
+    <span data-i18n="cta">Consulta a nuestro agente en WhatsApp</span>
   </a>
-  <p class="cta-sub">Responde tus preguntas en tiempo real · Disponible ahora</p>
+  <p class="cta-sub" data-i18n="ctasub">Responde tus preguntas en tiempo real · Disponible ahora</p>
 </div>
 
 <section class="cifras" id="cifras">
-  <h2 class="cifras-title">📊 Cifras de la emergencia</h2>
+  <h2 class="cifras-title" data-i18n="cifras">📊 Cifras de la emergencia</h2>
 
   <!-- Bloque 1 · Red Ayuda Venezuela (EN VIVO, cada 30 min) -->
   <details class="cifras-acc">
@@ -579,6 +602,38 @@
 
 
 <script>
+/* ---- i18n (Español / English) — portada. Cobertura inicial; crece progresivamente. ---- */
+var I18N = {
+  es:{
+    alert:'EMERGENCIA ACTIVA · Venezuela · Terremoto 7.2 + 7.5 · 24 jun 2026 · ',
+    badge:'🆘 Información de emergencia',
+    h1:'¿Qué hago <em>ahora</em>?',
+    herosub:'Toca el bloque que describe tu situación. Cada uno abre su información completa.',
+    cta:'Consulta a nuestro agente en WhatsApp',
+    ctasub:'Responde tus preguntas en tiempo real · Disponible ahora',
+    cifras:'📊 Cifras de la emergencia',
+  },
+  en:{
+    alert:'ACTIVE EMERGENCY · Venezuela · Earthquake 7.2 + 7.5 · Jun 24, 2026 · ',
+    badge:'🆘 Emergency information',
+    h1:'What do I do <em>now</em>?',
+    herosub:'Tap the block that matches your situation. Each one opens full information.',
+    cta:'Chat with our agent on WhatsApp',
+    ctasub:'Answers your questions in real time · Available now',
+    cifras:'📊 Emergency figures',
+  },
+};
+var LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
+function t(k){ var d=I18N[LANG]||I18N.es; return (k in d)?d[k]:(k in I18N.es?I18N.es[k]:k); }
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(function(e){ var v=t(e.getAttribute('data-i18n')); if(v!=null) e.textContent=v; });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(e){ var v=t(e.getAttribute('data-i18n-html')); if(v!=null) e.innerHTML=v; });
+  var ll=document.getElementById('langLabel'); if(ll) ll.textContent=(LANG||'es').toUpperCase();
+}
+function setLang(l){ LANG=l; try{ localStorage.setItem('sismove_lang',l); }catch(e){} document.documentElement.lang=l; var m=document.getElementById('langModal'); if(m) m.style.display='none'; applyI18n(); }
+function toggleLang(){ setLang((LANG||'es')==='es'?'en':'es'); }
+(function(){ if(LANG){ document.documentElement.lang=LANG; } else { var m=document.getElementById('langModal'); if(m) m.style.display='flex'; } applyI18n(); })();
+
 /* Analítica anónima (sin PII): visita única por navegador + vista de página. */
 (function(){
   function sess(){ try{ var s=localStorage.getItem('sv_sess'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sv_sess',s);} return s; }catch(e){ return ''; } }
