@@ -104,6 +104,23 @@
   /* ---------- Cards & grid ---------- */
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
   .card-verde{border-left:4px solid var(--green)} .card-rojo{border-left:4px solid var(--red)} .card-apoyo{border-left:4px solid var(--support);background:var(--support-s,rgba(107,74,166,.08))}
+  /* Apoyo psicológico (mockup) */
+  #v-apoyo{background:linear-gradient(180deg,rgba(107,74,166,.12),transparent 240px)}
+  .apoyo-hero{text-align:center;padding:16px 14px 4px}
+  .apoyo-circle{width:96px;height:96px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:46px;margin:8px auto 18px;box-shadow:0 10px 30px rgba(107,74,166,.18)}
+  .apoyo-hero h2{font-family:var(--font-display,inherit);font-weight:800;font-size:23px;color:var(--txt);line-height:1.2}
+  .apoyo-hero p{color:var(--mut);font-size:14px;max-width:300px;margin:10px auto 0;line-height:1.5}
+  .apoyo-btn{background:var(--support);color:#fff;box-shadow:0 8px 18px rgba(107,74,166,.3);text-decoration:none;display:flex;align-items:center;justify-content:center;margin-top:16px}
+  .apoyo-btn2{text-decoration:none;display:flex;align-items:center;justify-content:center;margin-top:10px;border:1.5px solid #ddd0ee;background:var(--card);color:#5a3d94}
+  /* Donaciones (mockup) */
+  .donar-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.05))}
+  .donar-card .dh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .donar-card .dh b{font-size:15px}
+  .badge-ok{font-size:10px;font-weight:700;color:#0e7a5a;background:var(--green-bg);border-radius:999px;padding:4px 9px;white-space:nowrap}
+  .donar-btn{background:var(--red);color:#fff;min-height:46px;border-radius:13px;text-decoration:none;display:flex;align-items:center;justify-content:center;font-weight:800;margin-top:12px;box-shadow:0 6px 14px rgba(225,41,35,.22)}
+  .donar-vol{background:var(--ink,#16243f);color:#fff;border-radius:16px;padding:16px;margin-top:4px}
+  .donar-vol b{font-size:14px} .donar-vol p{font-size:12px;color:#aeb8cc;margin-top:4px}
+  .donar-vol a{display:inline-flex;align-items:center;min-height:42px;padding:0 18px;border-radius:12px;background:#fff;color:var(--ink,#16243f);font-weight:700;font-size:13px;text-decoration:none;margin-top:12px}
   /* Banner offline */
   .offline-bar{position:fixed;left:0;right:0;bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;margin:0 12px;background:var(--ink,#16243f);color:#fff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;text-align:center;display:none;box-shadow:0 8px 20px rgba(0,0,0,.2)}
   .offline-bar.show{display:block}
@@ -721,27 +738,41 @@
 
   <!-- ============ APOYO PSICOLÓGICO ============ -->
   <section class="view pad" id="v-apoyo">
-    <h2 class="title" data-i18n="apoyo.title">💜 No estás solo</h2>
-    <p class="sub" data-i18n="apoyo.sub">Sentir miedo, angustia o llanto tras un sismo es normal. Estamos contigo, paso a paso.</p>
-    <div class="card card-apoyo"><b data-i18n="apoyo.respiraT">🫁 Respiración para calmarte</b>
-      <p style="margin-top:6px" data-i18n="apoyo.respiraP">Inhala 4 segundos · sostén 4 · exhala 6. Repite 5 veces. Suelta los hombros y apoya los pies en el suelo.</p></div>
-    <a class="btn primary" style="text-decoration:none;display:block;text-align:center;background:var(--support);box-shadow:0 6px 18px rgba(107,74,166,.3)" href="/calma"><span data-i18n="apoyo.medita">🎧 Meditación guiada y audios</span></a>
-    <a class="tel" style="margin-top:12px" href="tel:04143062600"><span class="ic" style="background:var(--support-s);color:var(--support)">📞</span><div><b data-i18n="apoyo.lineaT">Hablar con alguien</b><span data-i18n="apoyo.lineaP">Apoyo emocional · psicólogos voluntarios</span></div><span class="call">›</span></a>
-    <p class="sub" style="margin-top:10px;font-size:12px" data-i18n="apoyo.urg">Si tienes pensamientos de hacerte daño, llama al 911 ahora. No estás solo/a.</p>
+    <div class="apoyo-hero">
+      <div class="apoyo-circle">💜</div>
+      <h2 data-i18n="apoyo.title2">No estás solo</h2>
+      <p data-i18n="apoyo.sub2">Aquí hay un espacio seguro para ti. Sentir miedo o angustia tras un sismo es normal. Hablar ayuda, y está bien pedir apoyo.</p>
+    </div>
+    <a class="btn apoyo-btn" href="tel:04143062600"><span data-i18n="apoyo.hablar">💬 Hablar con alguien ahora</span></a>
+    <a class="btn apoyo-btn2" href="/calma"><span data-i18n="apoyo.respira">🫁 Ejercicio de respiración guiada</span></a>
+    <p class="sub" style="text-align:center;margin-top:16px;font-size:13px"><span data-i18n="apoyo.linea">Línea de apoyo 24/7 ·</span> <b style="color:var(--support)">0800-AYUDA</b></p>
+    <p class="sub" style="text-align:center;font-size:11.5px;margin-top:4px" data-i18n="apoyo.urg">Si tienes pensamientos de hacerte daño, llama al 911 ahora. No estás solo/a.</p>
   </section>
 
   <!-- ============ DONACIONES ============ -->
   <section class="view pad" id="v-donar">
     <h2 class="title" data-i18n="donar.title">🤲 Donaciones</h2>
-    <p class="sub" data-i18n="donar.sub">Campañas verificadas para ayudar a los afectados. Toca para donar.</p>
-    <div class="card card-verde"><b>💳 Cruz Roja Española</b>
-      <p style="margin-top:6px" data-i18n="donar.cruzroja">Bizum al <b>33512</b> · o SMS «VENEZUELA» al <b>38092</b> (6€ íntegros).</p></div>
-    <div class="card card-verde"><b>🍲 World Central Kitchen</b>
-      <p style="margin-top:6px" data-i18n="donar.wck">Comidas para los afectados · Bizum al <b>03843</b>.</p></div>
-    <div class="card card-verde"><b>❤️ We Love Venezuela</b>
-      <p style="margin-top:6px"><a class="ext" href="https://www.gofundme.com/" target="_blank" rel="noopener">GoFundMe →</a></p></div>
-    <a class="btn ghost" style="text-decoration:none;display:block;text-align:center;margin-top:6px" href="/acopio-global"><span data-i18n="donar.acopio">📦 Centros de acopio (víveres) →</span></a>
-    <p class="sub" style="margin-top:10px;font-size:12px" data-i18n="donar.nota">SismoVE no recauda dinero ni procesa pagos: solo enlaza campañas oficiales. Verifica siempre antes de donar.</p>
+    <p class="sub" data-i18n="donar.sub">Campañas verificadas para ayudar a los afectados.</p>
+    <div class="donar-card">
+      <div class="dh"><b>💳 Cruz Roja Española</b><span class="badge-ok">✓ <span data-i18n="donar.verif">Verificada</span></span></div>
+      <p style="font-size:13px;color:var(--mut)" data-i18n="donar.cruzroja">Bizum al <b>33512</b> · o SMS «VENEZUELA» al <b>38092</b> (6€ íntegros).</p>
+    </div>
+    <div class="donar-card">
+      <div class="dh"><b>🍲 World Central Kitchen</b><span class="badge-ok">✓ <span data-i18n="donar.verif">Verificada</span></span></div>
+      <p style="font-size:13px;color:var(--mut)" data-i18n="donar.wck">Comidas para los afectados · Bizum al <b>03843</b>.</p>
+    </div>
+    <div class="donar-card">
+      <div class="dh"><b>❤️ We Love Venezuela</b><span class="badge-ok">✓ <span data-i18n="donar.verif">Verificada</span></span></div>
+      <p style="font-size:13px;color:var(--mut)" data-i18n="donar.wlv">Recaudación internacional para los afectados.</p>
+      <a class="donar-btn" href="https://www.gofundme.com/" target="_blank" rel="noopener" data-i18n="donar.donar">Donar</a>
+    </div>
+    <div class="donar-vol">
+      <b data-i18n="donar.volT">¿Prefieres ser voluntario?</b>
+      <p data-i18n="donar.volP">Tu tiempo también salva vidas.</p>
+      <a href="/ayudar" data-i18n="donar.volB">Quiero ayudar</a>
+    </div>
+    <a class="btn ghost" style="text-decoration:none;display:block;text-align:center;margin-top:12px" href="/acopio-global"><span data-i18n="donar.acopio">📦 Centros de acopio (víveres) →</span></a>
+    <p class="sub" style="margin-top:10px;font-size:11.5px" data-i18n="donar.nota">SismoVE no recauda dinero ni procesa pagos: solo enlaza campañas oficiales. Verifica siempre antes de donar.</p>
   </section>
 
 </main>
@@ -869,6 +900,8 @@ const I18N = {
     'apoyo.title':'💜 No estás solo','apoyo.sub':'Sentir miedo, angustia o llanto tras un sismo es normal. Estamos contigo, paso a paso.','apoyo.respiraT':'🫁 Respiración para calmarte','apoyo.respiraP':'Inhala 4 segundos · sostén 4 · exhala 6. Repite 5 veces. Suelta los hombros y apoya los pies en el suelo.','apoyo.medita':'🎧 Meditación guiada y audios','apoyo.lineaT':'Hablar con alguien','apoyo.lineaP':'Apoyo emocional · psicólogos voluntarios','apoyo.urg':'Si tienes pensamientos de hacerte daño, llama al 911 ahora. No estás solo/a.',
     'donar.title':'🤲 Donaciones','donar.sub':'Campañas verificadas para ayudar a los afectados. Toca para donar.','donar.cruzroja':'Bizum al 33512 · o SMS «VENEZUELA» al 38092 (6€ íntegros).','donar.wck':'Comidas para los afectados · Bizum al 03843.','donar.acopio':'📦 Centros de acopio (víveres) →','donar.nota':'SismoVE no recauda dinero ni procesa pagos: solo enlaza campañas oficiales. Verifica siempre antes de donar.',
     'offline.bar':'📴 Sin conexión — mostrando la información guardada',
+    'apoyo.title2':'No estás solo','apoyo.sub2':'Aquí hay un espacio seguro para ti. Sentir miedo o angustia tras un sismo es normal. Hablar ayuda, y está bien pedir apoyo.','apoyo.hablar':'💬 Hablar con alguien ahora','apoyo.respira':'🫁 Ejercicio de respiración guiada','apoyo.linea':'Línea de apoyo 24/7 ·',
+    'donar.verif':'Verificada','donar.wlv':'Recaudación internacional para los afectados.','donar.donar':'Donar','donar.volT':'¿Prefieres ser voluntario?','donar.volP':'Tu tiempo también salva vidas.','donar.volB':'Quiero ayudar',
   },
   en:{
     'hdr.sub':'Seismic Response Network · Venezuela',
@@ -901,6 +934,8 @@ const I18N = {
     'apoyo.title':'💜 You are not alone','apoyo.sub':'Fear, anxiety or crying after an earthquake is normal. We are with you, step by step.','apoyo.respiraT':'🫁 Breathing to calm down','apoyo.respiraP':'Inhale 4 seconds · hold 4 · exhale 6. Repeat 5 times. Drop your shoulders and plant your feet on the floor.','apoyo.medita':'🎧 Guided meditation & audio','apoyo.lineaT':'Talk to someone','apoyo.lineaP':'Emotional support · volunteer psychologists','apoyo.urg':'If you have thoughts of harming yourself, call 911 now. You are not alone.',
     'donar.title':'🤲 Donations','donar.sub':'Verified campaigns to help those affected. Tap to donate.','donar.cruzroja':'Bizum to 33512 · or SMS “VENEZUELA” to 38092 (full 6€).','donar.wck':'Meals for those affected · Bizum to 03843.','donar.acopio':'📦 Donation drop-off centers →','donar.nota':'SismoVE does not collect money or process payments: it only links official campaigns. Always verify before donating.',
     'offline.bar':'📴 Offline — showing saved information',
+    'apoyo.title2':'You are not alone','apoyo.sub2':'This is a safe space for you. Feeling fear or anxiety after an earthquake is normal. Talking helps, and it’s okay to ask for support.','apoyo.hablar':'💬 Talk to someone now','apoyo.respira':'🫁 Guided breathing exercise','apoyo.linea':'24/7 support line ·',
+    'donar.verif':'Verified','donar.wlv':'International fundraiser for those affected.','donar.donar':'Donate','donar.volT':'Prefer to volunteer?','donar.volP':'Your time also saves lives.','donar.volB':'I want to help',
   },
 };
 let LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
