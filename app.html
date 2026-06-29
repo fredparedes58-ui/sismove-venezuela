@@ -232,6 +232,22 @@
   .tel .ic{width:42px;height:42px;border-radius:11px;background:var(--red-bg);display:grid;place-items:center;font-size:20px}
   .tel b{display:block} .tel span{font-size:12.5px;color:var(--mut)}
   .tel .call{margin-left:auto;font-size:22px;font-weight:800;color:var(--green)}
+  /* ---- Modo SOS pantalla completa ---- */
+  .sos-modal{align-items:stretch !important;background:rgba(15,23,42,.5)}
+  .sos-screen{width:100%;max-width:520px;margin:0 auto;background:var(--card);display:flex;flex-direction:column;overflow-y:auto;position:relative;animation:up .25s ease}
+  .sos-x{position:absolute;top:12px;right:12px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.22);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
+  .sos-hero{background:linear-gradient(160deg,var(--red),var(--red-d,#b71c18));color:#fff;padding:40px 24px 26px;text-align:center}
+  .sos-hero .sos-emoji{font-size:48px;line-height:1}
+  .sos-hero h3{font-family:var(--font-display,inherit);font-weight:800;font-size:26px;margin:12px 0 4px}
+  .sos-hero p{color:rgba(255,255,255,.9);font-size:14px;margin:0 0 20px}
+  .sos-call{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:var(--red-d,#b71c18);
+    font-family:var(--font-display,inherit);font-weight:800;font-size:20px;min-height:60px;border-radius:16px;text-decoration:none;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+  .sos-call:active{transform:scale(.98)}
+  .sos-quick{display:flex;gap:10px;margin-top:12px}
+  .sos-quick button{flex:1;min-height:56px;border-radius:14px;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit}
+  .sos-quick button:active{transform:scale(.97)}
+  .sos-nums{padding:20px 18px calc(24px + env(safe-area-inset-bottom));background:var(--bg)}
+  .sos-nums-h{font-size:12px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:0 0 10px}
   .safe-banner{background:linear-gradient(140deg,var(--green-bg),transparent);border:1px solid #bfe6d2;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
   .safe-banner .big{font-size:40px} .safe-banner b{display:block;margin-top:6px;color:var(--green);font-size:16px}
   .empty{text-align:center;color:var(--mut2);padding:40px 20px;font-size:14px}
@@ -248,9 +264,9 @@
   .tag-have{display:inline-block;font-size:11px;background:var(--green-bg);color:#0c7a4f;border-radius:6px;padding:2px 7px;margin:3px 4px 0 0;font-weight:600}
   .seg{display:flex;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:5px;margin-bottom:12px}
   .seg button{flex:1;border:0;background:none;color:var(--mut);font-weight:700;font-size:13px;padding:10px 4px;border-radius:9px;cursor:pointer;font-family:inherit}
-  .seg button.on{background:linear-gradient(140deg,var(--amber),var(--orange));color:#1a1205}
+  .seg button.on{background:var(--red-bg);color:var(--red);box-shadow:inset 0 0 0 1.5px var(--red)}
   .seg.multi{flex-wrap:wrap}
-  .seg.multi button{flex:1 1 auto;white-space:nowrap;font-size:12px;padding:9px 11px}
+  .seg.multi button{flex:1 1 auto;white-space:nowrap;font-size:12px;padding:9px 13px;border-radius:999px}
   .botcard{display:flex;flex-direction:column;gap:3px;padding:16px;border-radius:14px;text-decoration:none;color:#fff;min-height:120px;justify-content:flex-start;box-shadow:var(--shadow)}
   .botcard .bi{font-size:30px;line-height:1;margin-bottom:4px}
   .botcard b{font-size:16px}
@@ -677,25 +693,37 @@
 </nav>
 
 <!-- ===== SOS modal ===== -->
-<div class="modal" id="sosModal" onclick="if(event.target===this)closeSOS()">
-  <div class="sheet" style="max-height:82dvh;overflow-y:auto">
-    <h3>☎ Emergencias · peligro inmediato</h3>
-    <p>Números oficiales. Toca para llamar.</p>
-    <a class="tel" href="tel:911"><span class="ic">🚨</span><div><b>Emergencias 911</b><span>Nacional · Policía · Ambulancia</span></div><span class="call">›</span></a>
-    <a class="tel" href="tel:08007248451"><span class="ic">🛡️</span><div><b>Protección Civil Nacional</b><span>0800-PCIVIL-1 · 0800-724-8451</span></div><span class="call">›</span></a>
+<div class="modal sos-modal" id="sosModal" onclick="if(event.target===this)closeSOS()">
+  <div class="sos-screen">
+    <button class="sos-x" onclick="closeSOS()" aria-label="Cerrar / Close">✕</button>
+    <div class="sos-hero">
+      <div class="sos-emoji">🆘</div>
+      <h3 data-i18n="sos.estamos">Estamos contigo</h3>
+      <p data-i18n="sos.calma">Mantén la calma. Vamos paso a paso.</p>
+      <a class="sos-call" href="tel:911"><span data-i18n="sos.call911">📞 Llamar al 911</span></a>
+      <div class="sos-quick">
+        <button onclick="closeSOS();openSosReport()"><span style="font-size:22px">📍</span><span data-i18n="sos.share">Compartir mi ubicación</span></button>
+        <button onclick="closeSOS();go('salvo')"><span style="font-size:22px">✅</span><span data-i18n="sos.safe">Estoy a salvo</span></button>
+      </div>
+    </div>
+    <div class="sos-nums">
+      <p class="sos-nums-h" data-i18n="sos.oficiales">Números oficiales · toca para llamar</p>
+      <a class="tel" href="tel:911"><span class="ic">🚨</span><div><b>Emergencias 911</b><span>Nacional · Policía · Ambulancia</span></div><span class="call">›</span></a>
+      <a class="tel" href="tel:08007248451"><span class="ic">🛡️</span><div><b>Protección Civil Nacional</b><span>0800-PCIVIL-1 · 0800-724-8451</span></div><span class="call">›</span></a>
 
-    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Caracas</div>
-    <a class="tel" href="tel:02125751829"><span class="ic">🛡️</span><div><b>Protección Civil Caracas</b><span>0212-575-1829 · 575-3332 · 575-1823</span></div><span class="call">›</span></a>
-    <a class="tel" href="tel:02125454545"><span class="ic">🚒</span><div><b>Bomberos Caracas</b><span>0212-545-4545</span></div><span class="call">›</span></a>
+      <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Caracas</div>
+      <a class="tel" href="tel:02125751829"><span class="ic">🛡️</span><div><b>Protección Civil Caracas</b><span>0212-575-1829 · 575-3332 · 575-1823</span></div><span class="call">›</span></a>
+      <a class="tel" href="tel:02125454545"><span class="ic">🚒</span><div><b>Bomberos Caracas</b><span>0212-545-4545</span></div><span class="call">›</span></a>
 
-    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Valencia</div>
-    <a class="tel" href="tel:02418593969"><span class="ic">🛡️</span><div><b>Protección Civil Valencia</b><span>0241-859-3969 · 859-2171 · 0412-827-4252</span></div><span class="call">›</span></a>
-    <a class="tel" href="tel:04144333952"><span class="ic">🚒</span><div><b>Bomberos Valencia</b><span>0414-433-3952</span></div><span class="call">›</span></a>
+      <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Valencia</div>
+      <a class="tel" href="tel:02418593969"><span class="ic">🛡️</span><div><b>Protección Civil Valencia</b><span>0241-859-3969 · 859-2171 · 0412-827-4252</span></div><span class="call">›</span></a>
+      <a class="tel" href="tel:04144333952"><span class="ic">🚒</span><div><b>Bomberos Valencia</b><span>0414-433-3952</span></div><span class="call">›</span></a>
 
-    <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">Buscar a un familiar</div>
-    <a class="tel" href="tel:04227994880"><span class="ic">🤝</span><div><b>Cruz Roja · Contacto familiar</b><span>Restablecimiento entre familiares · 0422 799 4880</span></div><span class="call">›</span></a>
+      <div style="font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px" data-i18n="sos.familiar">Buscar a un familiar</div>
+      <a class="tel" href="tel:04227994880"><span class="ic">🤝</span><div><b>Cruz Roja · Contacto familiar</b><span>Restablecimiento entre familiares · 0422 799 4880</span></div><span class="call">›</span></a>
 
-    <button class="btn ghost" style="margin-top:14px" onclick="closeSOS()">Cerrar</button>
+      <button class="btn ghost" style="margin-top:14px" onclick="closeSOS()" data-i18n="sos.cerrar">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -738,6 +766,9 @@ const I18N = {
     'need.rescate.l':'Rescate','need.rescate.d':'Personas atrapadas','need.medico.l':'Médico','need.medico.d':'Heridos / salud',
     'need.desap.l':'Desaparecido','need.desap.d':'Buscar persona','need.agua.l':'Agua y comida','need.agua.d':'Suministros',
     'need.refugio.l':'Refugio','need.refugio.d':'Dónde dormir','need.dano.l':'Daño estructural','need.dano.d':'Riesgo de colapso',
+    'sos.estamos':'Estamos contigo','sos.calma':'Mantén la calma. Vamos paso a paso.','sos.call911':'📞 Llamar al 911',
+    'sos.share':'Compartir mi ubicación','sos.safe':'Estoy a salvo','sos.oficiales':'Números oficiales · toca para llamar',
+    'sos.familiar':'Buscar a un familiar','sos.cerrar':'Cerrar',
   },
   en:{
     'hdr.sub':'Seismic Response Network · Venezuela',
@@ -755,6 +786,9 @@ const I18N = {
     'need.rescate.l':'Rescue','need.rescate.d':'People trapped','need.medico.l':'Medical','need.medico.d':'Injured / health',
     'need.desap.l':'Missing','need.desap.d':'Find a person','need.agua.l':'Water & food','need.agua.d':'Supplies',
     'need.refugio.l':'Shelter','need.refugio.d':'Where to sleep','need.dano.l':'Structural damage','need.dano.d':'Collapse risk',
+    'sos.estamos':'We are with you','sos.calma':'Stay calm. One step at a time.','sos.call911':'📞 Call 911',
+    'sos.share':'Share my location','sos.safe':"I'm safe",'sos.oficiales':'Official numbers · tap to call',
+    'sos.familiar':'Find a family member','sos.cerrar':'Close',
   },
 };
 let LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
