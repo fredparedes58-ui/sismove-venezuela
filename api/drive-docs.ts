@@ -38,9 +38,10 @@ export default async function handler(): Promise<Response> {
     for (const FOLDER of FOLDERS) {
       let items: any[] = [];
       try { items = await listFolder(FOLDER); } catch { continue; }
+      items = items.filter(i => !EXCLUDE.has(i.id));   // quita por completo cualquier carpeta prohibida del listado
       // Recursión 1 nivel: contenido de cada subcarpeta (saltando carpetas prohibidas)
       await Promise.all(items.filter(i => i.tipo === 'carpeta' && !EXCLUDE.has(i.id)).map(async it => {
-        try { it.children = await listFolder(it.id); } catch { it.children = []; }
+        try { it.children = (await listFolder(it.id)).filter(c => !EXCLUDE.has(c.id)); } catch { it.children = []; }
       }));
       carpetas.push({ folder_url: `https://drive.google.com/drive/folders/${FOLDER}`, items });
     }
