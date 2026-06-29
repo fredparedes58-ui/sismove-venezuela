@@ -828,7 +828,7 @@ function go(v, fromBack){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
-  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports();},80);
+  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros();},80);
   if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
@@ -1073,30 +1073,50 @@ function fitActive(){
 }
 
 /* ---- Acopio (datos reales del scraper) — constructor de capa ---- */
+// ¿el punto está FUERA de Venezuela? (caja aproximada de VE) → centro de acopio internacional
+function isIntl(lat,lng){ return !(lat>=0.5 && lat<=12.6 && lng>=-73.5 && lng<=-59.6); }
 function buildAcopio(){
   const arr=[];
   (FEED.centros||[]).forEach(c=>{
     if(typeof c.lat!=='number'||typeof c.lng!=='number') return;
     const needs=(c.necesita||[]).slice(0,8).join(', ');
-    arr.push(hov(L.marker([c.lat,c.lng]).addTo(mapHub)
-     .bindPopup(`<b>📦 ${esc(c.nombre)}</b>${c.direccion?'<br>'+esc(c.direccion):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}`)));
+    const intl=isIntl(c.lat,c.lng), em=intl?'🌍':'📦';
+    const icon=L.divIcon({className:'',html:`<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 3px rgba(0,0,0,.55))">${em}</div>`,iconSize:[22,22],iconAnchor:[11,11]});
+    arr.push(hov(L.marker([c.lat,c.lng],{icon}).addTo(mapHub)
+     .bindPopup(`<b>${em} ${esc(c.nombre)}</b>${intl?' <span style="color:var(--blue);font-weight:700">· internacional</span>':''}${c.direccion?'<br>'+esc(c.direccion):''}${c.telefono?'<br>📞 '+esc(c.telefono):''}${needs?'<br><b>Necesita:</b> '+esc(needs):''}<br><a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" rel="noopener">📍 Cómo llegar</a>`)));
   });
   return arr;
+}
+// Carga TODOS los centros de acopio (VE + internacionales) desde nuestra BD (datos reales con coords).
+let _acopioLoadedAt=0;
+async function loadAcopioCentros(force){
+  if(!force && Date.now()-_acopioLoadedAt<60000) return;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/centros_acopio_external?select=nombre,direccion,telefono,lat,lng,necesita,sobra,verificaciones&limit=3000`,{headers:SB_H});
+    if(!r.ok) return;
+    const a=await r.json();
+    if(Array.isArray(a)&&a.length){
+      FEED.centros = a.filter(c=>typeof c.lat==='number'&&typeof c.lng==='number');
+      _acopioLoadedAt=Date.now();
+      if(curView==='refugios'){ if(activeLayers.has('acopio')){ removeLayer('acopio'); addLayer('acopio'); } if(activeLayers.has('acopio')||focusLayer==='acopio') renderHubPanel(); }
+    }
+  }catch(e){ /* offline: se conserva el feed estático */ }
 }
 function renderAcopioList(){
   const q=(document.getElementById('acopioSearch')?.value||'').toLowerCase().trim();
   const list=(FEED.centros||[]).filter(c=>!q || (`${c.nombre} ${c.direccion||''}`).toLowerCase().includes(q));
   const groups={};
-  list.forEach(c=>{ const city=nearestCity(c.lat,c.lng); (groups[city]=groups[city]||[]).push(c); });
-  const cities=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length);
+  list.forEach(c=>{ const g = isIntl(c.lat,c.lng) ? '🌍 Internacional (fuera de Venezuela)' : nearestCity(c.lat,c.lng); (groups[g]=groups[g]||[]).push(c); });
+  // VE primero (por tamaño), el grupo internacional al final
+  const cities=Object.keys(groups).sort((a,b)=>{ const ai=a.startsWith('🌍'),bi=b.startsWith('🌍'); if(ai!==bi) return ai?1:-1; return groups[b].length-groups[a].length; });
   const el=document.getElementById('hubList');
   if(!list.length){ el.innerHTML='<div class="empty">No hay centros con ese filtro.</div>'; return; }
   el.innerHTML = cities.map(city=>`
-    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">🏙️ ${esc(city)} · ${groups[city].length}</div>
+    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px">${city.startsWith('🌍')?esc(city):'🏙️ '+esc(city)} · ${groups[city].length}</div>
     ${groups[city].map(c=>{
       const needs=(c.necesita||[]), have=(c.sobra||[]);
       return `<div class="card" style="margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">📦 ${esc(c.nombre)}</b>
+        <div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">${isIntl(c.lat,c.lng)?'🌍':'📦'} ${esc(c.nombre)}</b>
           ${c.verificaciones?`<span class="badge st" style="margin-left:auto">✓ ${c.verificaciones}</span>`:''}</div>
         ${c.direccion?`<div style="font-size:13px;color:var(--mut);margin:6px 0">📍 ${esc(c.direccion)}</div>`:''}
         ${c.telefono?`<a href="tel:${esc(c.telefono)}" style="font-size:13px">📞 ${esc(c.telefono)}</a>`:''}
@@ -1316,7 +1336,8 @@ function renderHubPanel(){
     list.innerHTML=html || '<div class="empty">Sin sismos recientes.</div>';
   }
   else if(k==='acopio'){
-    sync.innerHTML=`<span class="dot ok"></span><span><b>${(FEED.centros||[]).length}</b> centros de acopio (datos reales)</span>`;
+    { const cs=(FEED.centros||[]); const ve=cs.filter(c=>!isIntl(c.lat,c.lng)).length, it=cs.length-ve;
+      sync.innerHTML=`<span class="dot ok"></span><span><b>${cs.length}</b> centros de acopio · 🇻🇪 ${ve} en Venezuela · 🌍 ${it} internacionales</span>`; }
     leg.innerHTML='';
     act.innerHTML=cross+`<input id="acopioSearch" placeholder="🔎 Buscar centro por nombre o dirección..." oninput="renderAcopioList()" style="margin-bottom:10px">
       <a class="btn ghost" style="text-decoration:none;display:block;text-align:center" href="https://centro-de-acopio-ven.vercel.app/" target="_blank" rel="noopener">➕ Registrar un centro de acopio →</a>`;
@@ -2367,7 +2388,7 @@ function toast(msg,type){
 }
 
 /* ---------- Init ---------- */
-renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl();
+renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl(); loadAcopioCentros();
 renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
 setInterval(refreshFeed, 5*60*1000);    // y cada 5 min mientras la app esté abierta
