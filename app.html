@@ -114,13 +114,16 @@
 
   /* ---------- Need type buttons ---------- */
   .needs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .need{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:13px;cursor:pointer;
-    display:flex;gap:12px;align-items:center;transition:.15s;text-align:left;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.05))}
-  .need:hover{border-color:var(--red)}
-  .need.sel{border-color:var(--red);background:var(--red-bg)}
-  .need .ico{font-size:22px;width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--red-bg);color:var(--red)}
-  .need b{display:block;font-size:14.5px;font-weight:700}
+  /* ServiceTiles verticales (icono-chip arriba), como el mockup */
+  .need{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:13px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:flex-start;gap:8px;transition:transform .12s;text-align:left;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.05));font-family:inherit}
+  .need:active{transform:scale(.97)}
+  .need .ico{font-size:20px;width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--red-bg);color:var(--red)}
+  .need b{display:block;font-size:14px;font-weight:700;color:var(--txt)}
   .need span{font-size:11.5px;color:var(--mut)}
+  /* Buscador "Describe tu situación…" + grabber de hojas */
+  .describe-bar{display:flex;align-items:center;gap:10px;width:100%;height:48px;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 14px;color:var(--mut);cursor:pointer;font-size:14px;font-family:inherit}
+  .sheet-grab{width:38px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 14px}
 
   label.fl{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin:14px 0 6px;letter-spacing:.2px}
   input,textarea,select{width:100%;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;
@@ -366,38 +369,11 @@
 
   <!-- ============ PEDIR AYUDA ============ -->
   <section class="view active pad" id="v-ayuda">
-    <h2 class="title" data-i18n="ayuda.title">Pedir ayuda</h2>
-    <p class="sub" data-i18n="ayuda.sub">Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.</p>
+    <h2 class="title" data-i18n="ayuda.q">¿Qué necesitas?</h2>
+    <div class="needs" id="needGrid"></div>
+    <button class="describe-bar" onclick="openReport('')"><span style="font-size:16px">🔎</span><span data-i18n="ayuda.describe">Describe tu situación…</span></button>
 
-    <div class="card">
-      <label class="fl">¿Qué necesitas? Toca una opción</label>
-      <div class="needs" id="needGrid"></div>
-
-      <label class="fl">Describe la situación</label>
-      <textarea id="rDesc" placeholder="Ej: Edificio colapsado, hay personas atrapadas en el segundo piso..."></textarea>
-
-      <div class="row">
-        <div>
-          <label class="fl">Personas afectadas</label>
-          <input id="rPeople" type="number" min="1" value="1" />
-        </div>
-        <div>
-          <label class="fl">Ciudad / zona</label>
-          <select id="rCity"></select>
-        </div>
-      </div>
-
-      <label class="fl">Contacto (teléfono opcional)</label>
-      <input id="rPhone" placeholder="0414-0000000" />
-
-      <label class="fl">Ubicación</label>
-      <button class="btn ghost" id="geoBtn" onclick="getGeo()" style="margin-bottom:4px">📍 Usar mi ubicación actual</button>
-      <div id="geoTxt" style="font-size:12px;color:var(--mut);margin-bottom:6px"></div>
-
-      <button class="btn primary" style="margin-top:14px" onclick="submitReport()">Enviar reporte de emergencia</button>
-    </div>
-
-    <div class="card" style="background:var(--bg2)">
+    <div class="card" style="background:var(--bg2);margin-top:16px">
       <div style="display:flex;gap:10px;align-items:center">
         <span style="font-size:22px">🤖</span>
         <div>
@@ -821,6 +797,28 @@
   <div class="sheet" id="mapSheet" style="max-height:84dvh;overflow-y:auto"></div>
 </div>
 
+<!-- ===== Reportar emergencia (hoja desde el Inicio) ===== -->
+<div class="modal" id="reportModal" onclick="if(event.target===this)closeReport()">
+  <div class="sheet" style="max-height:88dvh;overflow-y:auto">
+    <div class="sheet-grab"></div>
+    <h3 id="reportTitle" data-i18n="report.title">Reportar emergencia</h3>
+    <p data-i18n="report.sub">La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.</p>
+    <label class="fl" data-i18n="report.desc">Describe la situación</label>
+    <textarea id="rDesc" placeholder="Ej: Edificio colapsado, hay personas atrapadas en el segundo piso..."></textarea>
+    <div class="row">
+      <div><label class="fl" data-i18n="report.people">Personas afectadas</label><input id="rPeople" type="number" min="1" value="1" /></div>
+      <div><label class="fl" data-i18n="report.city">Ciudad / zona</label><select id="rCity"></select></div>
+    </div>
+    <label class="fl" data-i18n="report.phone">Contacto (teléfono opcional)</label>
+    <input id="rPhone" placeholder="0414-0000000" />
+    <label class="fl" data-i18n="report.loc">Ubicación</label>
+    <button class="btn ghost" id="geoBtn" onclick="getGeo()" style="margin-bottom:4px">📍 <span data-i18n="report.gps">Usar mi ubicación actual</span></button>
+    <div id="geoTxt" style="font-size:12px;color:var(--mut);margin-bottom:6px"></div>
+    <button class="btn primary" style="margin-top:10px" onclick="submitReport()" data-i18n="report.send">Enviar reporte de emergencia</button>
+    <button class="btn ghost" style="margin-top:8px" onclick="closeReport()" data-i18n="report.cancel">Cancelar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="offline-bar" id="offlineBar" data-i18n="offline.bar">📴 Sin conexión — mostrando la información guardada</div>
 
@@ -847,6 +845,8 @@ const I18N = {
     'nav.grupos':'Grupos por zona','nav.mapas':'Mapas','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Pedir ayuda',
     'ayuda.sub':'Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.',
+    'ayuda.q':'¿Qué necesitas?','ayuda.describe':'Describe tu situación…',
+    'report.title':'Reportar emergencia','report.sub':'La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.','report.desc':'Describe la situación','report.people':'Personas afectadas','report.city':'Ciudad / zona','report.phone':'Contacto (teléfono opcional)','report.loc':'Ubicación','report.gps':'Usar mi ubicación actual','report.send':'Enviar reporte de emergencia','report.cancel':'Cancelar',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
@@ -877,6 +877,8 @@ const I18N = {
     'nav.grupos':'Groups by area','nav.mapas':'Maps','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Ask for help',
     'ayuda.sub':'Report your emergency. AI prioritizes it and routes it to the nearest coordination team.',
+    'ayuda.q':'What do you need?','ayuda.describe':'Describe your situation…',
+    'report.title':'Report emergency','report.sub':'AI prioritizes your report and routes it to the nearest coordination team.','report.desc':'Describe the situation','report.people':'People affected','report.city':'City / area','report.phone':'Contact (phone, optional)','report.loc':'Location','report.gps':'Use my current location','report.send':'Send emergency report','report.cancel':'Cancel',
     'nav.mas':'More','nav.salvo':"I'm safe",
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
@@ -1177,11 +1179,22 @@ function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.st
 
 /* ---------- Pedir ayuda ---------- */
 let selNeed='rescate', geo=null;
+const NEED_TONE={ rescate:['#FDECEA','#E12923'], medico:['#EAF1FE','#2F6FED'], desap:['#F1ECF8','#6B4AA6'], agua:['#E7F6F0','#10916B'], refugio:['#FEF4E6','#C57E18'], dano:['#FDECEA','#E12923'] };
 function renderNeeds(){
-  document.getElementById('needGrid').innerHTML = NEEDS.map(n=>
-    `<button class="need ${n.id===selNeed?'sel':''}" onclick="selNeed='${n.id}';renderNeeds()">
-       <span class="ico">${n.ico}</span><div><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></div></button>`).join('');
+  const g=document.getElementById('needGrid'); if(!g) return;
+  g.innerHTML = NEEDS.map(function(n){
+    const tn=NEED_TONE[n.id]||['#FDECEA','#E12923'];
+    const act = n.id==='desap' ? "go('desap')" : "openReport('"+n.id+"')";
+    return `<button class="need" onclick="${act}"><span class="ico" style="background:${tn[0]};color:${tn[1]}">${n.ico}</span><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></button>`;
+  }).join('');
 }
+function openReport(need){
+  selNeed = need || 'rescate';
+  const tt=document.getElementById('reportTitle');
+  if(tt) tt.textContent = NEED_MAP[selNeed] ? (t('report.title')+' · '+t('need.'+selNeed+'.l')) : t('report.title');
+  document.getElementById('reportModal').classList.add('show');
+}
+function closeReport(){ document.getElementById('reportModal').classList.remove('show'); }
 function fillCities(id){
   document.getElementById(id).innerHTML = CITIES.map(c=>`<option>${c.n}</option>`).join('');
 }
@@ -1217,6 +1230,7 @@ function submitReport(){
   document.getElementById('rPhone').value=''; geo=null; document.getElementById('geoTxt').textContent='';
   document.getElementById('geoBtn').textContent='📍 Usar mi ubicación actual';
   toast(`✅ Reporte enviado · Prioridad ${PRIO_LABEL[r.prio]}`);
+  closeReport();
   go('panel');
 }
 
