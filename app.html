@@ -141,6 +141,9 @@
   /* Buscador "Describe tu situación…" + grabber de hojas */
   .describe-bar{display:flex;align-items:center;gap:10px;width:100%;height:48px;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 14px;color:var(--mut);cursor:pointer;font-size:14px;font-family:inherit}
   .sheet-grab{width:38px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 14px}
+  /* Buscador del mapa (mockup) */
+  .map-search{display:flex;align-items:center;gap:10px;height:46px;margin:0 0 10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 14px;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.06))}
+  .map-search input{border:0;background:none;flex:1;font-size:14px;color:var(--txt);outline:none;padding:0;font-family:inherit}
 
   label.fl{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin:14px 0 6px;letter-spacing:.2px}
   input,textarea,select{width:100%;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;
@@ -438,30 +441,28 @@
 
   <!-- ============ DESAPARECIDOS ============ -->
   <section class="view pad" id="v-desap">
-    <h2 class="title" data-i18n="desap.title">Buscar personas desaparecidas</h2>
-    <p class="sub">Busca por nombre en desaparecidos reportados e ingresos a hospitales. Si buscas a un familiar, contacta también a la Cruz Roja.</p>
+    <h2 class="title" data-i18n="desap.q">¿A quién buscas?</h2>
+    <p class="sub" data-i18n="desap.qsub">Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.</p>
 
-    <div class="card" style="background:linear-gradient(140deg,rgba(255,77,79,.08),transparent);border-color:#4a1c1f">
-      <b style="font-size:14px">🤝 ¿No encuentras a tu familia?</b>
-      <div style="font-size:13px;color:var(--mut);margin:6px 0 10px">Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.</div>
+    <div class="card" style="margin-top:4px">
+      <input id="desapQ" placeholder="🔎 Nombre o apellido..." oninput="searchDesap()" style="margin-bottom:8px" />
+      <div id="desapResults"></div>
+    </div>
+
+    <div class="card card-rojo" style="background:linear-gradient(140deg,rgba(225,41,35,.07),transparent)">
+      <b style="font-size:14px" data-i18n="desap.familiaT">🤝 ¿No encuentras a tu familia?</b>
+      <div style="font-size:13px;color:var(--mut);margin:6px 0 10px" data-i18n="desap.familiaP">Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.</div>
       <a class="btn ok" style="text-decoration:none;display:block;text-align:center" href="tel:04227994880">📞 Llamar Cruz Roja · 0422 799 4880</a>
     </div>
 
     <div class="card" id="desapCountsCard" style="margin-top:4px">
-      <b style="font-size:14px">📊 Desaparecidos reportados aquí</b>
+      <b style="font-size:14px" data-i18n="desap.repT">📊 Desaparecidos reportados aquí</b>
       <div class="grid cols3" style="margin-top:10px">
-        <div class="stat"><div class="n" id="cntAdultos">—</div><div class="l">Adultos</div></div>
-        <div class="stat"><div class="n" id="cntNinos">—</div><div class="l">Niños</div></div>
-        <div class="stat"><div class="n" id="cntTotal">—</div><div class="l">Total</div></div>
+        <div class="stat"><div class="n" id="cntAdultos">—</div><div class="l" data-i18n="desap.adultos">Adultos</div></div>
+        <div class="stat"><div class="n" id="cntNinos">—</div><div class="l" data-i18n="desap.ninosL">Niños</div></div>
+        <div class="stat"><div class="n" id="cntTotal">—</div><div class="l" data-i18n="desap.totalL">Total</div></div>
       </div>
-      <div style="font-size:11px;color:var(--mut2);margin-top:8px">Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.</div>
-    </div>
-
-    <div class="card" style="margin-top:4px">
-      <b style="font-size:14px">🔍 Buscar desaparecidos</b>
-      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Personas reportadas como desaparecidas (en la app y la red de emergencia). Escribe un nombre o apellido.</div>
-      <input id="desapQ" placeholder="🔎 Nombre o apellido..." oninput="searchDesap()" style="margin-bottom:8px" />
-      <div id="desapResults"></div>
+      <div style="font-size:11px;color:var(--mut2);margin-top:8px" data-i18n="desap.repNota">Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.</div>
     </div>
 
     <div class="card">
@@ -585,7 +586,11 @@
   <section class="view pad" id="v-refugios">
     <h2 class="title" data-i18n="mapas.title">Mapas en vivo</h2>
     <button class="sos-cta" onclick="openSosReport()">🆘 Estoy atrapado / necesito rescate · Pedir ayuda</button>
-    <p class="sub">Activa una o varias capas y <b>crúzalas</b> sobre el mapa (OpenStreetMap). Ej: 🔥 zonas afectadas × 📡 celdas.</p>
+    <div class="map-search">
+      <span style="font-size:16px">🔎</span>
+      <input id="mapSearchInput" placeholder="Buscar zona o servicio…" data-i18n-ph="mapas.search" onkeydown="if(event.key==='Enter')mapSearch()" />
+    </div>
+    <p class="sub" style="font-size:12.5px" data-i18n="mapas.sub">Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.</p>
     <div class="seg multi" id="mapLayers">
       <button class="on" data-l="afectadas" onclick="toggleLayer('afectadas')">🔥 Zonas afectadas</button>
       <button data-l="sos" onclick="toggleLayer('sos')">🆘 SOS</button>
@@ -878,6 +883,8 @@ const I18N = {
     'ayuda.sub':'Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.',
     'ayuda.q':'¿Qué necesitas?','ayuda.describe':'Describe tu situación…',
     'report.title':'Reportar emergencia','report.sub':'La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.','report.desc':'Describe la situación','report.people':'Personas afectadas','report.city':'Ciudad / zona','report.phone':'Contacto (teléfono opcional)','report.loc':'Ubicación','report.gps':'Usar mi ubicación actual','report.send':'Enviar reporte de emergencia','report.cancel':'Cancelar',
+    'mapas.search':'Buscar zona o servicio…','mapas.sub':'Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.',
+    'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
@@ -912,6 +919,8 @@ const I18N = {
     'ayuda.sub':'Report your emergency. AI prioritizes it and routes it to the nearest coordination team.',
     'ayuda.q':'What do you need?','ayuda.describe':'Describe your situation…',
     'report.title':'Report emergency','report.sub':'AI prioritizes your report and routes it to the nearest coordination team.','report.desc':'Describe the situation','report.people':'People affected','report.city':'City / area','report.phone':'Contact (phone, optional)','report.loc':'Location','report.gps':'Use my current location','report.send':'Send emergency report','report.cancel':'Cancel',
+    'mapas.search':'Search area or service…','mapas.sub':'Turn on one or more layers and cross them on the map. Tap a chip to filter.',
+    'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts reports made in SismoVE (excludes external lists). Rescued/found are not counted here.',
     'nav.mas':'More','nav.salvo':"I'm safe",
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
@@ -1007,6 +1016,13 @@ async function loadAlertas(){
 /* ---- Estado offline ---- */
 function updateOffline(){ const b=document.getElementById('offlineBar'); if(b) b.classList.toggle('show', navigator.onLine===false); }
 window.addEventListener('online',updateOffline); window.addEventListener('offline',updateOffline);
+/* ---- Buscador del mapa: geocodifica y centra ---- */
+async function mapSearch(){
+  const q=(document.getElementById('mapSearchInput').value||'').trim(); if(!q) return;
+  toast(t('cargando')); ensureHubMap();
+  try{ const g=await geocode(q+', Venezuela'); if(g && mapHub){ mapHub.setView([g.lat,g.lng],13); } else toast(LANG==='en'?'Area not found':'No se encontró esa zona','err'); }
+  catch(e){ toast(LANG==='en'?'Search failed':'No se pudo buscar','err'); }
+}
 
 /* ---------- Catálogos ---------- */
 const NEEDS = [
@@ -2059,6 +2075,7 @@ function openDesapReport(cat, rec){
   const sheet=document.getElementById('mapSheet');
   const titulo = _desapCat ? '👶 Reportar niño/a desaparecido' : '🔍 Reportar persona desaparecida';
   sheet.innerHTML=`<h3>${titulo}</h3><p>Publica a quien buscas (o repórtalo como rescatado/encontrado) para que otros y los rescatistas ayuden. Aparecerá en ${_desapCat?'el apartado de niños':'el buscador'}.</p>
+    <div style="background:var(--support-s,#f1ecf8);border-radius:12px;padding:11px 13px;font-size:12.5px;color:#5a3d94;line-height:1.45;margin:4px 0 14px">💜 Respira. Vamos juntos, paso a paso. Solo necesitamos lo esencial.</div>
     <label class="fl">Estado *</label>
     <select id="dpEstado"><option value="buscando">🔴 Desaparecido (lo busco)</option><option value="encontrado">🟢 Rescatado / Encontrado</option></select>
     <label class="fl">Tipo de persona *</label>
