@@ -64,6 +64,31 @@
     border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--txt);font-weight:800;font-size:16px;cursor:pointer}
   .lang-opt:active{transform:scale(.98)}
   .lang-opt.primary{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 8px 18px rgba(225,41,35,.28)}
+  /* ---- Splash ---- */
+  .splash{position:fixed;inset:0;z-index:400;background:linear-gradient(160deg,var(--red),var(--red-d,#b71c18));
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;transition:opacity .4s}
+  .splash.hide{opacity:0;pointer-events:none}
+  .splash .mk{width:84px;height:84px;border-radius:24px;background:#fff;display:grid;place-items:center;font-size:42px;
+    box-shadow:0 12px 30px rgba(0,0,0,.25);animation:sppulse 1.6s ease-in-out infinite}
+  @keyframes sppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  .splash h1{font-family:var(--font-display,inherit);font-weight:800;font-size:30px;letter-spacing:-.5px;margin:6px 0 0}
+  .splash p{color:rgba(255,255,255,.9);font-size:13px}
+  .splash .dots span{display:inline-block;width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.6);margin:0 3px;animation:spdot 1s infinite}
+  .splash .dots span:nth-child(2){animation-delay:.2s} .splash .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes spdot{0%,100%{opacity:.4}50%{opacity:1}}
+  /* ---- Onboarding ---- */
+  .onb{position:fixed;inset:0;z-index:380;background:var(--card);display:none;flex-direction:column}
+  .onb.show{display:flex}
+  .onb-skip{position:absolute;top:14px;right:16px;background:none;border:0;color:var(--mut);font-weight:700;font-size:14px;cursor:pointer;z-index:2}
+  .onb-slides{flex:1;display:flex;overflow:hidden}
+  .onb-slide{min-width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;gap:14px;transition:transform .3s}
+  .onb-ill{width:120px;height:120px;border-radius:30px;background:var(--red-bg);display:grid;place-items:center;font-size:60px}
+  .onb-slide h2{font-family:var(--font-display,inherit);font-weight:800;font-size:24px;color:var(--txt);margin:6px 0 0}
+  .onb-slide p{color:var(--mut);font-size:15px;max-width:300px;line-height:1.5}
+  .onb-foot{padding:20px 24px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px;align-items:center}
+  .onb-dots{display:flex;gap:8px}
+  .onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .onb-dots i.on{background:var(--red);width:22px;border-radius:999px}
 
   /* ---------- Views ---------- */
   .view{display:none;animation:fade .25s ease}
@@ -283,6 +308,28 @@
 </style>
 </head>
 <body>
+
+<!-- Splash (carga inicial) -->
+<div class="splash" id="splash">
+  <div class="mk">⛰️</div>
+  <h1>Sismo<span style="color:#ffd9d6">VE</span></h1>
+  <p data-i18n="splash.txt">Preparando información segura…</p>
+  <div class="dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- Onboarding (1ª vez) -->
+<div class="onb" id="onb">
+  <button class="onb-skip" onclick="finishOnb()" data-i18n="onb.skip">Saltar</button>
+  <div class="onb-slides" id="onbSlides">
+    <div class="onb-slide"><div class="onb-ill">🆘</div><h2 data-i18n="onb1.t">Encuentra ayuda en segundos</h2><p data-i18n="onb1.p">Reporta tu emergencia o pide rescate. La información llega a quien puede ayudar.</p></div>
+    <div class="onb-slide"><div class="onb-ill">🔍</div><h2 data-i18n="onb2.t">Busca a tu gente</h2><p data-i18n="onb2.p">Busca personas en hospitales y reportes, y marca a tus seres queridos como a salvo.</p></div>
+    <div class="onb-slide"><div class="onb-ill">🗺️</div><h2 data-i18n="onb3.t">Todo en el mapa</h2><p data-i18n="onb3.p">Zonas afectadas, refugios, acopio, señal y SOS — en vivo y en tu zona.</p></div>
+  </div>
+  <div class="onb-foot">
+    <div class="onb-dots" id="onbDots"><i class="on"></i><i></i><i></i></div>
+    <button class="btn primary" id="onbNext" onclick="nextOnb()">Continuar</button>
+  </div>
+</div>
 
 <div class="demo">⚠️ PROTOTIPO · Sismos (USGS), acopio y desaparecidos = datos reales · Cobertura/luz = reportes de la comunidad · No sustituye a emergencias (911)</div>
 
@@ -769,6 +816,11 @@ const I18N = {
     'sos.estamos':'Estamos contigo','sos.calma':'Mantén la calma. Vamos paso a paso.','sos.call911':'📞 Llamar al 911',
     'sos.share':'Compartir mi ubicación','sos.safe':'Estoy a salvo','sos.oficiales':'Números oficiales · toca para llamar',
     'sos.familiar':'Buscar a un familiar','sos.cerrar':'Cerrar',
+    'splash.txt':'Preparando información segura…',
+    'onb.skip':'Saltar','onb.next':'Continuar','onb.start':'Empezar',
+    'onb1.t':'Encuentra ayuda en segundos','onb1.p':'Reporta tu emergencia o pide rescate. La información llega a quien puede ayudar.',
+    'onb2.t':'Busca a tu gente','onb2.p':'Busca personas en hospitales y reportes, y marca a tus seres queridos como a salvo.',
+    'onb3.t':'Todo en el mapa','onb3.p':'Zonas afectadas, refugios, acopio, señal y SOS — en vivo y en tu zona.',
   },
   en:{
     'hdr.sub':'Seismic Response Network · Venezuela',
@@ -789,6 +841,11 @@ const I18N = {
     'sos.estamos':'We are with you','sos.calma':'Stay calm. One step at a time.','sos.call911':'📞 Call 911',
     'sos.share':'Share my location','sos.safe':"I'm safe",'sos.oficiales':'Official numbers · tap to call',
     'sos.familiar':'Find a family member','sos.cerrar':'Close',
+    'splash.txt':'Preparing safe information…',
+    'onb.skip':'Skip','onb.next':'Continue','onb.start':'Get started',
+    'onb1.t':'Find help in seconds','onb1.p':'Report your emergency or ask for rescue. The info reaches those who can help.',
+    'onb2.t':'Find your people','onb2.p':'Search people in hospitals and reports, and mark your loved ones as safe.',
+    'onb3.t':'Everything on the map','onb3.p':'Affected areas, shelters, aid, signal and SOS — live and in your area.',
   },
 };
 let LANG = (function(){ try{ return localStorage.getItem('sismove_lang')||''; }catch(e){ return ''; } })();
@@ -806,6 +863,7 @@ function setLang(l){
   document.documentElement.lang=l;
   const m=document.getElementById('langModal'); if(m) m.style.display='none';
   applyI18n();
+  maybeOnboard();   // tras elegir idioma (1ª vez), muestra el onboarding
 }
 function toggleLang(){ setLang((LANG||'es')==='es'?'en':'es'); }
 function ensureLangChosen(){
@@ -825,6 +883,17 @@ function setTheme(th){
 }
 function updateThemeUI(){ document.querySelectorAll('#themeRow button').forEach(b=>b.classList.toggle('on', b.dataset.th===THEME)); }
 function applyTheme(){ setTheme(THEME); }
+/* ---- Splash + Onboarding (1ª vez) ---- */
+let onbI=0;
+function hideSplash(){ const s=document.getElementById('splash'); if(!s) return; s.classList.add('hide'); setTimeout(()=>{ s.style.display='none'; if(LANG) maybeOnboard(); },400); }
+function maybeOnboard(){ try{ if(localStorage.getItem('sismove_onboarded')) return; }catch(e){} const o=document.getElementById('onb'); if(o){ onbI=0; o.classList.add('show'); updateOnb(); } }
+function updateOnb(){
+  const sl=document.getElementById('onbSlides'); if(sl) sl.style.transform='translateX(-'+(onbI*100)+'%)';
+  document.querySelectorAll('#onbDots i').forEach((d,i)=>d.classList.toggle('on',i===onbI));
+  const b=document.getElementById('onbNext'); if(b) b.textContent = onbI>=2 ? t('onb.start') : t('onb.next');
+}
+function nextOnb(){ if(onbI>=2){ finishOnb(); return; } onbI++; updateOnb(); }
+function finishOnb(){ try{ localStorage.setItem('sismove_onboarded','1'); }catch(e){} const o=document.getElementById('onb'); if(o) o.classList.remove('show'); }
 
 /* ---------- Catálogos ---------- */
 const NEEDS = [
@@ -2578,6 +2647,7 @@ function toast(msg,type){
 /* ---------- Init ---------- */
 ensureLangChosen();                     // idioma: aplica el guardado o muestra el aviso ES/EN al abrir
 applyTheme();                           // tema: Claro / Oscuro / Estrés (guardado)
+setTimeout(hideSplash, 1100);           // splash de carga → onboarding (1ª vez)
 renderNeeds(); fillCities('rCity'); fillCities('sCity'); loadAyudaIntl(); loadAcopioCentros();
 renderSafe(); updateBackBtn(); updateAdminUI();
 refreshFeed();                          // intenta refrescar desde data/feed.json (si hay servidor)
