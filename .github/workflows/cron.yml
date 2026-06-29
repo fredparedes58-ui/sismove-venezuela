@@ -50,6 +50,7 @@ jobs:
             done
             curl -s -m 60 "$BASE/api/sismo-stats?key=$KEY&refresh=1" -o /dev/null -w "  sismo-stats %{http_code}\n"
             curl -s -m 60 "$BASE/api/cifras?key=$KEY"               -o /dev/null -w "  cifras %{http_code}\n"
+            curl -s -m 60 "$BASE/api/reconecta"                     -o /dev/null -w "  reconecta (internet gratis) %{http_code}\n"
             curl -s -m 60 "$BASE/api/notify?key=$KEY"               -o /dev/null -w "  notify %{http_code}\n"
             [ "$n" -lt 5 ] && sleep 720                                                       # ~12 min hasta la siguiente pasada
           done
