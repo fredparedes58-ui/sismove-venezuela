@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SismoVE · No encontrado</title>
+<link rel="stylesheet" href="/design-tokens.css" />
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body,system-ui,sans-serif);background:var(--bg,#f5f6f8);color:var(--ink,#16243f);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+  .box{max-width:380px}
+  .ill{width:120px;height:120px;border-radius:30px;background:var(--red-s,rgba(225,41,35,.1));color:var(--red,#e12923);
+    display:grid;place-items:center;font-size:56px;margin:0 auto 20px}
+  h1{font-family:var(--font-display,system-ui);font-weight:800;font-size:26px;margin-bottom:8px}
+  p{color:var(--ink2,#5a6678);font-size:15px;line-height:1.5;margin-bottom:22px}
+  .btn{display:block;text-decoration:none;min-height:52px;border-radius:14px;font-weight:800;font-size:15px;
+    display:flex;align-items:center;justify-content:center;margin-top:10px}
+  .btn.primary{background:var(--red,#e12923);color:#fff;box-shadow:0 8px 18px rgba(225,41,35,.28)}
+  .btn.ghost{background:var(--surf,#fff);color:var(--ink,#16243f);border:1.5px solid var(--bd,#e9ecf1)}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="ill">🧭</div>
+    <h1 id="t1">No encontramos esto</h1>
+    <p id="p1">La página que buscas no existe o se movió. Volvamos a un lugar seguro.</p>
+    <a class="btn primary" href="/" id="b1">Volver al inicio</a>
+    <a class="btn ghost" href="/app" id="b2">Abrir la app</a>
+  </div>
+<script>
+  // Bilingüe según el idioma guardado
+  try{
+    if((localStorage.getItem('sismove_lang')||'')==='en'){
+      document.documentElement.lang='en';
+      document.getElementById('t1').textContent='We couldn’t find this';
+      document.getElementById('p1').textContent='The page you’re looking for doesn’t exist or moved. Let’s get you back to safety.';
+      document.getElementById('b1').textContent='Back to home';
+      document.getElementById('b2').textContent='Open the app';
+    }
+  }catch(e){}
+</script>
+</body>
+</html>
