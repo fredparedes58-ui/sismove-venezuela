@@ -242,7 +242,8 @@
   .tabs-in{display:flex;width:100%;max-width:520px;justify-content:space-around;align-items:flex-end}
   .tab{flex:1;background:none;border:0;color:var(--mut2);font-size:10.5px;font-weight:700;cursor:pointer;
     display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-family:inherit;min-height:48px;justify-content:flex-end}
-  .tab .i{font-size:22px;line-height:1}
+  .tab .i{font-size:22px;line-height:1;height:22px;display:flex;align-items:center;justify-content:center}
+  .tab .i svg{display:block}
   .tab.on{color:var(--red)}
   .tab-sos{flex:0 0 auto;align-self:flex-end;width:64px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
   .fab-sos{width:58px;height:58px;border-radius:50%;background:var(--red);border:4px solid var(--card);color:#fff;
@@ -802,11 +803,11 @@
 <!-- ===== Bottom nav ===== -->
 <nav class="tabs">
   <div class="tabs-in">
-    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🏠</span><span data-i18n="nav.inicio">Inicio</span></button>
-    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span><span data-i18n="nav.desap">Buscar</span></button>
+    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1v-8z" fill="currentColor"/></svg></span><span data-i18n="nav.inicio">Inicio</span></button>
+    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span data-i18n="nav.desap">Buscar</span></button>
     <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button><span class="fab-label" data-i18n="nav.ayuda2">Ayuda</span></div>
-    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span><span data-i18n="nav.mapas">Mapa</span></button>
-    <button class="tab" data-v="alertas" onclick="go('alertas')"><span class="i">🔔</span><span data-i18n="nav.alertasS">Alertas</span></button>
+    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-5.5 7-12a7 7 0 10-14 0c0 6.5 7 12 7 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.mapas">Mapa</span></button>
+    <button class="tab" data-v="alertas" onclick="go('alertas')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20a2 2 0 004 0" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.alertasS">Alertas</span></button>
   </div>
 </nav>
 
@@ -997,6 +998,7 @@ function setTheme(th){
   if(th==='dark') document.body.classList.add('theme-dark');
   else if(th==='stress') document.body.classList.add('theme-stress');
   const mc=document.querySelector('meta[name=theme-color]'); if(mc) mc.setAttribute('content', th==='dark'?'#0e1320':'#ffffff');
+  if(typeof renderNeeds==='function' && document.getElementById('needGrid')) renderNeeds();   // re-tinta tiles según tema
   updateThemeUI();
 }
 function updateThemeUI(){ document.querySelectorAll('#themeRow button').forEach(b=>b.classList.toggle('on', b.dataset.th===THEME)); }
@@ -1266,12 +1268,23 @@ function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.st
 /* ---------- Pedir ayuda ---------- */
 let selNeed='rescate', geo=null;
 const NEED_TONE={ rescate:['#FDECEA','#E12923'], medico:['#EAF1FE','#2F6FED'], desap:['#F1ECF8','#6B4AA6'], agua:['#E7F6F0','#10916B'], refugio:['#FEF4E6','#C57E18'], dano:['#FDECEA','#E12923'] };
+const NEED_TONE_DARK={ rescate:['rgba(225,41,35,.18)','#FF6A60'], medico:['rgba(47,111,237,.20)','#7AA6FF'], desap:['rgba(107,74,166,.22)','#B794E0'], agua:['rgba(16,145,107,.20)','#4FD3A6'], refugio:['rgba(242,165,58,.20)','#FFC069'], dano:['rgba(225,41,35,.18)','#FF6A60'] };
+// Iconos SVG exactos del mockup (usan currentColor → toman el color del chip)
+const NEED_SVG={
+  rescate:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z" fill="currentColor"/></svg>',
+  medico:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  desap:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2"/><path d="M19 19l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  agua:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3c3 4 5 6 5 9a5 5 0 01-10 0c0-3 2-5 5-9z" fill="currentColor"/></svg>',
+  refugio:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+  dano:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+};
 function renderNeeds(){
   const g=document.getElementById('needGrid'); if(!g) return;
+  const tones = document.body.classList.contains('theme-dark') ? NEED_TONE_DARK : NEED_TONE;
   g.innerHTML = NEEDS.map(function(n){
-    const tn=NEED_TONE[n.id]||['#FDECEA','#E12923'];
+    const tn=tones[n.id]||tones.rescate;
     const act = n.id==='desap' ? "go('desap')" : "openReport('"+n.id+"')";
-    return `<button class="need" onclick="${act}"><span class="ico" style="background:${tn[0]};color:${tn[1]}">${n.ico}</span><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></button>`;
+    return `<button class="need" onclick="${act}"><span class="ico" style="background:${tn[0]};color:${tn[1]}">${NEED_SVG[n.id]||n.ico}</span><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></button>`;
   }).join('');
 }
 function openReport(need){
