@@ -38,19 +38,17 @@
   header.top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
     border-bottom:1px solid var(--line)}
   .top-in{display:flex;align-items:center;gap:12px;padding:12px 16px;max-width:760px;margin:0 auto}
-  .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.3px}
-  .logo .mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
-    background:var(--red);color:#fff;font-size:18px;box-shadow:0 6px 16px rgba(225,41,35,.32)}
-  .logo small{display:block;font-size:10.5px;font-weight:600;color:var(--mut);letter-spacing:.2px;margin-top:-2px}
-  .backbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:800;cursor:pointer;display:grid;place-items:center;flex:none;line-height:1}
+  .logo{display:flex;align-items:center;gap:9px;margin-right:auto;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .logo .mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    background:var(--red);color:#fff;box-shadow:0 6px 16px rgba(225,41,35,.30)}
+  .logo .ve{color:var(--red)}
+  .backbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:36px;height:36px;border-radius:11px;font-size:20px;font-weight:800;cursor:pointer;display:grid;place-items:center;flex:none;line-height:1}
   .backbtn:active{transform:scale(.94)}
-  .sos{margin-left:8px;background:var(--red);color:#fff;border:0;border-radius:12px;font-weight:800;
-    padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(225,41,35,.32);display:flex;gap:6px;align-items:center}
+  .iconbtn{background:var(--card2);border:1px solid var(--line);color:var(--txt);min-width:38px;height:38px;border-radius:11px;font-weight:800;padding:0 9px;font-size:15px;cursor:pointer;display:flex;gap:3px;align-items:center;justify-content:center;flex:none}
+  .iconbtn:active{transform:scale(.95)}
+  .sos{margin-left:8px;background:var(--red);color:#fff;border:0;border-radius:999px;font-family:var(--font-display,inherit);font-weight:800;
+    padding:8px 16px;font-size:13px;letter-spacing:.5px;cursor:pointer;box-shadow:0 4px 12px rgba(225,41,35,.3);flex:none}
   .sos:active{transform:scale(.96)}
-  /* Selector de idioma (header) */
-  .langbtn{margin-left:auto;background:var(--card2);border:1px solid var(--line);color:var(--txt);
-    border-radius:11px;font-weight:800;padding:9px 11px;font-size:13px;cursor:pointer;display:flex;gap:5px;align-items:center}
-  .langbtn:active{transform:scale(.96)}
   /* Aviso/selector de idioma al abrir */
   .lang-modal{position:fixed;inset:0;z-index:200;background:rgba(22,36,63,.55);backdrop-filter:blur(4px);
     display:none;align-items:center;justify-content:center;padding:24px}
@@ -246,11 +244,12 @@
     display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;font-family:inherit;min-height:48px;justify-content:flex-end}
   .tab .i{font-size:22px;line-height:1}
   .tab.on{color:var(--red)}
-  .tab-sos{flex:0 0 auto;align-self:center;width:64px;display:flex;justify-content:center}
-  .fab-sos{width:60px;height:60px;border-radius:50%;background:var(--red);border:4px solid var(--card);color:#fff;
-    font-family:var(--font-display,inherit);font-weight:800;font-size:15px;cursor:pointer;transform:translateY(-20px);
+  .tab-sos{flex:0 0 auto;align-self:flex-end;width:64px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .fab-sos{width:58px;height:58px;border-radius:50%;background:var(--red);border:4px solid var(--card);color:#fff;
+    font-family:var(--font-display,inherit);font-weight:800;font-size:15px;cursor:pointer;transform:translateY(-18px);margin-bottom:-12px;
     box-shadow:0 8px 18px rgba(225,41,35,.42);display:grid;place-items:center;line-height:1;letter-spacing:.5px}
-  .fab-sos:active{transform:translateY(-20px) scale(.94)}
+  .fab-sos:active{transform:translateY(-18px) scale(.94)}
+  .fab-label{font-size:9.5px;font-weight:700;color:var(--red);line-height:1}
   /* Vista "Más" */
   .mas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
   .mas-item{display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--card);border:1px solid var(--line);
@@ -372,12 +371,11 @@
     <button class="backbtn" id="backBtn" onclick="goBack()" aria-label="Atrás" title="Atrás">←</button>
     <div class="logo">
       <span class="mark"><svg viewBox="0 0 32 32" width="22" height="22" fill="none" aria-hidden="true"><path d="M16 28C16 28 4 20 4 12C4 8 7.2 5 10.8 5C13 5 15 6.2 16 8.2C17 6.2 19 5 21.2 5C24.8 5 28 8 28 12C28 20 16 28 16 28Z" fill="#fff"/><path d="M8.5 15H12L14 11L17.5 19.5L19.5 15H23.5" stroke="#E12923" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div>SismoVE
-        <small data-i18n="hdr.sub">Red de Respuesta Sísmica · Venezuela</small>
-      </div>
+      <span>Sismo<span class="ve">VE</span></span>
     </div>
-    <button class="langbtn" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐 <span id="langLabel">ES</span></button>
-    <button class="sos" onclick="openSOS()" data-i18n="sos.btn">☎ SOS</button>
+    <button class="iconbtn" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐<span id="langLabel" style="font-size:10px">ES</span></button>
+    <button class="iconbtn" onclick="go('mas')" aria-label="Más" title="Más">☰</button>
+    <button class="sos" onclick="openSOS()">SOS</button>
   </div>
 </header>
 
@@ -807,11 +805,11 @@
 <!-- ===== Bottom nav ===== -->
 <nav class="tabs">
   <div class="tabs-in">
-    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🆘</span><span data-i18n="nav.ayuda">Ayuda</span></button>
+    <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i">🏠</span><span data-i18n="nav.inicio">Inicio</span></button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i">🔍</span><span data-i18n="nav.desap">Buscar</span></button>
-    <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button></div>
+    <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button><span class="fab-label" data-i18n="nav.ayuda2">Ayuda</span></div>
     <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i">🗺️</span><span data-i18n="nav.mapas">Mapa</span></button>
-    <button class="tab" data-v="mas" onclick="go('mas')"><span class="i">☰</span><span data-i18n="nav.mas">Más</span></button>
+    <button class="tab" data-v="alertas" onclick="go('alertas')"><span class="i">🔔</span><span data-i18n="nav.alertasS">Alertas</span></button>
   </div>
 </nav>
 
@@ -900,7 +898,7 @@ const I18N = {
     'hdr.sub':'Red de Respuesta Sísmica · Venezuela',
     'sos.btn':'☎ SOS',
     'nav.ayuda':'Ayuda','nav.desap':'Buscar','nav.ninos':'Niños rescatados y desaparecidos',
-    'nav.grupos':'Grupos por zona','nav.mapas':'Mapas','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
+    'nav.grupos':'Grupos por zona','nav.mapas':'Mapa','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Pedir ayuda',
     'ayuda.sub':'Reporta tu emergencia. La IA prioriza y la envía al equipo de coordinación más cercano.',
     'ayuda.q':'¿Qué necesitas?','ayuda.describe':'Describe tu situación…',
@@ -908,7 +906,7 @@ const I18N = {
     'mapas.search':'Buscar zona o servicio…','mapas.sub':'Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.',
     'nav.acopio':'Centros de acopio','acopioL.title':'📦 Centros de acopio','acopioL.sub':'Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.','acopioL.todos':'Todos','acopioL.need':'Necesitan ayuda','acopioL.go':'Cómo llegar','acopioL.intl':'Internacional','acopioL.none':'No hay centros con ese filtro.','acopioL.full':'Ver directorio completo (Madrid, Valencia…) →',
     'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.',
-    'nav.mas':'Más','nav.salvo':'Estoy a salvo',
+    'nav.mas':'Más','nav.salvo':'Estoy a salvo','nav.inicio':'Inicio','nav.ayuda2':'Ayuda','nav.alertasS':'Alertas',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
     'salvo.title':'Estoy a salvo','desap.title':'Buscar personas desaparecidas','ninos.title':'👶 Niños desaparecidos y rescatados',
@@ -937,7 +935,7 @@ const I18N = {
     'hdr.sub':'Seismic Response Network · Venezuela',
     'sos.btn':'☎ SOS',
     'nav.ayuda':'Help','nav.desap':'Search','nav.ninos':'Missing & rescued children',
-    'nav.grupos':'Groups by area','nav.mapas':'Maps','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
+    'nav.grupos':'Groups by area','nav.mapas':'Map','nav.panel':'Panel','nav.bot':'Bot','nav.info':'Info',
     'ayuda.title':'Ask for help',
     'ayuda.sub':'Report your emergency. AI prioritizes it and routes it to the nearest coordination team.',
     'ayuda.q':'What do you need?','ayuda.describe':'Describe your situation…',
@@ -945,7 +943,7 @@ const I18N = {
     'mapas.search':'Search area or service…','mapas.sub':'Turn on one or more layers and cross them on the map. Tap a chip to filter.',
     'nav.acopio':'Donation centers','acopioL.title':'📦 Donation centers','acopioL.sub':'Where to drop off or receive supplies and aid. In Venezuela and abroad.','acopioL.todos':'All','acopioL.need':'Need help','acopioL.go':'Directions','acopioL.intl':'International','acopioL.none':'No centers match that filter.','acopioL.full':'See full directory (Madrid, Valencia…) →',
     'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts reports made in SismoVE (excludes external lists). Rescued/found are not counted here.',
-    'nav.mas':'More','nav.salvo':"I'm safe",
+    'nav.mas':'More','nav.salvo':"I'm safe",'nav.inicio':'Home','nav.ayuda2':'Help','nav.alertasS':'Alerts',
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
     'salvo.title':"I'm safe",'desap.title':'Search for missing people','ninos.title':'👶 Missing & rescued children',
@@ -1249,8 +1247,7 @@ function go(v, fromBack){
   track('view', v);   // analítica anónima
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  const NAV_OVERFLOW=new Set(['ninos','grupos','panel','bot','info','salvo','mas','alertas','apoyo','donar','acopio']);
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v || (t.dataset.v==='mas' && NAV_OVERFLOW.has(v))));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros();},80);
@@ -1267,7 +1264,7 @@ function go(v, fromBack){
 }
 // Botón atrás: vuelve a la pantalla anterior; si no hay historial, a Inicio (Ayuda).
 function goBack(){ if(viewHistory.length) go(viewHistory.pop(), true); else location.href='/'; }   // sin historial → a la portada
-function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.style.display='grid'; }  // siempre visible
+function updateBackBtn(){ const b=document.getElementById('backBtn'); if(b) b.style.display = (viewHistory && viewHistory.length) ? 'grid' : 'none'; }  // oculto en Inicio (cabecera limpia)
 
 /* ---------- Pedir ayuda ---------- */
 let selNeed='rescate', geo=null;
