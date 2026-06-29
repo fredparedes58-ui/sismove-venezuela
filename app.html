@@ -144,6 +144,13 @@
   /* Buscador del mapa (mockup) */
   .map-search{display:flex;align-items:center;gap:10px;height:46px;margin:0 0 10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 14px;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.06))}
   .map-search input{border:0;background:none;flex:1;font-size:14px;color:var(--txt);outline:none;padding:0;font-family:inherit}
+  /* Lista de Centros de acopio (mockup) */
+  .acopio-item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.05))}
+  .acopio-item .ah{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .acopio-item .ah b{font-size:15px}
+  .acopio-item .am{font-size:12px;color:var(--mut);margin:6px 0 10px;line-height:1.4}
+  .acopio-go{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:11px;background:var(--green);color:#fff;font-weight:700;font-size:13px;text-decoration:none}
+  .acopio-go:active{transform:scale(.98)}
 
   label.fl{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin:14px 0 6px;letter-spacing:.2px}
   input,textarea,select{width:100%;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;
@@ -715,6 +722,7 @@
       <button class="mas-item" onclick="go('alertas')"><span class="i">🔔</span><b data-i18n="nav.alertas">Noticias y alertas</b></button>
       <button class="mas-item" onclick="go('apoyo')"><span class="i">💜</span><b data-i18n="nav.apoyo">Apoyo psicológico</b></button>
       <button class="mas-item" onclick="go('donar')"><span class="i">🤲</span><b data-i18n="nav.donar">Donaciones</b></button>
+      <button class="mas-item" onclick="go('acopio')"><span class="i">📦</span><b data-i18n="nav.acopio">Centros de acopio</b></button>
       <button class="mas-item" onclick="go('ninos')"><span class="i">👶</span><b data-i18n="nav.ninos">Niños rescatados y desaparecidos</b></button>
       <button class="mas-item" onclick="go('grupos')"><span class="i">📋</span><b data-i18n="nav.grupos">Grupos por zona</b></button>
       <button class="mas-item" onclick="go('panel')"><span class="i">📊</span><b data-i18n="nav.panel">Panel de coordinación</b></button>
@@ -778,6 +786,20 @@
     </div>
     <a class="btn ghost" style="text-decoration:none;display:block;text-align:center;margin-top:12px" href="/acopio-global"><span data-i18n="donar.acopio">📦 Centros de acopio (víveres) →</span></a>
     <p class="sub" style="margin-top:10px;font-size:11.5px" data-i18n="donar.nota">SismoVE no recauda dinero ni procesa pagos: solo enlaza campañas oficiales. Verifica siempre antes de donar.</p>
+  </section>
+
+  <!-- ============ CENTROS DE ACOPIO (lista) ============ -->
+  <section class="view pad" id="v-acopio">
+    <h2 class="title" data-i18n="acopioL.title">📦 Centros de acopio</h2>
+    <p class="sub" data-i18n="acopioL.sub">Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.</p>
+    <div class="seg multi" id="acopioChips">
+      <button class="on" data-f="todos" onclick="filterAcopio('todos')" data-i18n="acopioL.todos">Todos</button>
+      <button data-f="ve" onclick="filterAcopio('ve')">🇻🇪 Venezuela</button>
+      <button data-f="intl" onclick="filterAcopio('intl')">🌍 Internacional</button>
+      <button data-f="need" onclick="filterAcopio('need')" data-i18n="acopioL.need">Necesitan ayuda</button>
+    </div>
+    <div id="acopioListView"><div class="empty" style="padding:14px" data-i18n="cargando">Cargando…</div></div>
+    <a class="btn ghost" style="text-decoration:none;display:block;text-align:center;margin-top:6px" href="/acopio-global"><span data-i18n="acopioL.full">Ver directorio completo (Madrid, Valencia…) →</span></a>
   </section>
 
 </main>
@@ -884,6 +906,7 @@ const I18N = {
     'ayuda.q':'¿Qué necesitas?','ayuda.describe':'Describe tu situación…',
     'report.title':'Reportar emergencia','report.sub':'La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.','report.desc':'Describe la situación','report.people':'Personas afectadas','report.city':'Ciudad / zona','report.phone':'Contacto (teléfono opcional)','report.loc':'Ubicación','report.gps':'Usar mi ubicación actual','report.send':'Enviar reporte de emergencia','report.cancel':'Cancelar',
     'mapas.search':'Buscar zona o servicio…','mapas.sub':'Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.',
+    'nav.acopio':'Centros de acopio','acopioL.title':'📦 Centros de acopio','acopioL.sub':'Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.','acopioL.todos':'Todos','acopioL.need':'Necesitan ayuda','acopioL.go':'Cómo llegar','acopioL.intl':'Internacional','acopioL.none':'No hay centros con ese filtro.','acopioL.full':'Ver directorio completo (Madrid, Valencia…) →',
     'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
@@ -920,6 +943,7 @@ const I18N = {
     'ayuda.q':'What do you need?','ayuda.describe':'Describe your situation…',
     'report.title':'Report emergency','report.sub':'AI prioritizes your report and routes it to the nearest coordination team.','report.desc':'Describe the situation','report.people':'People affected','report.city':'City / area','report.phone':'Contact (phone, optional)','report.loc':'Location','report.gps':'Use my current location','report.send':'Send emergency report','report.cancel':'Cancel',
     'mapas.search':'Search area or service…','mapas.sub':'Turn on one or more layers and cross them on the map. Tap a chip to filter.',
+    'nav.acopio':'Donation centers','acopioL.title':'📦 Donation centers','acopioL.sub':'Where to drop off or receive supplies and aid. In Venezuela and abroad.','acopioL.todos':'All','acopioL.need':'Need help','acopioL.go':'Directions','acopioL.intl':'International','acopioL.none':'No centers match that filter.','acopioL.full':'See full directory (Madrid, Valencia…) →',
     'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts reports made in SismoVE (excludes external lists). Rescued/found are not counted here.',
     'nav.mas':'More','nav.salvo':"I'm safe",
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
@@ -1022,6 +1046,22 @@ async function mapSearch(){
   toast(t('cargando')); ensureHubMap();
   try{ const g=await geocode(q+', Venezuela'); if(g && mapHub){ mapHub.setView([g.lat,g.lng],13); } else toast(LANG==='en'?'Area not found':'No se encontró esa zona','err'); }
   catch(e){ toast(LANG==='en'?'Search failed':'No se pudo buscar','err'); }
+}
+/* ---- Centros de acopio (vista lista) ---- */
+let _acopioFilter='todos';
+function filterAcopio(f){ _acopioFilter=f; document.querySelectorAll('#acopioChips button').forEach(b=>b.classList.toggle('on',b.dataset.f===f)); renderAcopioListView(); }
+function renderAcopioListView(){
+  const el=document.getElementById('acopioListView'); if(!el) return;
+  let list=(FEED.centros||[]).filter(c=>typeof c.lat==='number');
+  if(_acopioFilter==='ve') list=list.filter(c=>!isIntl(c.lat,c.lng));
+  else if(_acopioFilter==='intl') list=list.filter(c=>isIntl(c.lat,c.lng));
+  else if(_acopioFilter==='need') list=list.filter(c=>(c.necesita||[]).length);
+  if(!list.length){ el.innerHTML='<div class="empty" style="padding:14px">'+t('acopioL.none')+'</div>'; return; }
+  el.innerHTML=list.slice(0,80).map(function(c){
+    const intl=isIntl(c.lat,c.lng), needs=(c.necesita||[]).slice(0,4).join(', ');
+    const badge = c.verificaciones ? '<span class="badge-ok">✓ '+t('donar.verif')+'</span>' : (intl?'<span class="badge-ok" style="color:#1f58c7;background:var(--info-s,#eaf1fe)">🌍 '+t('acopioL.intl')+'</span>':'');
+    return '<div class="acopio-item"><div class="ah"><b>'+esc(c.nombre)+'</b>'+badge+'</div><div class="am">📍 '+esc(c.direccion||c.city||'')+(needs?' · '+esc(needs):'')+'</div><a class="acopio-go" href="https://www.google.com/maps?q='+c.lat+','+c.lng+'" target="_blank" rel="noopener">🧭 '+t('acopioL.go')+'</a></div>';
+  }).join('');
 }
 
 /* ---------- Catálogos ---------- */
@@ -1209,7 +1249,7 @@ function go(v, fromBack){
   track('view', v);   // analítica anónima
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  const NAV_OVERFLOW=new Set(['ninos','grupos','panel','bot','info','salvo','mas']);
+  const NAV_OVERFLOW=new Set(['ninos','grupos','panel','bot','info','salvo','mas','alertas','apoyo','donar','acopio']);
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v || (t.dataset.v==='mas' && NAV_OVERFLOW.has(v))));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
@@ -1218,6 +1258,7 @@ function go(v, fromBack){
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
   if(v==='alertas') loadAlertas();
+  if(v==='acopio'){ loadAcopioCentros(); renderAcopioListView(); }
   if(v==='ayuda') loadAyudaIntl();
   if(v==='salvo') renderSafe();
   if(v==='bot' && !chatStarted) startChat();
@@ -1498,6 +1539,7 @@ async function loadAcopioCentros(force){
       FEED.centros = a.filter(c=>typeof c.lat==='number'&&typeof c.lng==='number');
       _acopioLoadedAt=Date.now();
       if(curView==='refugios'){ if(activeLayers.has('acopio')){ removeLayer('acopio'); addLayer('acopio'); } if(activeLayers.has('acopio')||focusLayer==='acopio') renderHubPanel(); }
+      if(curView==='acopio' && typeof renderAcopioListView==='function') renderAcopioListView();
     }
   }catch(e){ /* offline: se conserva el feed estático */ }
 }
