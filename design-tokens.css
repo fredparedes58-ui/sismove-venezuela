@@ -1,0 +1,34 @@
+/* ============================================================================
+   SismoVE · Design tokens — sistema de diseño nuevo (fuente única de verdad).
+   Importado por shared.css (9 subpáginas) y enlazado en index.html / app.html.
+   Marca: rojo Auxilio + azul Noche · Plus Jakarta Sans (display) + Manrope (cuerpo).
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root{
+  /* ---- Paleta ---- */
+  --red:#E12923;   --red-d:#B71C18;  --red-s:rgba(225,41,35,.10);  --red-b:rgba(225,41,35,.22);
+  --ink:#16243F;   --ink2:#5A6678;   --muted:#8A93A3;
+  --green:#10916B; --green-s:rgba(16,145,107,.10); --green-b:rgba(16,145,107,.22);
+  --support:#6B4AA6; --support-s:rgba(107,74,166,.10);
+  --warn:#F2A53A;  --warn-s:rgba(242,165,58,.13);  --warn-b:rgba(242,165,58,.30);
+  --info:#2F6FED;  --info-s:rgba(47,111,237,.10);
+  --bg:#F5F6F8;    --surf:#FFFFFF;   --surf2:#F0F2F5;  --bd:#E9ECF1;
+  /* Acento ceremonial bandera VE (uso restringido) */
+  --ve-amarillo:#FFCE00; --ve-azul:#00299C; --ve-rojo:#CF142B;
+
+  /* ---- Tipografía ---- */
+  --font-display:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+
+  /* ---- Radios ---- */
+  --radius-sm:10px; --radius-md:16px; --radius-lg:22px; --radius-full:999px;
+
+  /* ---- Elevación ---- */
+  --shadow-1:0 1px 2px rgba(20,30,50,.06);
+  --shadow-card:0 2px 8px rgba(20,30,50,.06);
+  --shadow-modal:0 12px 30px rgba(20,30,50,.16);
+
+  /* ---- Espaciado (base 4, escala 8pt) ---- */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px; --sp-8:32px; --sp-12:48px;
+}

@@ -6,31 +6,32 @@
   <title>🆘 Emergencia Venezuela — ¿Qué hago ahora?</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/design-tokens.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --rojo:       #B83228;
-      --rojo-s:     rgba(184,50,40,0.08);
-      --rojo-b:     rgba(184,50,40,0.20);
-      --oro:        #B8823A;
-      --oro-s:      rgba(184,130,58,0.10);
-      --morado:     #4B3658;
-      --morado-med: #6B4F7A;
-      --verde:      #2A6E45;
-      --verde-s:    rgba(42,110,69,0.09);
+      /* Alias compat → sistema de diseño nuevo (design-tokens.css) */
+      --rojo:       var(--red);
+      --rojo-s:     var(--red-s);
+      --rojo-b:     var(--red-b);
+      --oro:        var(--warn);
+      --oro-s:      var(--warn-s);
+      --morado:     var(--ink);
+      --morado-med: var(--support);
+      --verde:      var(--green);
+      --verde-s:    var(--green-s);
       --naranja:    #A84E1A;
-      --fondo:      #FAF6F0;
-      --surface:    #FFFFFF;
-      --surface2:   #F4EDE3;
-      --texto:      #2C1F14;
-      --texto-sec:  #5C4A38;
-      --gris:       #9A8878;
-      --borde:      #E2D5C4;
+      --fondo:      var(--bg);
+      --surface:    var(--surf);
+      --surface2:   var(--surf2);
+      --texto:      var(--ink);
+      --texto-sec:  var(--ink2);
+      --gris:       var(--muted);
+      --borde:      var(--bd);
     }
     html { scroll-behavior: smooth; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: var(--font-body);
       background: var(--fondo);
       color: var(--texto);
       line-height: 1.6;
@@ -71,7 +72,7 @@
       margin-bottom: 18px;
     }
     h1 {
-      font-family: 'Playfair Display', Georgia, serif;
+      font-family: var(--font-display);
       font-size: clamp(34px, 9vw, 58px);
       font-weight: 900;
       color: var(--morado);
@@ -192,7 +193,7 @@
     }
     .bloque-emoji { font-size: 28px; line-height: 1; margin-bottom: 6px; }
     .bloque-titulo {
-      font-family: 'Playfair Display', Georgia, serif;
+      font-family: var(--font-display);
       font-size: 15px;
       font-weight: 700;
       color: var(--morado);
@@ -225,7 +226,7 @@
     .footer a { color: var(--gris); text-decoration: underline; }
     .celixir-credit { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 12px; color: var(--gris); }
     .celixir-credit a { color: var(--oro); text-decoration: none; font-weight: 600; }
-    .tagline { font-family: 'Playfair Display', serif; font-size: 13px; color: var(--morado-med); margin-top: 6px; font-style: italic; }
+    .tagline { font-family: var(--font-display); font-size: 13px; color: var(--morado-med); margin-top: 6px; font-style: italic; }
 
     /* ── TICKER ────────────────────────────────── */
     .ticker-wrap {
@@ -280,7 +281,7 @@
     }
     .calma-emoji { font-size: 32px; flex-shrink: 0; }
     .calma-titulo {
-      font-family: 'Playfair Display', Georgia, serif;
+      font-family: var(--font-display);
       font-size: 17px;
       font-weight: 700;
       color: var(--morado);
