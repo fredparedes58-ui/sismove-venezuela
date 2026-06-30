@@ -322,11 +322,11 @@ async function analiticaText(): Promise<string> {
   out += `• Profundidad: ${per(vistas, visit)} vistas por visitante\n   ↳ cuánto exploran de media (más alto = más interés)\n`;
 
   out += `\n──────────\n🔧 INTERACCIONES\n`;
-  out += `• 🔎 Búsquedas de personas: ${f(busq)}  (${per(busq, visit)} por visitante)\n`;
-  out += `• 📝 Reportes creados (mapa/desaparecidos): ${f(rep)}\n`;
-  out += `• 🤖 Bot abierto: ${f(botEv)}  (${pct(botEv, visit)} de los visitantes)\n`;
+  out += `• 🔎 Búsquedas de personas: ${f(busq)}  (${per(busq, visit)} por visitante)\n   ↳ veces que buscaron a alguien en el buscador\n`;
+  out += `• 📝 Reportes creados: ${f(rep)}\n   ↳ reportes enviados (emergencia, desaparecido, mapa)\n`;
+  out += `• 🤖 Bot abierto: ${f(botEv)}  (${pct(botEv, visit)} de los visitantes)\n   ↳ cuántos abrieron el asistente de Telegram\n`;
 
-  out += `\n──────────\n📊 SECCIONES MÁS VISTAS\n(% sobre el total de vistas)\n`;
+  out += `\n──────────\n📊 SECCIONES MÁS VISTAS\n   ↳ qué pantallas miran más · el % es del total de vistas\n`;
   out += visibles.length ? visibles.map(([l, v]) => `• ${l}: ${f(v)} · ${pct(v, vistas)}`).join('\n') : 'Aún sin datos.';
 
   // Origen + geografía (agregado sobre ev=visit; ubicación aproximada por IP)
@@ -343,9 +343,9 @@ async function analiticaText(): Promise<string> {
     const topKey = (m: Record<string, number>) => Object.entries(m).sort((x, y) => y[1] - x[1])[0]?.[0] || null;
     const ci = Object.entries(cityAgg).map(([c, a]) => ({ ciudad: c, count: a.count, pais: topKey(a.pais), region: topKey(a.region) })).sort((a, b) => b.count - a.count).slice(0, 8);
 
-    if (fu.length) out += `\n\n──────────\n🔗 CÓMO LLEGAN (fuente del tráfico)\n` + fu.map(([k, v]) => `• ${k}: ${f(v)} · ${pct(v, sample)}${refTip[k] ? `\n   ↳ ${refTip[k]}` : ''}`).join('\n');
-    if (pa.length) out += `\n\n──────────\n🌎 PAÍSES\n` + pa.map(([k, v]) => `• ${COUNTRY[k] || k} (${k}): ${f(v)} · ${pct(v, sample)}`).join('\n');
-    if (ci.length) out += `\n\n──────────\n🏙️ CIUDADES (con municipio)\n` + ci.map(c => `• ${c.ciudad} — ${placeOf(c.ciudad, c.pais, c.region)}: ${f(c.count)}`).join('\n');
+    if (fu.length) out += `\n\n──────────\n🔗 CÓMO LLEGAN (fuente del tráfico)\n   ↳ por dónde entraron a la app · el % es del total de visitas\n` + fu.map(([k, v]) => `• ${k}: ${f(v)} · ${pct(v, sample)}${refTip[k] ? `\n   ↳ ${refTip[k]}` : ''}`).join('\n');
+    if (pa.length) out += `\n\n──────────\n🌎 PAÍSES\n   ↳ desde qué país entran (ubicación aproximada por IP, no es GPS)\n` + pa.map(([k, v]) => `• ${COUNTRY[k] || k} (${k}): ${f(v)} · ${pct(v, sample)}`).join('\n');
+    if (ci.length) out += `\n\n──────────\n🏙️ CIUDADES (con municipio)\n   ↳ ciudad y su municipio aproximados (por IP); las de fuera de Venezuela muestran el país\n` + ci.map(c => `• ${c.ciudad} — ${placeOf(c.ciudad, c.pais, c.region)}: ${f(c.count)}`).join('\n');
   } catch { /* sin datos de origen */ }
 
   out += `\n\n──────────\nℹ️ La ubicación es aproximada (por IP, a nivel de ciudad): no es GPS ni identifica a nadie. El municipio se deduce de la ciudad para las principales urbes de Venezuela.\n`;
