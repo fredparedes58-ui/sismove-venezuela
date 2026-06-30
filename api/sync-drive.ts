@@ -388,6 +388,30 @@ type Adapter = {
 // estructural); hospitales ANTES que acopio (un "centro de salud" es hospital, no acopio).
 const ADAPTERS: Adapter[] = [
   {
+    // SOBREVIVIENTES / personas A SALVO en albergues (listas "por centro"). Van al MISMO registro
+    // que desaparecidos, pero SIEMPRE como estado='encontrado' (a salvo) → aparecen en el buscador
+    // con la etiqueta verde "encontrado". ADITIVO: solo agrega, nunca revierte ni borra.
+    // Debe ir ANTES que desaparecidos (un archivo de sobrevivientes no es de personas buscadas).
+    keywords: /sobrevivient|supervivient|\ba salvo\b|ilesos?\b|sanos? y salvos?/i, table: 'desaparecidos_reportes', conflict: 'ext_id', additive: true,
+    build: (row, cell, ctx) => {
+      const nombre = redactText(cell('nombre')); if (!validName(nombre, ctx.header)) return null;
+      // Localiza la columna del centro/albergue por su encabezado (sin alterar el mapeo global).
+      const ci = ctx.header.findIndex(h => { const n = norm(h); return /centro|acopio|refugio|albergue|campamento|sede/.test(n) && !/codigo|numero/.test(n); });
+      const centro = ci >= 0 ? redactText((row[ci] || '').trim()) : '';
+      // Zona = lugar tomado del nombre del archivo (ej. "sobrevivientes_la_guaira_por_centro" → "La Guaira").
+      const m = ctx.fileName.replace(/\.[a-z0-9]+$/i, '').match(/sobrevivientes?_(.+)/i);
+      const place = m ? m[1].replace(/_?por_?centro$/i, '').replace(/_/g, ' ').trim() : '';
+      const zona = place ? place.replace(/\b\w/g, c => c.toUpperCase()) : (redactText(cell('zona')) || null);
+      return {
+        ext_id: `drive:${ctx.file}:${norm([nombre, centro, zona].join('|'))}`.slice(0, 250), source: `drive:${ctx.file}`, updated_at: ctx.batch,
+        nombre, edad: cleanEdad(cell('edad')) || null, zona: zona || null,
+        visto: centro ? `A salvo en ${centro}` : null,
+        contacto: cleanPhone(cell('contacto')) || null, nota: redactText(cell('nota')) || null,
+        foto_url: safeFoto(cell('foto_url')), estado: 'encontrado', categoria: null,
+      };
+    },
+  },
+  {
     // ADITIVO: Supabase es la fuente de verdad. El Drive solo AGREGA niños nuevos; nunca
     // sobrescribe ni revierte (estado, etc.) ni borra → las promociones a rescatado en la app quedan.
     keywords: /desaparec|extravi|menores|ni[nñ]os|ni[nñ]as|perdid/i, table: 'desaparecidos_reportes', conflict: 'ext_id', additive: true,
