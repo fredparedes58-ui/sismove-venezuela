@@ -128,7 +128,15 @@
   @media(max-width:520px){.grid.cols3{grid-template-columns:1fr 1fr}}
 
   /* ---------- Need type buttons ---------- */
-  .needs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .needs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:520px){.needs{grid-template-columns:1fr 1fr}}
+  .intl-bar{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;font-family:inherit}
+  .intl-bar .intl-ico{font-size:20px;width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--bg2)}
+  .intl-bar .intl-tx{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .intl-bar .intl-tx b{font-size:14px}
+  .intl-bar .intl-tx .sub{font-size:12px;color:var(--mut);margin:0;text-align:left}
+  .intl-bar .intl-chev{font-size:22px;color:var(--mut2);transition:transform .2s;flex:none}
+  .intl-bar.open .intl-chev{transform:rotate(90deg)}
   /* ServiceTiles verticales (icono-chip arriba), como el mockup */
   .need{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:13px;cursor:pointer;
     display:flex;flex-direction:column;align-items:flex-start;gap:8px;transition:transform .12s;text-align:left;box-shadow:var(--shadow-card,0 2px 8px rgba(20,30,50,.05));font-family:inherit}
@@ -400,24 +408,19 @@
 
   <!-- ============ PEDIR AYUDA ============ -->
   <section class="view active pad" id="v-ayuda">
-    <h2 class="title" data-i18n="ayuda.q">¿Qué necesitas?</h2>
+    <h2 class="title" data-i18n="ayuda.q" style="text-align:center">¿Qué necesitas?</h2>
+    <p class="sub" data-i18n="ayuda.qsub" style="text-align:center;margin:4px 0 18px">Encuentra ayuda rápidamente. Estamos contigo.</p>
     <div class="needs" id="needGrid"></div>
-    <button class="describe-bar" onclick="openReport('')"><span style="font-size:16px">🔎</span><span data-i18n="ayuda.describe">Describe tu situación…</span></button>
 
-    <div class="card" style="background:var(--bg2);margin-top:16px">
-      <div style="display:flex;gap:10px;align-items:center">
-        <span style="font-size:22px">🤖</span>
-        <div>
-          <b>¿Prefieres que te guíe paso a paso?</b>
-          <div style="font-size:12.5px;color:var(--mut)">Usa el asistente conversacional</div>
-        </div>
-        <button class="btn ghost" style="width:auto;padding:10px 16px;margin-left:auto" onclick="go('bot')">Abrir bot →</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <b style="font-size:14px">🌍 Ayuda internacional (desde el exterior)</b>
-      <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Países y organismos fuera de Venezuela que están enviando ayuda (rescate, médica, logística, fondos). En vivo.</div>
+    <button class="card intl-bar" onclick="toggleIntl(this)" style="margin-top:16px">
+      <span class="intl-ico">🌍</span>
+      <span class="intl-tx">
+        <b data-i18n="intl.t">Ayuda internacional (desde el exterior)</b>
+        <span class="sub" data-i18n="intl.d">Países y organismos fuera de Venezuela que están enviando ayuda (rescate, médica, logística, fondos). En vivo.</span>
+      </span>
+      <span class="intl-chev">›</span>
+    </button>
+    <div id="ayudaIntlWrap" style="display:none;margin-top:10px">
       <div id="ayudaIntl"><div class="empty" style="padding:10px">Cargando…</div></div>
       <a class="ext" href="https://redayudavenezuela.com/" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px">Fuente: Red Ayuda Venezuela →</a>
     </div>
@@ -931,6 +934,8 @@ const I18N = {
     'need.rescate.l':'Rescate','need.rescate.d':'Personas atrapadas','need.medico.l':'Médico','need.medico.d':'Heridos / salud',
     'need.desap.l':'Desaparecido','need.desap.d':'Buscar persona','need.agua.l':'Agua y comida','need.agua.d':'Suministros',
     'need.refugio.l':'Refugio','need.refugio.d':'Dónde dormir','need.dano.l':'Daño estructural','need.dano.d':'Riesgo de colapso',
+    'need.hospitales.l':'Hospitales','need.hospitales.d':'Heridos / salud','need.logistica.l':'Logística','need.logistica.d':'Agua y comida','need.refugios.l':'Refugios','need.refugios.d':'Dónde dormir','need.acopio.l':'Centros de acopio','need.acopio.d':'Nacional e internacional','need.cobertura.l':'Cobertura de internet','need.cobertura.d':'Starlink gratis','need.recursos.l':'Recursos','need.recursos.d':'Apoyo psicológico, legal, información general y otros','need.ninos.l':'Niños','need.ninos.d':'Buscar a un niño',
+    'ayuda.qsub':'Encuentra ayuda rápidamente. Estamos contigo.','intl.t':'Ayuda internacional (desde el exterior)','intl.d':'Países y organismos fuera de Venezuela que están enviando ayuda (rescate, médica, logística, fondos). En vivo.',
     'sos.estamos':'Estamos contigo','sos.calma':'Mantén la calma. Vamos paso a paso.','sos.call911':'📞 Llamar al 911',
     'sos.share':'Compartir mi ubicación','sos.safe':'Estoy a salvo','sos.oficiales':'Números oficiales · toca para llamar',
     'sos.familiar':'Buscar a un familiar','sos.cerrar':'Cerrar',
@@ -968,6 +973,8 @@ const I18N = {
     'need.rescate.l':'Rescue','need.rescate.d':'People trapped','need.medico.l':'Medical','need.medico.d':'Injured / health',
     'need.desap.l':'Missing','need.desap.d':'Find a person','need.agua.l':'Water & food','need.agua.d':'Supplies',
     'need.refugio.l':'Shelter','need.refugio.d':'Where to sleep','need.dano.l':'Structural damage','need.dano.d':'Collapse risk',
+    'need.hospitales.l':'Hospitals','need.hospitales.d':'Injured / health','need.logistica.l':'Logistics','need.logistica.d':'Water & food','need.refugios.l':'Shelters','need.refugios.d':'Where to sleep','need.acopio.l':'Collection centers','need.acopio.d':'National & international','need.cobertura.l':'Internet coverage','need.cobertura.d':'Free Starlink','need.recursos.l':'Resources','need.recursos.d':'Psychological, legal & general support','need.ninos.l':'Children','need.ninos.d':'Find a child',
+    'ayuda.qsub':'Find help quickly. We are with you.','intl.t':'International aid (from abroad)','intl.d':'Countries and organizations outside Venezuela sending aid (rescue, medical, logistics, funds). Live.',
     'sos.estamos':'We are with you','sos.calma':'Stay calm. One step at a time.','sos.call911':'📞 Call 911',
     'sos.share':'Share my location','sos.safe':"I'm safe",'sos.oficiales':'Official numbers · tap to call',
     'sos.familiar':'Find a family member','sos.cerrar':'Close',
@@ -1298,15 +1305,38 @@ const NEED_SVG={
   refugio:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   dano:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
 };
+// Inicio · los 9 servicios (como el mockup). Cada tile: color de chip (claro/oscuro), icono y acción.
+const HOME_TILES=[
+  {id:'rescate',    tone:['#FDECEA','#E12923'], toneD:['rgba(225,41,35,.18)','#FF6A60'],  act:"openReport('rescate')"},
+  {id:'hospitales', tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"go('desap')"},
+  {id:'desap',      tone:['#F1ECF8','#6B4AA6'], toneD:['rgba(107,74,166,.22)','#B794E0'], act:"go('desap')"},
+  {id:'logistica',  tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"openReport('agua')"},
+  {id:'refugios',   tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('refugios')"},
+  {id:'acopio',     tone:['#F4ECE2','#8A5A2B'], toneD:['rgba(160,110,60,.24)','#D9A066'], act:"go('acopio')"},
+  {id:'cobertura',  tone:['#E7F6F0','#10916B'], toneD:['rgba(16,145,107,.20)','#4FD3A6'], act:"go('refugios');setTimeout(function(){setMapMode('cobertura')},160)"},
+  {id:'recursos',   tone:['#F1ECF8','#6B4AA6'], toneD:['rgba(107,74,166,.22)','#B794E0'], act:"go('apoyo')"},
+  {id:'ninos',      tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('ninos')", emoji:'🧒'},
+];
+const HOME_SVG={
+  rescate:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z" fill="currentColor"/></svg>',
+  hospitales:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  desap:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2"/><path d="M19 19l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  logistica:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3c3 4 5 6 5 9a5 5 0 01-10 0c0-3 2-5 5-9z" fill="currentColor"/></svg>',
+  refugios:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1H5a1 1 0 01-1-1v-8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+  acopio:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 7.5l9-4.5 9 4.5v9L12 21 3 16.5v-9z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>',
+  cobertura:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 8.5a14 14 0 0118 0M6 12a9 9 0 0112 0M9 15.3a4.5 4.5 0 016 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor"/></svg>',
+  recursos:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="8.5" r="2.2" stroke="currentColor" stroke-width="2"/><path d="M3.5 19a5.5 5.5 0 0111 0M15 19a5 5 0 016.5-4.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+};
 function renderNeeds(){
   const g=document.getElementById('needGrid'); if(!g) return;
-  const tones = document.body.classList.contains('theme-dark') ? NEED_TONE_DARK : NEED_TONE;
-  g.innerHTML = NEEDS.map(function(n){
-    const tn=tones[n.id]||tones.rescate;
-    const act = n.id==='desap' ? "go('desap')" : "openReport('"+n.id+"')";
-    return `<button class="need" onclick="${act}"><span class="ico" style="background:${tn[0]};color:${tn[1]}">${NEED_SVG[n.id]||n.ico}</span><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></button>`;
+  const dark=document.body.classList.contains('theme-dark');
+  g.innerHTML = HOME_TILES.map(function(n){
+    const tn = dark ? n.toneD : n.tone;
+    const icon = n.emoji ? n.emoji : (HOME_SVG[n.id]||'');
+    return `<button class="need" onclick="${n.act}"><span class="ico" style="background:${tn[0]};color:${tn[1]}">${icon}</span><b>${t('need.'+n.id+'.l')}</b><span>${t('need.'+n.id+'.d')}</span></button>`;
   }).join('');
 }
+function toggleIntl(btn){ const w=document.getElementById('ayudaIntlWrap'); if(!w) return; const open=w.style.display!=='none'; w.style.display=open?'none':'block'; if(btn) btn.classList.toggle('open',!open); if(!open && typeof loadAyudaIntl==='function') loadAyudaIntl(); }
 function openReport(need){
   selNeed = need || 'rescate';
   const tt=document.getElementById('reportTitle');
