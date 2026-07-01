@@ -473,7 +473,17 @@
         <div class="stat"><div class="n" id="cntNinos">—</div><div class="l" data-i18n="desap.ninosL">Niños</div></div>
         <div class="stat"><div class="n" id="cntTotal">—</div><div class="l" data-i18n="desap.totalL">Total</div></div>
       </div>
-      <div style="font-size:11px;color:var(--mut2);margin-top:8px" data-i18n="desap.repNota">Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.</div>
+      <div style="font-size:11px;color:var(--mut2);margin-top:8px" data-i18n="desap.repNota">Solo cuenta los reportes de búsqueda hechos aquí. Las personas encontradas / a salvo se muestran abajo, en la sección verde.</div>
+    </div>
+
+    <div class="card" id="encontradosCard" style="margin-top:4px;background:linear-gradient(140deg,rgba(16,145,107,.10),transparent);border-color:#1f4a30">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="font-size:14px">🟢 <span data-i18n="desap.encT">Personas encontradas / a salvo</span></b>
+        <span id="encCount" style="margin-left:auto;font-size:12px;color:var(--green);font-weight:800"></span>
+      </div>
+      <div style="font-size:12px;color:var(--mut);margin:6px 0 10px" data-i18n="desap.encP">Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Busca un nombre arriba o revisa la lista.</div>
+      <div id="encResults"></div>
+      <button class="btn ghost" id="encMore" style="margin-top:8px;display:none" onclick="loadEncontrados(true)" data-i18n="desap.encMas">Ver más</button>
     </div>
 
     <div class="card">
@@ -911,7 +921,7 @@ const I18N = {
     'report.title':'Reportar emergencia','report.sub':'La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.','report.desc':'Describe la situación','report.people':'Personas afectadas','report.city':'Ciudad / zona','report.phone':'Contacto (teléfono opcional)','report.loc':'Ubicación','report.gps':'Usar mi ubicación actual','report.send':'Enviar reporte de emergencia','report.cancel':'Cancelar',
     'mapas.search':'Buscar zona o servicio…','mapas.sub':'Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.',
     'nav.acopio':'Centros de acopio','acopioL.title':'📦 Centros de acopio','acopioL.sub':'Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.','acopioL.todos':'Todos','acopioL.need':'Necesitan ayuda','acopioL.go':'Cómo llegar','acopioL.intl':'Internacional','acopioL.none':'No hay centros con ese filtro.','acopioL.full':'Ver directorio completo (Madrid, Valencia…) →',
-    'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes hechos en SismoVE (no incluye listados externos). Los rescatados/encontrados no se cuentan aquí.',
+    'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes de búsqueda hechos aquí. Las personas encontradas / a salvo se muestran abajo, en la sección verde.','desap.encT':'Personas encontradas / a salvo','desap.encP':'Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Busca un nombre arriba o revisa la lista.','desap.encMas':'Ver más',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo','nav.inicio':'Inicio','nav.ayuda2':'Ayuda','nav.alertasS':'Alertas',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
@@ -948,7 +958,7 @@ const I18N = {
     'report.title':'Report emergency','report.sub':'AI prioritizes your report and routes it to the nearest coordination team.','report.desc':'Describe the situation','report.people':'People affected','report.city':'City / area','report.phone':'Contact (phone, optional)','report.loc':'Location','report.gps':'Use my current location','report.send':'Send emergency report','report.cancel':'Cancel',
     'mapas.search':'Search area or service…','mapas.sub':'Turn on one or more layers and cross them on the map. Tap a chip to filter.',
     'nav.acopio':'Donation centers','acopioL.title':'📦 Donation centers','acopioL.sub':'Where to drop off or receive supplies and aid. In Venezuela and abroad.','acopioL.todos':'All','acopioL.need':'Need help','acopioL.go':'Directions','acopioL.intl':'International','acopioL.none':'No centers match that filter.','acopioL.full':'See full directory (Madrid, Valencia…) →',
-    'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts reports made in SismoVE (excludes external lists). Rescued/found are not counted here.',
+    'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts the search reports made here. People found / safe are shown below, in the green section.','desap.encT':'People found / safe','desap.encP':'People reported safe in shelters and centers (La Guaira and other areas). Search a name above or browse the list.','desap.encMas':'Show more',
     'nav.mas':'More','nav.salvo':"I'm safe",'nav.inicio':'Home','nav.ayuda2':'Help','nav.alertasS':'Alerts',
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
@@ -1260,7 +1270,7 @@ function go(v, fromBack){
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
   if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros(); loadWifi();},80);
-  if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); fetch('/api/sync-fotos').catch(()=>{}); }
+  if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); loadDesapCounts(); loadEncontrados(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
   if(v==='grupos') loadGrupos();
   if(v==='alertas') loadAlertas();
@@ -2434,6 +2444,29 @@ async function loadDesapCounts(){
   ]);
   const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=Number(v).toLocaleString('es-VE');};
   set('cntAdultos',ad); set('cntNinos',ni); set('cntTotal',ad+ni);
+}
+// Personas ENCONTRADAS / a salvo (estado=encontrado, adultos: categoria null). Se muestran dentro
+// del área de desaparecidos marcadas como "encontradas", navegables además de la búsqueda por nombre.
+// Los niños rescatados tienen su propio apartado (v-ninos), por eso aquí se filtra categoria=is.null.
+let _encOff=0; const _encPage=20;
+async function loadEncontrados(more){
+  const el=document.getElementById('encResults'); if(!el) return;
+  if(!more){
+    _encOff=0; el.innerHTML='<div class="empty" style="padding:8px">Cargando…</div>';
+    sbCount('estado=eq.encontrado&categoria=is.null&select=id').then(n=>{ const e=document.getElementById('encCount'); if(e) e.textContent=Number(n).toLocaleString('es-VE')+' a salvo'; });
+  }
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=nombre,edad,zona,visto,foto_url&estado=eq.encontrado&categoria=is.null&order=created_at.desc&limit=${_encPage}&offset=${_encOff}`,{headers:SB_H});
+    const rows=r.ok?await r.json():[];
+    const html=rows.map(d=>`<div class="person"><div class="pic">${d.foto_url?`<img src="${esc(d.foto_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`:'🟢'}</div><div class="info">
+      <div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} <span class="badge st" style="color:var(--green)">encontrado</span></div>
+      <div class="dt">${d.zona?'📍 '+esc(d.zona):''}${d.visto?' · '+esc(d.visto):''}</div>
+    </div></div>`).join('');
+    if(!more) el.innerHTML = html || '<div class="empty" style="padding:8px">Aún no hay personas marcadas como encontradas.</div>';
+    else el.insertAdjacentHTML('beforeend', html);
+    _encOff += rows.length;
+    const mb=document.getElementById('encMore'); if(mb) mb.style.display = rows.length===_encPage ? 'block':'none';
+  }catch(e){ if(!more) el.innerHTML='<div class="empty" style="padding:8px">No se pudo cargar ahora. Intenta de nuevo.</div>'; }
 }
 // Dos buscadores independientes en Supabase. La cédula no se almacena en hospital_admisiones.
 let _desapT, _hospT;
