@@ -403,7 +403,7 @@
       <span>Sismo<span class="ve">VE</span></span>
     </div>
     <button class="iconbtn" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐<span id="langLabel" style="font-size:10px">ES</span></button>
-    <button class="iconbtn" onclick="go('mas')" aria-label="Más" title="Más">☰</button>
+    <button class="iconbtn" onclick="go('mas')" aria-label="Ajustes" title="Ajustes">⚙️</button>
     <button class="sos" onclick="openSOS()">SOS</button>
   </div>
 </header>
@@ -748,21 +748,9 @@
 
   <!-- ============ MÁS (secciones extra + apariencia) ============ -->
   <section class="view pad" id="v-mas">
-    <h2 class="title" data-i18n="mas.title">Más</h2>
-    <p class="sub" data-i18n="mas.sub">Más secciones y opciones de SismoVE.</p>
-    <div class="mas-grid">
-      <button class="mas-item" onclick="go('alertas')"><span class="i">🔔</span><b data-i18n="nav.alertas">Noticias y alertas</b></button>
-      <button class="mas-item" onclick="go('apoyo')"><span class="i">💜</span><b data-i18n="nav.apoyo">Apoyo psicológico</b></button>
-      <button class="mas-item" onclick="go('donar')"><span class="i">🤲</span><b data-i18n="nav.donar">Donaciones</b></button>
-      <button class="mas-item" onclick="go('acopio')"><span class="i">📦</span><b data-i18n="nav.acopio">Centros de acopio</b></button>
-      <button class="mas-item" onclick="go('ninos')"><span class="i">👶</span><b data-i18n="nav.ninos">Niños rescatados y desaparecidos</b></button>
-      <button class="mas-item" onclick="go('grupos')"><span class="i">📋</span><b data-i18n="nav.grupos">Grupos por zona</b></button>
-      <button class="mas-item" onclick="go('panel')"><span class="i">📊</span><b data-i18n="nav.panel">Panel de coordinación</b></button>
-      <button class="mas-item" onclick="go('bot')"><span class="i">🤖</span><b data-i18n="nav.bot">Asistentes (bot)</b></button>
-      <button class="mas-item" onclick="go('info')"><span class="i">📘</span><b data-i18n="nav.info">Qué hacer ante un sismo</b></button>
-      <button class="mas-item" onclick="go('salvo')"><span class="i">✅</span><b data-i18n="nav.salvo">Estoy a salvo</b></button>
-    </div>
-    <label class="fl" style="margin-top:18px" data-i18n="mas.apariencia">Apariencia</label>
+    <h2 class="title" data-i18n="ajustes.title">Ajustes</h2>
+    <p class="sub" data-i18n="ajustes.sub">Apariencia y accesibilidad.</p>
+    <label class="fl" style="margin-top:14px" data-i18n="mas.apariencia">Apariencia</label>
     <div class="theme-row" id="themeRow">
       <button data-th="light" onclick="setTheme('light')"><span style="font-size:18px">☀️</span><span data-i18n="theme.light">Claro</span></button>
       <button data-th="dark" onclick="setTheme('dark')"><span style="font-size:18px">🌙</span><span data-i18n="theme.dark">Oscuro</span></button>
@@ -842,9 +830,7 @@
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1v-8z" fill="currentColor"/></svg></span><span data-i18n="nav.inicio">Inicio</span></button>
     <button class="tab" data-v="desap" onclick="go('desap')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span data-i18n="nav.desap">Buscar</span></button>
     <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button><span class="fab-label" data-i18n="nav.ayuda2">Ayuda</span></div>
-    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-5.5 7-12a7 7 0 10-14 0c0 6.5 7 12 7 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.mapas">Mapa</span></button>
-    <button class="tab" data-v="alertas" onclick="go('alertas')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20a2 2 0 004 0" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.alertasS">Alertas</span></button>
-  </div>
+    <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-5.5 7-12a7 7 0 10-14 0c0 6.5 7 12 7 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.mapas">Mapa</span></button>  </div>
 </nav>
 
 <!-- ===== WhatsApp flotante · asistente SismoVE ===== -->
@@ -965,7 +951,7 @@ const I18N = {
     'nav.acopio':'Centros de acopio','acopioL.title':'📦 Centros de acopio','acopioL.sub':'Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.','acopioL.todos':'Todos','acopioL.need':'Necesitan ayuda','acopioL.go':'Cómo llegar','acopioL.intl':'Internacional','acopioL.none':'No hay centros con ese filtro.','acopioL.full':'Ver directorio completo (Madrid, Valencia…) →',
     'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes de búsqueda hechos aquí. Las personas encontradas / a salvo se muestran abajo, en la sección verde.','desap.encT':'Personas encontradas / a salvo','desap.encP':'Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Busca un nombre arriba o revisa la lista.','desap.encMas':'Ver más',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo','nav.inicio':'Inicio','nav.ayuda2':'Ayuda','nav.alertasS':'Alertas',
-    'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia',
+    'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia','ajustes.title':'Ajustes','ajustes.sub':'Apariencia y accesibilidad.',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
     'salvo.title':'Estoy a salvo','desap.title':'Buscar personas desaparecidas','ninos.title':'👶 Niños desaparecidos y rescatados',
     'grupos.title':'📋 Grupos por zona y edificio','mapas.title':'Mapas en vivo','panel.title':'Panel de coordinación',
@@ -1005,7 +991,7 @@ const I18N = {
     'nav.acopio':'Donation centers','acopioL.title':'📦 Donation centers','acopioL.sub':'Where to drop off or receive supplies and aid. In Venezuela and abroad.','acopioL.todos':'All','acopioL.need':'Need help','acopioL.go':'Directions','acopioL.intl':'International','acopioL.none':'No centers match that filter.','acopioL.full':'See full directory (Madrid, Valencia…) →',
     'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts the search reports made here. People found / safe are shown below, in the green section.','desap.encT':'People found / safe','desap.encP':'People reported safe in shelters and centers (La Guaira and other areas). Search a name above or browse the list.','desap.encMas':'Show more',
     'nav.mas':'More','nav.salvo':"I'm safe",'nav.inicio':'Home','nav.ayuda2':'Help','nav.alertasS':'Alerts',
-    'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance',
+    'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance','ajustes.title':'Settings','ajustes.sub':'Appearance and accessibility.',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
     'salvo.title':"I'm safe",'desap.title':'Search for missing people','ninos.title':'👶 Missing & rescued children',
     'grupos.title':'📋 Groups by area & building','mapas.title':'Live maps','panel.title':'Coordination panel',
