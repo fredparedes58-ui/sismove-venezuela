@@ -259,6 +259,21 @@
     box-shadow:0 8px 18px rgba(225,41,35,.42);display:grid;place-items:center;line-height:1;letter-spacing:.5px}
   .fab-sos:active{transform:translateY(-18px) scale(.94)}
   .fab-label{font-size:9.5px;font-weight:700;color:var(--red);line-height:1}
+  /* WhatsApp flotante (asistente) */
+  .wa-widget{position:fixed;right:16px;bottom:calc(80px + env(safe-area-inset-bottom));z-index:55;display:flex;flex-direction:column;align-items:flex-end;gap:12px;pointer-events:none}
+  .wa-widget>*{pointer-events:auto}
+  .wa-fab{width:56px;height:56px;border-radius:50%;background:#25D366;box-shadow:0 8px 20px rgba(37,211,102,.5);display:grid;place-items:center;cursor:pointer;transition:transform .15s;text-decoration:none}
+  .wa-fab:active{transform:scale(.93)}
+  .wa-fab:hover{transform:scale(1.06)}
+  .wa-pop{position:relative;width:252px;max-width:78vw;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px;box-shadow:0 12px 30px rgba(20,30,50,.18);animation:pop .25s ease}
+  .wa-pop-x{position:absolute;top:7px;right:8px;width:24px;height:24px;border:0;background:none;color:var(--mut2);font-size:15px;cursor:pointer;line-height:1}
+  .wa-pop-h{display:flex;align-items:center;gap:9px;margin-bottom:7px;padding-right:18px}
+  .wa-pop-h .wa-ico{width:30px;height:30px;border-radius:50%;background:#25D366;display:grid;place-items:center;flex:none}
+  .wa-pop-h b{font-size:14px}
+  .wa-pop p{font-size:12.5px;color:var(--mut);margin:0 0 12px;line-height:1.45}
+  .wa-pop-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;font-size:13.5px;border-radius:11px;padding:11px;width:100%}
+  .wa-pop-btn:active{transform:scale(.98)}
+  .wa-pop-note{font-size:10.5px;color:var(--mut2);text-align:center;margin-top:8px}
   /* Vista "Más" */
   .mas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
   .mas-item{display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--card);border:1px solid var(--line);
@@ -832,6 +847,30 @@
   </div>
 </nav>
 
+<!-- ===== WhatsApp flotante · asistente SismoVE ===== -->
+<div id="waWidget" class="wa-widget">
+  <div class="wa-pop" id="waPop">
+    <button class="wa-pop-x" onclick="dismissWaPop()" aria-label="Cerrar">✕</button>
+    <div class="wa-pop-h">
+      <span class="wa-ico"><svg viewBox="0 0 32 32" width="18" height="18" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.9 4 4.9 9 4.9 15.13c0 2.16.63 4.17 1.72 5.86L4.5 28l7.2-2.06c1.32.72 2.8 1.1 4.33 1.1h.01c6.14 0 11.13-5 11.13-11.13C27.17 9 22.18 4 16.04 4zm5.08 13.37c-.28-.14-1.65-.81-1.9-.9-.26-.1-.44-.14-.63.14-.19.28-.72.9-.88 1.08-.16.19-.32.21-.6.07-.28-.14-1.18-.43-2.24-1.38-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.63-1.51-.86-2.07-.23-.55-.46-.48-.63-.48h-.54c-.19 0-.49.07-.75.35-.26.28-.98.96-.98 2.33 0 1.38 1 2.71 1.14 2.9.14.19 1.97 3.01 4.77 4.22.67.29 1.19.46 1.6.59.67.21 1.28.18 1.76.11.54-.08 1.65-.67 1.88-1.32.23-.65.23-1.2.16-1.32-.07-.12-.25-.19-.53-.33z"/></svg></span>
+      <b data-i18n="wa.t">Chatea con SismoVE Bot</b>
+    </div>
+    <p data-i18n="wa.d">Nuestro asistente puede ayudarte a encontrar información y recursos rápidamente.</p>
+    <a class="wa-pop-btn" href="https://wa.me/584129352677?text=Hola%2C%20necesito%20ayuda" target="_blank" rel="noopener" onclick="if(typeof track==='function')track('bot','whatsapp')">
+      <svg viewBox="0 0 32 32" width="18" height="18" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.9 4 4.9 9 4.9 15.13c0 2.16.63 4.17 1.72 5.86L4.5 28l7.2-2.06c1.32.72 2.8 1.1 4.33 1.1h.01c6.14 0 11.13-5 11.13-11.13C27.17 9 22.18 4 16.04 4zm5.08 13.37c-.28-.14-1.65-.81-1.9-.9-.26-.1-.44-.14-.63.14-.19.28-.72.9-.88 1.08-.16.19-.32.21-.6.07-.28-.14-1.18-.43-2.24-1.38-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.63-1.51-.86-2.07-.23-.55-.46-.48-.63-.48h-.54c-.19 0-.49.07-.75.35-.26.28-.98.96-.98 2.33 0 1.38 1 2.71 1.14 2.9.14.19 1.97 3.01 4.77 4.22.67.29 1.19.46 1.6.59.67.21 1.28.18 1.76.11.54-.08 1.65-.67 1.88-1.32.23-.65.23-1.2.16-1.32-.07-.12-.25-.19-.53-.33z"/></svg>
+      <span data-i18n="wa.btn">Abrir WhatsApp</span>
+    </a>
+    <div class="wa-pop-note" data-i18n="wa.note">Usamos WhatsApp para brindarte respuestas en tiempo real.</div>
+  </div>
+  <a class="wa-fab" href="https://wa.me/584129352677?text=Hola%2C%20necesito%20ayuda" target="_blank" rel="noopener" aria-label="WhatsApp · SismoVE Bot" onclick="if(typeof track==='function')track('bot','whatsapp')">
+    <svg viewBox="0 0 32 32" width="30" height="30" fill="#fff" aria-hidden="true"><path d="M16.04 4C9.9 4 4.9 9 4.9 15.13c0 2.16.63 4.17 1.72 5.86L4.5 28l7.2-2.06c1.32.72 2.8 1.1 4.33 1.1h.01c6.14 0 11.13-5 11.13-11.13C27.17 9 22.18 4 16.04 4zm0 20.3h-.01c-1.3 0-2.58-.35-3.7-1.01l-.27-.16-3.9 1.12 1.14-3.8-.17-.28a9.24 9.24 0 01-1.42-4.9c0-5.1 4.16-9.25 9.28-9.25 2.48 0 4.8.97 6.55 2.72a9.2 9.2 0 012.72 6.54c0 5.1-4.16 9.26-9.28 9.26zm5.08-6.93c-.28-.14-1.65-.81-1.9-.9-.26-.1-.44-.14-.63.14-.19.28-.72.9-.88 1.08-.16.19-.32.21-.6.07-.28-.14-1.18-.43-2.24-1.38-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.63-1.51-.86-2.07-.23-.55-.46-.48-.63-.48h-.54c-.19 0-.49.07-.75.35-.26.28-.98.96-.98 2.33 0 1.38 1 2.71 1.14 2.9.14.19 1.97 3.01 4.77 4.22.67.29 1.19.46 1.6.59.67.21 1.28.18 1.76.11.54-.08 1.65-.67 1.88-1.32.23-.65.23-1.2.16-1.32-.07-.12-.25-.19-.53-.33z"/></svg>
+  </a>
+</div>
+<script>
+  function dismissWaPop(){ var p=document.getElementById('waPop'); if(p) p.style.display='none'; try{localStorage.setItem('sismove_wa','off');}catch(e){} }
+  (function(){ try{ if(localStorage.getItem('sismove_wa')==='off'){ var p=document.getElementById('waPop'); if(p) p.style.display='none'; } }catch(e){} })();
+</script>
+
 <!-- ===== SOS modal ===== -->
 <div class="modal sos-modal" id="sosModal" onclick="if(event.target===this)closeSOS()">
   <div class="sos-screen">
@@ -936,6 +975,7 @@ const I18N = {
     'need.refugio.l':'Refugio','need.refugio.d':'Dónde dormir','need.dano.l':'Daño estructural','need.dano.d':'Riesgo de colapso',
     'need.hospitales.l':'Hospitales','need.hospitales.d':'Heridos / salud','need.logistica.l':'Logística','need.logistica.d':'Agua y comida','need.refugios.l':'Refugios','need.refugios.d':'Dónde dormir','need.acopio.l':'Centros de acopio','need.acopio.d':'Nacional e internacional','need.cobertura.l':'Cobertura de internet','need.cobertura.d':'Starlink gratis','need.recursos.l':'Recursos','need.recursos.d':'Apoyo psicológico, legal, información general y otros','need.ninos.l':'Niños','need.ninos.d':'Buscar a un niño',
     'ayuda.qsub':'Encuentra ayuda rápidamente. Estamos contigo.','intl.t':'Ayuda internacional (desde el exterior)','intl.d':'Países y organismos fuera de Venezuela que están enviando ayuda (rescate, médica, logística, fondos). En vivo.',
+    'wa.t':'Chatea con SismoVE Bot','wa.d':'Nuestro asistente puede ayudarte a encontrar información y recursos rápidamente.','wa.btn':'Abrir WhatsApp','wa.note':'Usamos WhatsApp para brindarte respuestas en tiempo real.',
     'sos.estamos':'Estamos contigo','sos.calma':'Mantén la calma. Vamos paso a paso.','sos.call911':'📞 Llamar al 911',
     'sos.share':'Compartir mi ubicación','sos.safe':'Estoy a salvo','sos.oficiales':'Números oficiales · toca para llamar',
     'sos.familiar':'Buscar a un familiar','sos.cerrar':'Cerrar',
@@ -975,6 +1015,7 @@ const I18N = {
     'need.refugio.l':'Shelter','need.refugio.d':'Where to sleep','need.dano.l':'Structural damage','need.dano.d':'Collapse risk',
     'need.hospitales.l':'Hospitals','need.hospitales.d':'Injured / health','need.logistica.l':'Logistics','need.logistica.d':'Water & food','need.refugios.l':'Shelters','need.refugios.d':'Where to sleep','need.acopio.l':'Collection centers','need.acopio.d':'National & international','need.cobertura.l':'Internet coverage','need.cobertura.d':'Free Starlink','need.recursos.l':'Resources','need.recursos.d':'Psychological, legal & general support','need.ninos.l':'Children','need.ninos.d':'Find a child',
     'ayuda.qsub':'Find help quickly. We are with you.','intl.t':'International aid (from abroad)','intl.d':'Countries and organizations outside Venezuela sending aid (rescue, medical, logistics, funds). Live.',
+    'wa.t':'Chat with SismoVE Bot','wa.d':'Our assistant can help you find information and resources quickly.','wa.btn':'Open WhatsApp','wa.note':'We use WhatsApp to give you real-time answers.',
     'sos.estamos':'We are with you','sos.calma':'Stay calm. One step at a time.','sos.call911':'📞 Call 911',
     'sos.share':'Share my location','sos.safe':"I'm safe",'sos.oficiales':'Official numbers · tap to call',
     'sos.familiar':'Find a family member','sos.cerrar':'Close',
