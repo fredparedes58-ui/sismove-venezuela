@@ -504,7 +504,12 @@
   <!-- ============ DESAPARECIDOS (reportar / cifras / portales) ============ -->
   <section class="view pad" id="v-desaparecidos">
     <h2 class="title" data-i18n="desaparecidos.title">🔍 Personas desaparecidas</h2>
-    <p class="sub" data-i18n="desaparecidos.sub">Repórtalo, revisa las cifras y búscalo también en los portales oficiales.</p>
+    <p class="sub" data-i18n="desaparecidos.sub">Busca a la persona por su nombre; si no aparece, repórtala abajo.</p>
+
+    <div class="card" style="margin-top:4px">
+      <input id="desapQ2" placeholder="🔎 Nombre o apellido..." oninput="searchDesap('desapQ2','desapResults2')" style="margin-bottom:8px" />
+      <div id="desapResults2"></div>
+    </div>
 
     <div class="card">
       <b style="font-size:14px">🔍 ¿Buscas a alguien? Publícalo aquí</b>
@@ -641,16 +646,14 @@
     <div id="hubLegend" class="legend"></div>
     <div id="hubActions"></div>
     <div id="hubList"></div>
+  </section>
 
-    <div class="card" id="encontradosCard" style="margin-top:12px;background:linear-gradient(140deg,rgba(16,145,107,.10),transparent);border-color:#1f4a30">
-      <div style="display:flex;align-items:center;gap:8px">
-        <b style="font-size:14px">🟢 <span data-i18n="desap.encT">Personas encontradas / a salvo</span></b>
-        <span id="encCount" style="margin-left:auto;font-size:12px;color:var(--green);font-weight:800"></span>
-      </div>
-      <div style="font-size:12px;color:var(--mut);margin:6px 0 10px" data-i18n="desap.encP">Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Búscalas por nombre en 🔍 o revisa la lista.</div>
-      <div id="encResults"></div>
-      <button class="btn ghost" id="encMore" style="margin-top:8px;display:none" onclick="loadEncontrados(true)" data-i18n="desap.encMas">Ver más</button>
-    </div>
+  <!-- ============ REFUGIOS / ALBERGUES (mapa de albergues + búsqueda por refugio) ============ -->
+  <section class="view pad" id="v-albergues">
+    <h2 class="title" data-i18n="alb.title">🏠 Refugios y albergues</h2>
+    <p class="sub" data-i18n="alb.sub">Toca un refugio en el mapa para buscar si una persona está a salvo allí.</p>
+    <div id="albMap" class="card" style="padding:0;overflow:hidden;height:52vh;min-height:360px"></div>
+    <div id="albPanel" style="margin-top:12px"></div>
   </section>
 
   <!-- ============ PANEL (DASHBOARD) ============ -->
@@ -955,7 +958,7 @@ const I18N = {
     'report.title':'Reportar emergencia','report.sub':'La IA prioriza tu reporte y lo envía al equipo de coordinación más cercano.','report.desc':'Describe la situación','report.people':'Personas afectadas','report.city':'Ciudad / zona','report.phone':'Contacto (teléfono opcional)','report.loc':'Ubicación','report.gps':'Usar mi ubicación actual','report.send':'Enviar reporte de emergencia','report.cancel':'Cancelar',
     'mapas.search':'Buscar zona o servicio…','mapas.sub':'Activa una o varias capas y crúzalas sobre el mapa. Toca el chip para filtrar.',
     'nav.acopio':'Centros de acopio','acopioL.title':'📦 Centros de acopio','acopioL.sub':'Dónde llevar o recibir víveres y ayuda. En Venezuela y en el exterior.','acopioL.todos':'Todos','acopioL.need':'Necesitan ayuda','acopioL.go':'Cómo llegar','acopioL.intl':'Internacional','acopioL.none':'No hay centros con ese filtro.','acopioL.full':'Ver directorio completo (Madrid, Valencia…) →',
-    'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes de búsqueda hechos aquí. Las personas encontradas / a salvo se muestran en Refugios.','desap.encT':'Personas encontradas / a salvo','desap.encP':'Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Búscalas por nombre en 🔍 o revisa la lista.','desap.encMas':'Ver más','desaparecidos.title':'🔍 Personas desaparecidas','desaparecidos.sub':'Repórtalo, revisa las cifras y búscalo también en los portales oficiales.',
+    'desap.q':'¿A quién buscas?','desap.qsub':'Con el nombre completo nos es más fácil encontrarle. Busca en reportes e ingresos a hospitales.','desap.familiaT':'🤝 ¿No encuentras a tu familia?','desap.familiaP':'Cruz Roja Venezolana · Restablecimiento del Contacto entre Familiares.','desap.repT':'📊 Desaparecidos reportados aquí','desap.adultos':'Adultos','desap.ninosL':'Niños','desap.totalL':'Total','desap.repNota':'Solo cuenta los reportes de búsqueda hechos aquí. Las personas encontradas / a salvo se muestran en Refugios.','desap.encT':'Personas encontradas / a salvo','desap.encP':'Personas reportadas a salvo en albergues y centros (La Guaira y otras zonas). Búscalas por nombre en 🔍 o revisa la lista.','desap.encMas':'Ver más','desaparecidos.title':'🔍 Personas desaparecidas','desaparecidos.sub':'Busca a la persona por su nombre; si no aparece, repórtala abajo.','alb.title':'🏠 Refugios y albergues','alb.sub':'Toca un refugio en el mapa para buscar si una persona está a salvo allí.',
     'nav.mas':'Más','nav.salvo':'Estoy a salvo','nav.inicio':'Inicio','nav.ayuda2':'Ayuda','nav.alertasS':'Alertas',
     'mas.title':'Más','mas.sub':'Más secciones y opciones de SismoVE.','mas.apariencia':'Apariencia','ajustes.title':'Ajustes','ajustes.sub':'Apariencia y accesibilidad.',
     'theme.light':'Claro','theme.dark':'Oscuro','theme.stress':'Estrés','theme.hint':'Modo Estrés: texto grande y alto contraste para emergencias.',
@@ -995,7 +998,7 @@ const I18N = {
     'report.title':'Report emergency','report.sub':'AI prioritizes your report and routes it to the nearest coordination team.','report.desc':'Describe the situation','report.people':'People affected','report.city':'City / area','report.phone':'Contact (phone, optional)','report.loc':'Location','report.gps':'Use my current location','report.send':'Send emergency report','report.cancel':'Cancel',
     'mapas.search':'Search area or service…','mapas.sub':'Turn on one or more layers and cross them on the map. Tap a chip to filter.',
     'nav.acopio':'Donation centers','acopioL.title':'📦 Donation centers','acopioL.sub':'Where to drop off or receive supplies and aid. In Venezuela and abroad.','acopioL.todos':'All','acopioL.need':'Need help','acopioL.go':'Directions','acopioL.intl':'International','acopioL.none':'No centers match that filter.','acopioL.full':'See full directory (Madrid, Valencia…) →',
-    'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts the search reports made here. People found / safe are shown in Shelters.','desap.encT':'People found / safe','desap.encP':'People reported safe in shelters and centers (La Guaira and other areas). Search a name in 🔍 or browse the list.','desap.encMas':'Show more','desaparecidos.title':'🔍 Missing people','desaparecidos.sub':'Report a person, check the figures, and search official portals too.',
+    'desap.q':'Who are you looking for?','desap.qsub':'A full name makes it easier to find them. Search reports and hospital admissions.','desap.familiaT':'🤝 Can’t find your family?','desap.familiaP':'Venezuelan Red Cross · Restoring Family Links.','desap.repT':'📊 Missing people reported here','desap.adultos':'Adults','desap.ninosL':'Children','desap.totalL':'Total','desap.repNota':'Only counts the search reports made here. People found / safe are shown in Shelters.','desap.encT':'People found / safe','desap.encP':'People reported safe in shelters and centers (La Guaira and other areas). Search a name in 🔍 or browse the list.','desap.encMas':'Show more','desaparecidos.title':'🔍 Missing people','desaparecidos.sub':'Search a person by name; if not found, report them below.','alb.title':'🏠 Shelters','alb.sub':'Tap a shelter on the map to check if a person is safe there.',
     'nav.mas':'More','nav.salvo':"I'm safe",'nav.inicio':'Home','nav.ayuda2':'Help','nav.alertasS':'Alerts',
     'mas.title':'More','mas.sub':'More sections and options in SismoVE.','mas.apariencia':'Appearance','ajustes.title':'Settings','ajustes.sub':'Appearance and accessibility.',
     'theme.light':'Light','theme.dark':'Dark','theme.stress':'Stress','theme.hint':'Stress Mode: large text and high contrast for emergencies.',
@@ -1309,7 +1312,8 @@ function go(v, fromBack){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.v===v));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='panel') setTimeout(()=>{renderPanel(); if(map) map.invalidateSize();},80);
-  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros(); loadWifi(); loadEncontrados();},80);
+  if(v==='refugios') setTimeout(()=>{renderHub(); loadCommunityReports(); loadAcopioCentros(); loadWifi();},80);
+  if(v==='albergues') setTimeout(renderAlbergues,80);
   if(v==='desap'){ loadHospitalDocs(); ensureHospitalSync(); fetch('/api/sync-fotos').catch(()=>{}); }
   if(v==='desaparecidos') loadDesapCounts();
   if(v==='ninos'){ loadNinos(); fetch('/api/sync-drive').catch(()=>{}); }
@@ -1346,7 +1350,7 @@ const HOME_TILES=[
   {id:'ninos',      tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('ninos')", emoji:'🧒'},
   {id:'hospitales', tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"go('desap')"},
   {id:'logistica',  tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"goRed()"},
-  {id:'refugios',   tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('refugios')"},
+  {id:'refugios',   tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('albergues')"},
   {id:'acopio',     tone:['#F4ECE2','#8A5A2B'], toneD:['rgba(160,110,60,.24)','#D9A066'], act:"go('acopio')"},
   {id:'cobertura',  tone:['#E7F6F0','#10916B'], toneD:['rgba(16,145,107,.20)','#4FD3A6'], act:"go('refugios');setTimeout(function(){setMapMode('cobertura')},160)"},
   {id:'recursos',   tone:['#F1ECF8','#6B4AA6'], toneD:['rgba(107,74,166,.22)','#B794E0'], act:"go('apoyo')"},
@@ -1373,6 +1377,58 @@ function renderNeeds(){
 function toggleIntl(btn){ const w=document.getElementById('ayudaIntlWrap'); if(!w) return; const open=w.style.display!=='none'; w.style.display=open?'none':'block'; if(btn) btn.classList.toggle('open',!open); if(!open && typeof loadAyudaIntl==='function') loadAyudaIntl(); }
 // Rescate, SOS y Logística → plataforma externa "Red de Esperanza"
 function goRed(){ try{ if(typeof track==='function') track('bot','red-esperanza'); }catch(e){} window.open('https://red-de-esperanza-lime.vercel.app','_blank','noopener'); }
+// ---------- Refugios / albergues: mapa de albergues + búsqueda de personas por refugio ----------
+// Coordenadas geolocalizadas (Nominatim/OSM) de los albergues de La Guaira. `match` = subcadena del
+// campo "visto" (A salvo en …) para agrupar a las personas de cada refugio.
+const SHELTERS=[
+  {key:'playagrande', name:'Estadio de Béisbol · Playa Grande', lat:10.6031, lng:-66.9059, match:'Playa Grande'},
+  {key:'caraballeda', name:'Campo de Golf de Caraballeda',      lat:10.6128, lng:-66.8520, match:'Campo de Golf de Caraballeda'},
+  {key:'pariata',     name:'Periférico de Pariata',             lat:10.5971, lng:-66.9611, match:'Periférico de Pariata'},
+];
+let _albMap=null, _albT=null;
+function renderAlbergues(){
+  const box=document.getElementById('albMap'); if(!box || typeof L==='undefined') return;
+  if(!_albMap){
+    _albMap=L.map('albMap',{scrollWheelZoom:false}).setView([10.605,-66.88],12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap · © CARTO',subdomains:'abcd',maxZoom:18}).addTo(_albMap);
+    const pts=[];
+    SHELTERS.forEach(s=>{
+      const m=L.circleMarker([s.lat,s.lng],{radius:13,color:'#0c7a58',fillColor:'#10916B',fillOpacity:.8,weight:2}).addTo(_albMap);
+      m.bindTooltip('🏠 '+s.name,{direction:'top'});
+      m.on('click',()=>openShelter(s.key));
+      pts.push([s.lat,s.lng]);
+    });
+    if(pts.length) _albMap.fitBounds(pts,{padding:[50,50],maxZoom:13});
+  }
+  setTimeout(()=>{ if(_albMap) _albMap.invalidateSize(); },90);
+  SHELTERS.forEach(s=>{ sbCount(`estado=eq.encontrado&categoria=is.null&visto=ilike.*${encodeURIComponent(s.match)}*&select=id`).then(n=>{ s.count=n; }); });
+}
+function openShelter(key){
+  const s=SHELTERS.find(x=>x.key===key); if(!s) return;
+  const p=document.getElementById('albPanel'); if(!p) return;
+  p.innerHTML=`<div class="card"><b style="font-size:15px">🏠 ${esc(s.name)}</b>
+    <div style="font-size:12px;color:var(--mut);margin:6px 0 10px">${s.count!=null?('<b>'+Number(s.count).toLocaleString('es-VE')+'</b> personas a salvo aquí. '):''}Escribe un nombre para ver si está en este refugio.</div>
+    <input id="albQ" placeholder="🔎 Nombre o apellido..." oninput="searchShelter('${s.key}')" style="margin-bottom:8px">
+    <div id="albResults"></div></div>`;
+  const q=document.getElementById('albQ'); if(q) q.focus();
+  p.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function searchShelter(key){
+  clearTimeout(_albT);
+  _albT=setTimeout(async()=>{
+    const s=SHELTERS.find(x=>x.key===key); if(!s) return;
+    const q=(document.getElementById('albQ')?.value||'').replace(/[%,()*]/g,'').trim();
+    const el=document.getElementById('albResults'); if(!el) return;
+    if(q.length<2){ el.innerHTML=''; return; }
+    el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
+    track('search','albergue');
+    try{
+      const rows=await fetch(`${SB_URL}/rest/v1/desaparecidos_reportes?select=nombre,edad,nota&estado=eq.encontrado&categoria=is.null&visto=ilike.${encodeURIComponent('*'+s.match+'*')}&nombre=ilike.${encodeURIComponent('*'+q+'*')}&order=nombre&limit=60`,{headers:SB_H}).then(r=>r.ok?r.json():[]);
+      if(!rows.length){ el.innerHTML=`<div class="empty" style="padding:10px">No encontramos a "${esc(q)}" en ${esc(s.name)}.<br>Prueba en otro refugio o en el buscador general 🔍.</div>`; return; }
+      el.innerHTML=`<div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:6px">✅ ${rows.length} coincidencia(s) a salvo en este refugio</div>`+rows.map(d=>`<div class="person"><div class="pic">🟢</div><div class="info"><div class="nm">${esc(d.nombre)}${d.edad?' · '+esc(d.edad):''} <span class="badge st" style="color:var(--green)">a salvo</span></div>${d.nota?`<div class="dt">${esc(d.nota)}</div>`:''}</div></div>`).join('');
+    }catch(e){ el.innerHTML='<div class="empty" style="padding:8px">No se pudo buscar ahora.</div>'; }
+  },300);
+}
 function openReport(need){
   selNeed = need || 'rescate';
   const tt=document.getElementById('reportTitle');
@@ -2538,11 +2594,12 @@ async function loadEncontrados(more){
 let _desapT, _hospT;
 // 1) Desaparecidos: busca en NUESTRA base + en Red Ayuda Venezuela (96k+ reales, filtrando basura)
 const _secHdr=(t)=>`<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.4px;margin:4px 0 8px">${t}</div>`;
-function searchDesap(){
+function searchDesap(qid, resid){
+  qid=qid||'desapQ'; resid=resid||'desapResults';
   clearTimeout(_desapT);
   _desapT=setTimeout(async()=>{
-    const q=(document.getElementById('desapQ')?.value||'').replace(/[%,()*]/g,'').trim();
-    const el=document.getElementById('desapResults'); if(!el) return;
+    const q=(document.getElementById(qid)?.value||'').replace(/[%,()*]/g,'').trim();
+    const el=document.getElementById(resid); if(!el) return;
     if(q.length<2){ el.innerHTML=''; return; }
     el.innerHTML='<div class="empty" style="padding:8px">Buscando…</div>';
     track('search','desap');
