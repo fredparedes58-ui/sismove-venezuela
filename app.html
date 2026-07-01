@@ -403,8 +403,9 @@
       <span>Sismo<span class="ve">VE</span></span>
     </div>
     <button class="iconbtn" onclick="toggleLang()" aria-label="Idioma / Language" title="Español / English">🌐<span id="langLabel" style="font-size:10px">ES</span></button>
+    <button class="iconbtn" onclick="go('desap')" aria-label="Buscar" title="Buscar">🔍</button>
     <button class="iconbtn" onclick="go('mas')" aria-label="Ajustes" title="Ajustes">⚙️</button>
-    <button class="sos" onclick="openSOS()">SOS</button>
+    <button class="sos" onclick="goRed()">SOS</button>
   </div>
 </header>
 
@@ -828,8 +829,7 @@
 <nav class="tabs">
   <div class="tabs-in">
     <button class="tab on" data-v="ayuda" onclick="go('ayuda')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1v-8z" fill="currentColor"/></svg></span><span data-i18n="nav.inicio">Inicio</span></button>
-    <button class="tab" data-v="desap" onclick="go('desap')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span data-i18n="nav.desap">Buscar</span></button>
-    <div class="tab-sos"><button class="fab-sos" onclick="openSOS()" aria-label="SOS · Emergencia">SOS</button><span class="fab-label" data-i18n="nav.ayuda2">Ayuda</span></div>
+    <div class="tab-sos"><button class="fab-sos" onclick="goRed()" aria-label="SOS · Emergencia">SOS</button><span class="fab-label" data-i18n="nav.ayuda2">Ayuda</span></div>
     <button class="tab" data-v="refugios" onclick="go('refugios')"><span class="i"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 22s7-5.5 7-12a7 7 0 10-14 0c0 6.5 7 12 7 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2"/></svg></span><span data-i18n="nav.mapas">Mapa</span></button>  </div>
 </nav>
 
@@ -1334,10 +1334,10 @@ const NEED_SVG={
 };
 // Inicio · los 9 servicios (como el mockup). Cada tile: color de chip (claro/oscuro), icono y acción.
 const HOME_TILES=[
-  {id:'rescate',    tone:['#FDECEA','#E12923'], toneD:['rgba(225,41,35,.18)','#FF6A60'],  act:"openReport('rescate')"},
+  {id:'rescate',    tone:['#FDECEA','#E12923'], toneD:['rgba(225,41,35,.18)','#FF6A60'],  act:"goRed()"},
   {id:'hospitales', tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"go('desap')"},
   {id:'desap',      tone:['#F1ECF8','#6B4AA6'], toneD:['rgba(107,74,166,.22)','#B794E0'], act:"go('desap')"},
-  {id:'logistica',  tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"openReport('agua')"},
+  {id:'logistica',  tone:['#EAF1FE','#2F6FED'], toneD:['rgba(47,111,237,.20)','#7AA6FF'], act:"goRed()"},
   {id:'refugios',   tone:['#FEF4E6','#C57E18'], toneD:['rgba(242,165,58,.20)','#FFC069'], act:"go('refugios')"},
   {id:'acopio',     tone:['#F4ECE2','#8A5A2B'], toneD:['rgba(160,110,60,.24)','#D9A066'], act:"go('acopio')"},
   {id:'cobertura',  tone:['#E7F6F0','#10916B'], toneD:['rgba(16,145,107,.20)','#4FD3A6'], act:"go('refugios');setTimeout(function(){setMapMode('cobertura')},160)"},
@@ -1364,6 +1364,8 @@ function renderNeeds(){
   }).join('');
 }
 function toggleIntl(btn){ const w=document.getElementById('ayudaIntlWrap'); if(!w) return; const open=w.style.display!=='none'; w.style.display=open?'none':'block'; if(btn) btn.classList.toggle('open',!open); if(!open && typeof loadAyudaIntl==='function') loadAyudaIntl(); }
+// Rescate, SOS y Logística → plataforma externa "Red de Esperanza"
+function goRed(){ try{ if(typeof track==='function') track('bot','red-esperanza'); }catch(e){} window.open('https://red-de-esperanza-lime.vercel.app','_blank','noopener'); }
 function openReport(need){
   selNeed = need || 'rescate';
   const tt=document.getElementById('reportTitle');
